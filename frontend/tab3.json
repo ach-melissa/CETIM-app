@@ -1,0 +1,85 @@
+{
+  "data": [
+    {
+      "id": "32.5L",
+      "class": "32,5 L¹",
+      "strength_2d": null,
+      "strength_7d": { "min": 12.0 },
+      "strength_28d": { "min": 32.5, "max": 52.5 },
+      "setting_time": { "min": 75 },
+      "expansion": { "min": 10 }
+    },
+    {
+      "id": "32.5N",
+      "class": "32,5 N",
+      "strength_2d": null,
+      "strength_7d": { "min": 16.0 },
+      "strength_28d": { "min": 32.5, "max": 52.5 },
+      "setting_time": { "min": 75 },
+      "expansion": null
+    },
+    {
+      "id": "32.5R",
+      "class": "32,5 R",
+      "strength_2d": { "min": 10.0 },
+      "strength_7d": { "min": 20.0 },
+      "strength_28d": { "min": 32.5, "max": 52.5 },
+      "setting_time": { "min": 60 },
+      "expansion": null
+    },
+    {
+      "id": "42.5L",
+      "class": "42,5 L¹",
+      "strength_2d": null,
+      "strength_7d": { "min": 12.0 },
+      "strength_28d": { "min": 42.5, "max": 62.5 },
+      "setting_time": { "min": 75 },
+      "expansion": { "min": 10 }
+    },
+    {
+      "id": "42.5N",
+      "class": "42,5 N",
+      "strength_2d": null,
+      "strength_7d": { "min": 16.0 },
+      "strength_28d": { "min": 42.5, "max": 62.5 },
+      "setting_time": { "min": 60 },
+      "expansion": null
+    },
+    {
+      "id": "42.5R",
+      "class": "42,5 R",
+      "strength_2d": { "min": 20.0 },
+      "strength_7d": { "min": 30.0 },
+      "strength_28d": { "min": 42.5, "max": 62.5 },
+      "setting_time": { "min": 45 },
+      "expansion": null
+    },
+    {
+      "id": "52.5L",
+      "class": "52,5 L¹",
+      "strength_2d": { "min": 10.0 },
+      "strength_7d": { "min": 10.0 },
+      "strength_28d": { "min": 52.5, "max": null },
+      "setting_time": { "min": 10.0 },
+      "expansion": null
+    },
+    {
+      "id": "52.5N",
+      "class": "52,5 N",
+      "strength_2d": { "min": 20.0 },
+      "strength_7d": { "min": 20.0 },
+      "strength_28d": { "min": 52.5, "max": null },
+      "setting_time": { "min": 10.0 },
+      "expansion": null
+    },
+    {
+      "id": "52.5R",
+      "class": "52,5 R",
+      "strength_2d": { "min": 30.0 },
+      "strength_7d": { "min": 40.0 },
+      "strength_28d": { "min": 52.5, "max": null },
+      "setting_time": { "min": 45 },
+      "expansion": null
+    }
+  ]
+}
