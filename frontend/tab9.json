@@ -1,0 +1,36 @@
+{
+  "data": [
+    {
+      "nbr_résultat_essai": {"min": 20, "max": 39},
+      "cA": 0
+    },
+    {
+      "nbr_résultat_essai": {"min": 40, "max": 54},
+      "cA": 1
+    },
+    {
+      "nbr_résultat_essai": {"min": 55, "max": 69},
+      "cA": 2
+    },
+    {
+      "nbr_résultat_essai": {"min": 70, "max": 84},
+      "cA": 3
+    },
+    {
+      "nbr_résultat_essai": {"min": 85, "max": 99},
+      "cA": 4
+    },
+    {
+      "nbr_résultat_essai": {"min": 100, "max": 109},
+      "cA": 5
+    },
+    {
+      "nbr_résultat_essai": {"min": 110, "max": 123},
+      "cA": 6
+    },
+    {
+      "nbr_résultat_essai": {"min": 124, "max": 136},
+      "cA": 7
+    }
+  ]
+}

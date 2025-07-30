@@ -1,0 +1,104 @@
+{
+  "data": [
+    {
+      "nbr_résultat_essai": {"min": 20, "max": 21},
+      "Pk5%": 2.40,
+      "Pk10%": 1.50
+    },
+    {
+      "nbr_résultat_essai": {"min": 22, "max": 23},
+      "Pk5%": 2.35,
+      "Pk10%": 1.80
+    },
+    {
+      "nbr_résultat_essai": {"min": 24, "max": 25},
+      "Pk5%": 2.31,
+      "Pk10%": 1.85
+    },
+    {
+      "nbr_résultat_essai": {"min": 26, "max": 27},
+      "Pk5%": 2.77,
+      "Pk10%": 1.82
+    },
+    {
+      "nbr_résultat_essai": {"min": 28, "max": 29},
+      "Pk5%": 2.24,
+      "Pk10%": 1.90
+    },
+    {
+      "nbr_résultat_essai": {"min": 30, "max": 34},
+      "Pk5%": 2.22,
+      "Pk10%": 1.70
+    },
+    {
+      "nbr_résultat_essai": {"min": 35, "max": 39},
+      "Pk5%": 2.17,
+      "Pk10%": 1.73
+    },
+    {
+      "nbr_résultat_essai": {"min": 40, "max": 44},
+      "Pk5%": 2.13,
+      "Pk10%": 1.70
+    },
+    {
+      "nbr_résultat_essai": {"min": 45, "max": 49},
+      "Pk5%": 2.09,
+      "Pk10%": 1.67
+    },
+    {
+      "nbr_résultat_essai": {"min": 50, "max": 55},
+      "Pk5%": 2.07,
+      "Pk10%": 1.65
+    },
+    {
+      "nbr_résultat_essai": {"min": 60, "max": 69},
+      "Pk5%": 2.02,
+      "Pk10%": 1.61
+    },
+    {
+      "nbr_résultat_essai": {"min": 70, "max": 79},
+      "Pk5%": 1.99,
+      "Pk10%": 1.58
+    },
+    {
+      "nbr_résultat_essai": {"min": 80, "max": 89},
+      "Pk5%": 1.97,
+      "Pk10%": 1.56
+    },
+    {
+      "nbr_résultat_essai": {"min": 90, "max": 99},
+      "Pk5%": 1.94,
+      "Pk10%": 1.54
+    },
+    {
+      "nbr_résultat_essai": {"min": 100, "max": 149},
+      "Pk5%": 1.93,
+      "Pk10%": 1.53
+    },
+    {
+      "nbr_résultat_essai": {"min": 150, "max": 199},
+      "Pk5%": 1.87,
+      "Pk10%": 1.48
+    },
+    {
+      "nbr_résultat_essai": {"min": 200, "max": 299},
+      "Pk5%": 1.84,
+      "Pk10%": 1.45
+    },
+    {
+      "nbr_résultat_essai": {"min": 300, "max": 399},
+      "Pk5%": 1.80,
+      "Pk10%": 1.42
+    },
+    {
+      "nbr_résultat_essai": {"min": 400, "max": null},
+      "Pk5%": 1.78,
+      "Pk10%": 1.40
+    }
+  ],
+  "metadata": {
+    "note": "Pour n ≥ 400, max = null indique qu'il n'y a pas de limite supérieure",
+    "Pk5%_description": "Valeur pour Pₙ = 5% (référence courante et à court terme, limite inférieure)",
+    "Pk10%_description": "Valeur pour Pₙ = 10% (autres propriétés)"
+  }
+}

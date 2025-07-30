@@ -1,0 +1,24 @@
+{
+  "name": "cetim_app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ach-melissa/CETIM-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ach-melissa/CETIM-app/issues"
+  },
+  "homepage": "https://github.com/ach-melissa/CETIM-app#readme",
+  "dependencies": {
+    "mysql2": "^3.14.2"
+  }
+}
