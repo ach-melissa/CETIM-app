@@ -1,8 +1,14 @@
+// Imports Express.js, a web framework to create APIs and web servers.
 const express = require('express');
+// Imports MySQL2, used to connect and talk to a MySQL database.
 const mysql = require('mysql2');
+//Imports CORS , to allow  frontend (React or HTML page) to talk to this backend.
 const cors = require('cors');
+//Imports Node.js built-in module to work with file and directory paths 
 const path = require('path');
+// Imports bcrypt, used to hash and verify passwords securely.
 const bcrypt = require('bcrypt');
+// Imports JWT (JSON Web Token) for generating login tokens (used for authentication/authorization).
 const jwt = require('jsonwebtoken');
 
 const app = express();
