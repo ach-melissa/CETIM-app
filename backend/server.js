@@ -1,25 +1,20 @@
-// Imports Express.js, a web framework to create APIs and web servers.
 const express = require('express');
-// Imports MySQL2, used to connect and talk to a MySQL database.
 const mysql = require('mysql2');
-//Imports CORS , to allow  frontend (React or HTML page) to talk to this backend.
 const cors = require('cors');
-//Imports Node.js built-in module to work with file and directory paths 
 const path = require('path');
-// Imports bcrypt, used to hash and verify passwords securely.
 const bcrypt = require('bcrypt');
-// Imports JWT (JSON Web Token) for generating login tokens (used for authentication/authorization).
 const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = 3001;
 const SECRET_KEY = "cetim_secret_key";
 
+// ✅ Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// ✅ Define the DB connection BEFORE using it
+// ✅ Database connection
 const db = mysql.createConnection({
   host: 'localhost',
   user: 'cetim_user',
@@ -27,7 +22,6 @@ const db = mysql.createConnection({
   database: 'ciment_conformite'
 });
 
-// ✅ Now connect to the DB
 db.connect(err => {
   if (err) {
     console.error('❌ Database connection failed:', err.stack);
@@ -36,7 +30,7 @@ db.connect(err => {
   console.log('✅ Connected to database');
 });
 
-// ✅ Login API
+// ✅ Login API (POST)
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body;
 
@@ -65,12 +59,11 @@ app.post('/api/login', (req, res) => {
     );
 
     console.log("✅ Login successful for:", user.email, "Role:", user.role);
-
-    res.json({ token, role: user.role }); // ✅ Send role
+    res.json({ token, role: user.role });
   });
 });
 
-
+// ✅ Insert test result (POST)
 app.post('/api/resultats', (req, res) => {
   const data = req.body;
 
@@ -99,9 +92,9 @@ app.post('/api/resultats', (req, res) => {
     data.residu_insoluble,
     data.teneur_sulfate_so3,
     data.teneur_chlore_cl,
-    data.c3a_clinker || null, // Optional if not CEM I
-    data.ajouts || null,      // Optional if CEM I
-    data.type_ajout || null   // Optional if CEM I
+    data.c3a_clinker || null,
+    data.ajouts || null,
+    data.type_ajout || null
   ];
 
   db.query(sql, values, (err, result) => {
@@ -113,9 +106,22 @@ app.post('/api/resultats', (req, res) => {
   });
 });
 
+// ✅ Get all results (GET)
+app.get('/api/resultats', (req, res) => {
+  const sql = `SELECT * FROM resultats_essais ORDER BY id DESC`;
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("❌ Erreur SQL lors de la récupération des résultats:", err);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+    res.status(200).json(results);
+  });
+});
+
+
 
 // ✅ Start server
 app.listen(PORT, () => {
   console.log(`✅ API running on http://localhost:${PORT}`);
 });
-

@@ -36,3 +36,21 @@ CREATE TABLE utilisateurs (
   mot_de_passe VARCHAR(255) NOT NULL,
   role ENUM('admin', 'user') NOT NULL
 );
+
+-- Table for type, produit, méthode
+CREATE TABLE parametres_ciment (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  type_ciment VARCHAR(100),
+  produit_ciment VARCHAR(100),
+  methode VARCHAR(100)
+);
+
+-- Table for clients
+CREATE TABLE clients (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  sigle VARCHAR(50),
+  nom_raison_sociale VARCHAR(255),
+  adresse TEXT,
+  parametres_id INT,
+  FOREIGN KEY (parametres_id) REFERENCES parametres_ciment(id)
+);
