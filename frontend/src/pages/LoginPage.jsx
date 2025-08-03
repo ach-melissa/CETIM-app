@@ -29,8 +29,8 @@ export default function LoginPage() {
       localStorage.setItem('role', role);
 
       // ✅ React-based redirection:
-if (role === 'admin') navigate('/admin');
-else if (role === 'user') navigate('/import');
+if (role === 'admin') navigate('/traitdonnes');
+else if (role === 'user') navigate('/parentreprise');
 else setErrorMessage('Unknown role.');
 
     } catch (err) {
