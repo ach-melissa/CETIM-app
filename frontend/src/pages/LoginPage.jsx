@@ -30,7 +30,7 @@ export default function LoginPage() {
 
       // ✅ React-based redirection:
 if (role === 'admin') navigate('/traitdonnes');
-else if (role === 'user') navigate('/parentreprise');
+else if (role === 'user') navigate('/parnorm');
 else setErrorMessage('Unknown role.');
 
     } catch (err) {
