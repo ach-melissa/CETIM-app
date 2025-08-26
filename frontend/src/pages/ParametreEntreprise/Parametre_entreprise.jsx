@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import './parametre_entreprise.css';
 import axios from 'axios';
 import Header from '../../header/Header';
+import './parametre_entreprise.css';
 
 export default function ParametreEntreprise() {
   const [photo, setPhoto] = useState(null);
@@ -33,23 +33,24 @@ export default function ParametreEntreprise() {
       return;
     }
 
-    axios.get(`http://localhost:3001/api/clients/${clientId}`)
-      .then(res => {
-        const { client, parametres } = res.data;
-        setSelectedClientInfo({
-          nom_raison_sociale: client.nom_raison_sociale || '',
-          adresse: client.adresse || '',
-        });
-        setRows(parametres || []);
-      })
-      .catch(err => console.error('Error fetching client details:', err));
+axios.get(`http://localhost:3001/api/clients/${clientId}`)
+  .then(res => {
+    const { client, parametres } = res.data;
+    setSelectedClientInfo({
+      nom_raison_sociale: client.nom_raison_sociale || '',
+      adresse: client.adresse || '',
+    });
+    setRows(parametres || []);  // ✅ now parametres is []
+  })
+  .catch(err => console.error('Error fetching client details:', err));
+
   };
 
   return (
     <div className="container">
-      <Header/> 
+      <Header /> 
       
-      <h1 className="title">Paramètres Entreprise </h1>
+      <h1 className="title">Paramètres Entreprise</h1>
 
       <div className="form-section">
         <label>Photo du client :</label>
@@ -105,7 +106,4 @@ export default function ParametreEntreprise() {
     </div>
   );
 }
-
-
-
 
