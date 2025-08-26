@@ -30,7 +30,9 @@ db.connect(err => {
   console.log('✅ Connected to database');
 });
 
-// ✅ Login API (POST)
+// ======================================================
+// 🔐 AUTHENTICATION
+// ======================================================
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body;
 
@@ -63,7 +65,9 @@ app.post('/api/login', (req, res) => {
   });
 });
 
-// ✅ Insert test result (POST)
+// ======================================================
+// 🧪 RESULTATS D'ESSAIS
+// ======================================================
 app.post('/api/resultats', (req, res) => {
   const data = req.body;
 
@@ -106,7 +110,6 @@ app.post('/api/resultats', (req, res) => {
   });
 });
 
-// ✅ Get all results (GET)
 app.get('/api/resultats', (req, res) => {
   const sql = `SELECT * FROM resultats_essais ORDER BY id DESC`;
 
@@ -119,9 +122,153 @@ app.get('/api/resultats', (req, res) => {
   });
 });
 
+// ======================================================
+// 📏 PARAMETRES DE LA NORME (categories, parametres, limites)
+// ======================================================
+
+// Get all categories
+app.get('/api/categories', (req, res) => {
+  const sql = "SELECT id, nom FROM categories ORDER BY nom";
+  db.query(sql, (err, rows) => {
+    if (err) {
+      console.error("❌ Erreur SQL:", err);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+    res.json(rows);
+  });
+});
+
+// Get parameters by category
+app.get('/api/parametres', (req, res) => {
+  let { categorie } = req.query;
+  let sql = `
+    SELECT p.id, p.nom, p.unite, c.nom AS categorie
+    FROM parametres p
+    JOIN categories c ON c.id = p.categorie_id
+  `;
+  const params = [];
+  if (categorie && categorie !== "tous") {
+    sql += " WHERE c.nom = ? ";
+    params.push(categorie);
+  }
+  sql += " ORDER BY c.nom, p.nom";
+
+  db.query(sql, params, (err, rows) => {
+    if (err) {
+      console.error("❌ Erreur SQL:", err);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+    res.json(rows);
+  });
+});
+
+// Get limits for one parameter
+app.get('/api/parametres/:id/limites', (req, res) => {
+  const parametreId = req.params.id;
+  const sql = `
+    SELECT id, ciment_type, classe, limite_inf, limite_sup, limite_garantie, commentaire
+    FROM limites
+    WHERE parametre_id = ?
+    ORDER BY ciment_type, classe
+  `;
+  db.query(sql, [parametreId], (err, rows) => {
+    if (err) {
+      console.error("❌ Erreur SQL:", err);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+    res.json(rows);
+  });
+});
+
+// Get parameters WITH their limits (nested)
+app.get('/api/parametres-with-limites', (req, res) => {
+  let { categorie } = req.query;
+  let sql = `
+    SELECT p.id AS parametre_id, p.nom AS parametre_nom, p.unite, c.nom AS categorie,
+           l.id AS limite_id, l.ciment_type, l.classe, l.limite_inf, l.limite_sup, l.limite_garantie, l.commentaire
+    FROM parametres p
+    JOIN categories c ON c.id = p.categorie_id
+    LEFT JOIN limites l ON l.parametre_id = p.id
+  `;
+  const params = [];
+  if (categorie && categorie !== "tous") {
+    sql += " WHERE c.nom = ? ";
+    params.push(categorie);
+  }
+  sql += " ORDER BY c.nom, p.nom, l.ciment_type, l.classe";
+
+  db.query(sql, params, (err, rows) => {
+    if (err) {
+      console.error("❌ Erreur SQL:", err);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+
+    // Nest limits under each parameter
+    const map = new Map();
+    rows.forEach(r => {
+      if (!map.has(r.parametre_id)) {
+        map.set(r.parametre_id, {
+          id: r.parametre_id,
+          nom: r.parametre_nom,
+          unite: r.unite,
+          categorie: r.categorie,
+          limites: []
+        });
+      }
+      if (r.limite_id) {
+        map.get(r.parametre_id).limites.push({
+          id: r.limite_id,
+          ciment_type: r.ciment_type,
+          classe: r.classe,
+          limite_inf: r.limite_inf,
+          limite_sup: r.limite_sup,
+          limite_garantie: r.limite_garantie,
+          commentaire: r.commentaire
+        });
+      }
+    });
+
+    res.json([...map.values()]);
+  });
+});
 
 
+// ✅ Get client + cement parameters
+app.get("/api/clients/:sigle", (req, res) => {
+  const sigle = req.params.sigle;
+
+  const sql = `
+    SELECT c.id, c.sigle, c.nom_raison_sociale, c.adresse,
+           p.type_ciment, p.classe_resistance, p.court_terme,
+           p.min_rc_2j, p.min_rc_7j, p.min_rc_28j,
+           p.min_debut_prise, p.max_stabilite, p.max_chaleur_hydratation,
+           p.max_perte_au_feu, p.max_residu_insoluble, p.max_so3,
+           p.max_chlorure, p.max_c3a, p.exigence_pouzzolanicite,
+           p.is_lh, p.is_sr
+    FROM clients c
+    LEFT JOIN parametres_ciment p ON c.parametres_id = p.id
+    WHERE c.sigle = ?
+  `;
+
+  db.query(sql, [sigle], (err, result) => {
+    if (err) {
+      console.error("❌ Error fetching client info:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+    if (result.length === 0) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+    res.json(result[0]); // return one row
+  });
+});
+
+
+
+
+
+// ======================================================
 // ✅ Start server
+// ======================================================
 app.listen(PORT, () => {
   console.log(`✅ API running on http://localhost:${PORT}`);
 });

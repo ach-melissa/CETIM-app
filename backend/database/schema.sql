@@ -1,32 +1,233 @@
--- phpMyAdmin SQL Dump
--- version 5.2.1
--- https://www.phpmyadmin.net/
---
--- Hôte : 127.0.0.1
--- Généré le : lun. 04 août 2025 à 19:56
--- Version du serveur : 10.4.32-MariaDB
--- Version de PHP : 8.2.12
+-- =========================
+-- DATABASE
+-- =========================
+CREATE DATABASE IF NOT EXISTS ciment_conformite;
+USE ciment_conformite;
 
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
-SET time_zone = "+00:00";
+-- LOGIN PAGE 
+-- TABLE utilisateurs
+-- =========================
+CREATE TABLE utilisateurs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(191) NOT NULL UNIQUE,
+  mot_de_passe VARCHAR(255) NOT NULL,
+  role ENUM('admin','user') NOT NULL
+);
+
+INSERT INTO utilisateurs (email, mot_de_passe, role) VALUES
+('admin@cetim.dz', '$2b$10$WSo10LJR.p4F3Vx5E98WSeq5VY7XXATT3gmgqYC12rtMrD8HLUk9y', 'admin'),
+('user@cetim.dz',  '$2b$10$txGEp4e7f7gO6UXeeZPe5OXPaDVrpVCr.V2b7i0aLya8yw8NZi19W', 'user');
 
 
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
+--PARAMAETRE NORM
+-- =========================
+-- 1. Categories
+-- =========================
+DROP TABLE IF EXISTS limites;
+DROP TABLE IF EXISTS parametres;
+DROP TABLE IF EXISTS categories;
 
---
--- Base de données : `ciment_conformite`
---
+CREATE TABLE categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nom VARCHAR(50) NOT NULL
+);
 
--- --------------------------------------------------------
+INSERT INTO categories (nom) VALUES
+('mecanique'),
+('physique'),
+('chimique'),
+('durabilite'),
+('composition');
 
---
--- Structure de la table `clients`
---
+-- =========================
+-- 2. Parametres
+-- =========================
+CREATE TABLE parametres (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    categorie_id INT,
+    nom VARCHAR(255) NOT NULL,
+    unite VARCHAR(20),
+    FOREIGN KEY (categorie_id) REFERENCES categories(id)
+);
 
+-- Mechanical & Physical (Tableau 3)
+INSERT INTO parametres (categorie_id, nom, unite) VALUES
+(1, 'Résistance à 2 jours', 'MPa'),      -- id 1
+(1, 'Résistance à 7 jours', 'MPa'),      -- id 2
+(1, 'Résistance à 28 jours', 'MPa'),     -- id 3
+(2, 'Temps de début de prise', 'min'),   -- id 4
+(2, 'Stabilité', 'mm'),                  -- id 5
+(2, 'Chaleur d’hydratation', 'J/g');     -- id 6
+
+-- Chemical (Tableau 4)
+INSERT INTO parametres (categorie_id, nom, unite) VALUES
+(3, 'Perte au feu', '%'),                -- id 7
+(3, 'Résidu insoluble', '%'),            -- id 8
+(3, 'SO3 (sulfates)', '%'),              -- id 9
+(3, 'Chlorures', '%'),                   -- id 10
+(3, 'Pouzzolanicité', NULL);             -- id 11
+
+-- Durability (Tableau 5)
+INSERT INTO parametres (categorie_id, nom, unite) VALUES
+(4, 'SO3 SR', '%'),                      -- id 12
+(4, 'C3A', '%'),                         -- id 13
+(4, 'Pouzzolanicité SR', NULL);          -- id 14
+
+-- Composition (Tableau 1)
+INSERT INTO parametres (categorie_id, nom, unite) VALUES
+(5, 'Clinker', '%'),                     -- id 15
+(5, 'Laitier', '%'),                     -- id 16
+(5, 'Cendres volantes', '%'),            -- id 17
+(5, 'Pouzzolane naturelle', '%'),        -- id 18
+(5, 'Fumée de silice', '%'),             -- id 19
+(5, 'Calcaire', '%'),                    -- id 20
+(5, 'Autres constituants principaux', '%'); -- id 21
+
+-- =========================
+-- 3. Limites
+-- =========================
+CREATE TABLE limites (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    parametre_id INT,
+    ciment_type VARCHAR(50),
+    classe VARCHAR(10),
+    limite_inf DECIMAL(10,3),
+    limite_sup DECIMAL(10,3),
+    limite_garantie DECIMAL(10,3),
+    commentaire TEXT,
+    FOREIGN KEY (parametre_id) REFERENCES parametres(id)
+);
+
+-- =========================
+-- EXAMPLES (you will extend)
+-- =========================
+
+-- Résistance à 28 jours
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(3, 'CEM I', '32.5', 32.5, 52.5),
+(3, 'CEM I', '42.5', 42.5, 62.5),
+(3, 'CEM I', '52.5', 52.5, NULL);
+
+-- Début de prise
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf) VALUES
+(4, 'Tous', 'Toutes', 75);
+
+-- Stabilité
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_sup) VALUES
+(5, 'Tous', 'Toutes', 10);
+
+-- Perte au feu
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_sup) VALUES
+(7, 'CEM I', 'Toutes', 5.0),
+(7, 'CEM III', 'Toutes', 5.0);
+
+-- SO3
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_sup) VALUES
+(9, 'CEM I', '32.5 N', 3.5),
+(9, 'CEM I', '42.5 R', 4.0),
+(9, 'CEM II/B-M', 'Toutes', 4.5),
+(9, 'CEM III/C', 'Toutes', 4.5);
+
+-- =========================
+-- Composition rules (Tableau 1 – ALL CEMENTS)
+-- =========================
+
+-- CEM I: clinker 95–100
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM I', 'Toutes', 95, 100);
+
+-- CEM II/A-S (Clinker 80–94, Laitier 6–20)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM II/A-S', 'Toutes', 80, 94),
+(16, 'CEM II/A-S', 'Toutes', 6, 20);
+
+-- CEM II/B-S (Clinker 65–79, Laitier 21–35)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM II/B-S', 'Toutes', 65, 79),
+(16, 'CEM II/B-S', 'Toutes', 21, 35);
+
+-- CEM II/A-V (Clinker 80–94, Cendres 6–20)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM II/A-V', 'Toutes', 80, 94),
+(17, 'CEM II/A-V', 'Toutes', 6, 20);
+
+-- CEM II/B-V (Clinker 65–79, Cendres 21–35)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM II/B-V', 'Toutes', 65, 79),
+(17, 'CEM II/B-V', 'Toutes', 21, 35);
+
+-- CEM II/A-P (Clinker 80–94, Pouzzolane 6–20)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM II/A-P', 'Toutes', 80, 94),
+(18, 'CEM II/A-P', 'Toutes', 6, 20);
+
+-- CEM II/B-P (Clinker 65–79, Pouzzolane 21–35)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM II/B-P', 'Toutes', 65, 79),
+(18, 'CEM II/B-P', 'Toutes', 21, 35);
+
+-- CEM II/A-Q (Clinker 80–94, Fumée silice 6–20)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM II/A-Q', 'Toutes', 80, 94),
+(19, 'CEM II/A-Q', 'Toutes', 6, 20);
+
+-- CEM II/B-Q (Clinker 65–79, Fumée silice 21–35)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM II/B-Q', 'Toutes', 65, 79),
+(19, 'CEM II/B-Q', 'Toutes', 21, 35);
+
+-- CEM II/A-L (Clinker 80–94, Calcaire 6–20)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM II/A-L', 'Toutes', 80, 94),
+(20, 'CEM II/A-L', 'Toutes', 6, 20);
+
+-- CEM II/B-L (Clinker 65–79, Calcaire 21–35)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM II/B-L', 'Toutes', 65, 79),
+(20, 'CEM II/B-L', 'Toutes', 21, 35);
+
+-- CEM III/A (Clinker 35–64, Laitier 36–65)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM III/A', 'Toutes', 35, 64),
+(16, 'CEM III/A', 'Toutes', 36, 65);
+
+-- CEM III/B (Clinker 20–34, Laitier 66–80)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM III/B', 'Toutes', 20, 34),
+(16, 'CEM III/B', 'Toutes', 66, 80);
+
+-- CEM III/C (Clinker 5–19, Laitier 81–95)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM III/C', 'Toutes', 5, 19),
+(16, 'CEM III/C', 'Toutes', 81, 95);
+
+-- CEM IV/A (Clinker 65–89, Pouzzolane 11–35)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM IV/A', 'Toutes', 65, 89),
+(18, 'CEM IV/A', 'Toutes', 11, 35);
+
+-- CEM IV/B (Clinker 45–64, Pouzzolane 36–55)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM IV/B', 'Toutes', 45, 64),
+(18, 'CEM IV/B', 'Toutes', 36, 55);
+
+-- CEM V/A (Clinker 40–64, Laitier 18–30, Cendres 18–30)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM V/A', 'Toutes', 40, 64),
+(16, 'CEM V/A', 'Toutes', 18, 30),
+(17, 'CEM V/A', 'Toutes', 18, 30);
+
+-- CEM V/B (Clinker 20–38, Laitier 31–50, Cendres 18–30)
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup) VALUES
+(15, 'CEM V/B', 'Toutes', 20, 38),
+(16, 'CEM V/B', 'Toutes', 31, 50),
+(17, 'CEM V/B', 'Toutes', 18, 30);
+
+
+
+
+
+--PARAMETRE ENTREPRISE 
 CREATE TABLE `clients` (
   `id` int(11) NOT NULL,
   `sigle` varchar(50) DEFAULT NULL,
@@ -34,6 +235,7 @@ CREATE TABLE `clients` (
   `adresse` text DEFAULT NULL,
   `parametres_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 
 --
 -- Déchargement des données de la table `clients`
@@ -48,48 +250,6 @@ INSERT INTO `clients` (`id`, `sigle`, `nom_raison_sociale`, `adresse`, `parametr
 (6, 'HOLCIM', 'Holcim Algérie', 'Oran - Route d?Arzew', 4),
 (7, 'GRAVAL', 'Graval Construction', 'Constantine - Route El Khroub', 5);
 
--- --------------------------------------------------------
-
---
--- Structure de la table `echantillons`
---
-
-CREATE TABLE `echantillons` (
-  `id` int(11) NOT NULL,
-  `client_id` int(11) DEFAULT NULL,
-  `numero_echantillon` varchar(50) DEFAULT NULL,
-  `date_reception` date DEFAULT NULL,
-  `type_ciment` varchar(50) DEFAULT NULL,
-  `classe_resistance` varchar(10) DEFAULT NULL,
-  `resistance_court_terme` char(1) DEFAULT NULL,
-  `conforme` tinyint(1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
--- Structure de la table `mesures`
---
-
-CREATE TABLE `mesures` (
-  `id` int(11) NOT NULL,
-  `echantillon_id` int(11) DEFAULT NULL,
-  `rc_2j` float DEFAULT NULL,
-  `rc_7j` float DEFAULT NULL,
-  `rc_28j` float DEFAULT NULL,
-  `debut_prise` int(11) DEFAULT NULL,
-  `stabilite_mm` float DEFAULT NULL,
-  `chaleur_hydratation` float DEFAULT NULL,
-  `perte_au_feu` float DEFAULT NULL,
-  `residu_insoluble` float DEFAULT NULL,
-  `teneur_so3` float DEFAULT NULL,
-  `teneur_chlorure` float DEFAULT NULL,
-  `c3a` float DEFAULT NULL,
-  `pourcentage_ajouts` float DEFAULT NULL,
-  `type_ajout` varchar(100) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
 
 --
 -- Structure de la table `parametres_ciment`
@@ -158,165 +318,3 @@ INSERT INTO `parametres_ciment` (`id`, `type_ciment`, `classe_resistance`, `cour
 (35, 'CEM IV/B', '42,5', 'N', 10, NULL, 42.5, 50, 10, NULL, 5, 5, 4, 0.1, NULL, NULL, NULL, NULL),
 (36, 'CEM V/A', '32,5', 'N', NULL, NULL, 32.5, 60, 10, NULL, 5, 5, 4, 0.1, NULL, NULL, NULL, NULL),
 (37, 'CEM V/B', '32,5', 'N', NULL, NULL, 32.5, 60, 10, NULL, 5, 5, 4, 0.1, NULL, NULL, NULL, NULL);
-
--- --------------------------------------------------------
-
---
--- Structure de la table `resultats_essais`
---
-
-CREATE TABLE `resultats_essais` (
-  `id` int(11) NOT NULL,
-  `echantillon_id` int(11) NOT NULL,
-  `date_prelevement` date DEFAULT NULL,
-  `heure_prelevement` time DEFAULT NULL,
-  `resistance_2j` float DEFAULT NULL,
-  `resistance_7j` float DEFAULT NULL,
-  `resistance_28j` float DEFAULT NULL,
-  `debut_prise` int(11) DEFAULT NULL,
-  `stabilite_expansion` float DEFAULT NULL,
-  `chaleur_hydratation` float DEFAULT NULL,
-  `perte_feu` float DEFAULT NULL,
-  `residu_insoluble` float DEFAULT NULL,
-  `teneur_sulfate_so3` float DEFAULT NULL,
-  `teneur_chlore_cl` float DEFAULT NULL,
-  `c3a_clinker` float DEFAULT NULL,
-  `ajouts` float DEFAULT NULL,
-  `type_ajout` varchar(50) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Déchargement des données de la table `resultats_essais`
---
-
-INSERT INTO `resultats_essais` (`id`, `echantillon_id`, `date_prelevement`, `heure_prelevement`, `resistance_2j`, `resistance_7j`, `resistance_28j`, `debut_prise`, `stabilite_expansion`, `chaleur_hydratation`, `perte_feu`, `residu_insoluble`, `teneur_sulfate_so3`, `teneur_chlore_cl`, `c3a_clinker`, `ajouts`, `type_ajout`) VALUES
-(25, 1, '9999-09-09', '09:59:00', 9, 10, 15, 10, 20, 20, 10, 10, 10, 5, NULL, 5, 'cem1'),
-(26, 1, '9999-09-09', '09:59:00', 9, 10, 15, 10, 20, 20, 10, 10, 10, 5, NULL, 5, 'cem1'),
-(27, 2, '8888-08-08', '08:59:00', 8, 8, 998, 8, 88, 8, 8, 8, 8, 8, NULL, 8, 'cem4');
-
--- --------------------------------------------------------
-
---
--- Structure de la table `utilisateurs`
---
-
-CREATE TABLE `utilisateurs` (
-  `id` int(11) NOT NULL,
-  `email` varchar(191) NOT NULL,
-  `mot_de_passe` varchar(255) NOT NULL,
-  `role` enum('admin','user') NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Déchargement des données de la table `utilisateurs`
---
-
-INSERT INTO `utilisateurs` (`id`, `email`, `mot_de_passe`, `role`) VALUES
-(1, 'admin@cetim.dz', '$2b$10$WSo10LJR.p4F3Vx5E98WSeq5VY7XXATT3gmgqYC12rtMrD8HLUk9y', 'admin'),
-(2, 'user@cetim.dz', '$2b$10$txGEp4e7f7gO6UXeeZPe5OXPaDVrpVCr.V2b7i0aLya8yw8NZi19W', 'user');
-
---
--- Index pour les tables déchargées
---
-
---
--- Index pour la table `clients`
---
-ALTER TABLE `clients`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `parametres_id` (`parametres_id`);
-
---
--- Index pour la table `echantillons`
---
-ALTER TABLE `echantillons`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `client_id` (`client_id`);
-
---
--- Index pour la table `mesures`
---
-ALTER TABLE `mesures`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `echantillon_id` (`echantillon_id`);
-
---
--- Index pour la table `parametres_ciment`
---
-ALTER TABLE `parametres_ciment`
-  ADD PRIMARY KEY (`id`);
-
---
--- Index pour la table `resultats_essais`
---
-ALTER TABLE `resultats_essais`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `fk_echantillon` (`echantillon_id`);
-
---
--- Index pour la table `utilisateurs`
---
-ALTER TABLE `utilisateurs`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `email` (`email`);
-
---
--- AUTO_INCREMENT pour les tables déchargées
---
-
---
--- AUTO_INCREMENT pour la table `clients`
---
-ALTER TABLE `clients`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
-
---
--- AUTO_INCREMENT pour la table `echantillons`
---
-ALTER TABLE `echantillons`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT pour la table `mesures`
---
-ALTER TABLE `mesures`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT pour la table `parametres_ciment`
---
-ALTER TABLE `parametres_ciment`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
-
---
--- AUTO_INCREMENT pour la table `resultats_essais`
---
-ALTER TABLE `resultats_essais`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
-
---
--- AUTO_INCREMENT pour la table `utilisateurs`
---
-ALTER TABLE `utilisateurs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
-
---
--- Contraintes pour les tables déchargées
---
-
---
--- Contraintes pour la table `echantillons`
---
-ALTER TABLE `echantillons`
-  ADD CONSTRAINT `echantillons_ibfk_1` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`);
-
---
--- Contraintes pour la table `mesures`
---
-ALTER TABLE `mesures`
-  ADD CONSTRAINT `mesures_ibfk_1` FOREIGN KEY (`echantillon_id`) REFERENCES `echantillons` (`id`);
-COMMIT;
-
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
