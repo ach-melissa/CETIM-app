@@ -126,76 +126,35 @@ app.get('/api/resultats', (req, res) => {
 // 📏 PARAMETRES DE LA NORME (categories, parametres, limites)
 // ======================================================
 
-// Get all categories
-app.get('/api/categories', (req, res) => {
-  const sql = "SELECT id, nom FROM categories ORDER BY nom";
-  db.query(sql, (err, rows) => {
-    if (err) {
-      console.error("❌ Erreur SQL:", err);
-      return res.status(500).json({ error: "Erreur serveur" });
-    }
-    res.json(rows);
-  });
-});
-
-// Get parameters by category
-app.get('/api/parametres', (req, res) => {
-  let { categorie } = req.query;
-  let sql = `
-    SELECT p.id, p.nom, p.unite, c.nom AS categorie
-    FROM parametres p
-    JOIN categories c ON c.id = p.categorie_id
-  `;
-  const params = [];
-  if (categorie && categorie !== "tous") {
-    sql += " WHERE c.nom = ? ";
-    params.push(categorie);
-  }
-  sql += " ORDER BY c.nom, p.nom";
-
-  db.query(sql, params, (err, rows) => {
-    if (err) {
-      console.error("❌ Erreur SQL:", err);
-      return res.status(500).json({ error: "Erreur serveur" });
-    }
-    res.json(rows);
-  });
-});
-
-// Get limits for one parameter
-app.get('/api/parametres/:id/limites', (req, res) => {
-  const parametreId = req.params.id;
-  const sql = `
-    SELECT id, ciment_type, classe, limite_inf, limite_sup, limite_garantie, commentaire
-    FROM limites
-    WHERE parametre_id = ?
-    ORDER BY ciment_type, classe
-  `;
-  db.query(sql, [parametreId], (err, rows) => {
-    if (err) {
-      console.error("❌ Erreur SQL:", err);
-      return res.status(500).json({ error: "Erreur serveur" });
-    }
-    res.json(rows);
-  });
-});
-
 // Get parameters WITH their limits (nested)
 app.get('/api/parametres-with-limites', (req, res) => {
-  let { categorie } = req.query;
+  const { categorie } = req.query;
+
   let sql = `
-    SELECT p.id AS parametre_id, p.nom AS parametre_nom, p.unite, c.nom AS categorie,
-           l.id AS limite_id, l.ciment_type, l.classe, l.limite_inf, l.limite_sup, l.limite_garantie, l.commentaire
+    SELECT 
+      p.id AS parametre_id,
+      p.nom AS nom,
+      p.unite AS unite,
+      c.nom AS categorie,
+      l.id AS limite_id,
+      l.ciment_type,
+      l.classe,
+      l.limite_inf,
+      l.limite_sup,
+      l.limite_garantie,
+      l.commentaire
     FROM parametres p
     JOIN categories c ON c.id = p.categorie_id
     LEFT JOIN limites l ON l.parametre_id = p.id
   `;
   const params = [];
-  if (categorie && categorie !== "tous") {
-    sql += " WHERE c.nom = ? ";
+
+  if (categorie && categorie !== 'tous') {
+    sql += ` WHERE c.nom = ? `;
     params.push(categorie);
   }
-  sql += " ORDER BY c.nom, p.nom, l.ciment_type, l.classe";
+
+  sql += ` ORDER BY c.nom, p.nom, l.ciment_type, l.classe`;
 
   db.query(sql, params, (err, rows) => {
     if (err) {
@@ -204,19 +163,23 @@ app.get('/api/parametres-with-limites', (req, res) => {
     }
 
     // Nest limits under each parameter
-    const map = new Map();
+    const data = [];
+    const map = {};
+
     rows.forEach(r => {
-      if (!map.has(r.parametre_id)) {
-        map.set(r.parametre_id, {
+      if (!map[r.parametre_id]) {
+        map[r.parametre_id] = {
           id: r.parametre_id,
-          nom: r.parametre_nom,
+          nom: r.nom,
           unite: r.unite,
           categorie: r.categorie,
           limites: []
-        });
+        };
+        data.push(map[r.parametre_id]);
       }
+
       if (r.limite_id) {
-        map.get(r.parametre_id).limites.push({
+        map[r.parametre_id].limites.push({
           id: r.limite_id,
           ciment_type: r.ciment_type,
           classe: r.classe,
@@ -228,9 +191,10 @@ app.get('/api/parametres-with-limites', (req, res) => {
       }
     });
 
-    res.json([...map.values()]);
+    res.json(data);
   });
 });
+
 
 
 // ✅ Get client + cement parameters
