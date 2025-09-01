@@ -1,20 +1,18 @@
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
-const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-const PORT = 3001;
+const PORT = 5000;
 const SECRET_KEY = "cetim_secret_key";
 
-// ✅ Middleware
+// Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../frontend')));
 
-// ✅ Database connection
+// Database connection
 const db = mysql.createConnection({
   host: 'localhost',
   user: 'cetim_user',
@@ -30,29 +28,19 @@ db.connect(err => {
   console.log('✅ Connected to database');
 });
 
-// ======================================================
-// 🔐 AUTHENTICATION
-// ======================================================
+// Login route
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body;
 
   const sql = `SELECT * FROM utilisateurs WHERE email = ? LIMIT 1`;
   db.query(sql, [email], async (err, results) => {
-    if (err) {
-      console.error("❌ SQL error:", err);
-      return res.status(500).json({ error: "Erreur serveur" });
-    }
+    if (err) return res.status(500).json({ error: "Database error" });
 
-    if (results.length === 0) {
-      return res.status(401).json({ error: "Email ou mot de passe incorrect" });
-    }
+    if (results.length === 0) return res.status(401).json({ error: "Email ou mot de passe incorrect" });
 
     const user = results[0];
     const match = await bcrypt.compare(password, user.mot_de_passe);
-
-    if (!match) {
-      return res.status(401).json({ error: "Email ou mot de passe incorrect" });
-    }
+    if (!match) return res.status(401).json({ error: "Email ou mot de passe incorrect" });
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
@@ -60,10 +48,14 @@ app.post('/api/login', (req, res) => {
       { expiresIn: '2h' }
     );
 
-    console.log("✅ Login successful for:", user.email, "Role:", user.role);
     res.json({ token, role: user.role });
   });
 });
+
+
+
+
+
 
 // ======================================================
 // 🧪 RESULTATS D'ESSAIS
@@ -122,50 +114,48 @@ app.get('/api/resultats', (req, res) => {
   });
 });
 
+
+
+
+
+
+
+
+
+
+
+
 // ======================================================
 // 📏 PARAMETRES DE LA NORME (categories, parametres, limites)
 // ======================================================
+// categories route
+app.get("/api/categories", (req, res) => {
+  db.query("SELECT id, nom FROM categories", (err, rows) => {
+    if (err) return res.status(500).json({ error: "DB Error" });
+    res.json(rows);
+  });
+});
 
-// Get parameters WITH their limits (nested)
-app.get('/api/parametres-with-limites', (req, res) => {
+// parametres-with-limites route
+app.get("/api/parametres-with-limites", (req, res) => {
   const { categorie } = req.query;
-
   let sql = `
-    SELECT 
-      p.id AS parametre_id,
-      p.nom AS nom,
-      p.unite AS unite,
-      c.nom AS categorie,
-      l.id AS limite_id,
-      l.ciment_type,
-      l.classe,
-      l.limite_inf,
-      l.limite_sup,
-      l.limite_garantie,
-      l.commentaire
+    SELECT p.id AS parametre_id, p.nom, p.unite, c.nom AS categorie,
+           l.id AS limite_id, l.ciment_type, l.classe,
+           l.limite_inf, l.limite_sup, l.limite_garantie
     FROM parametres p
     JOIN categories c ON c.id = p.categorie_id
     LEFT JOIN limites l ON l.parametre_id = p.id
   `;
   const params = [];
-
-  if (categorie && categorie !== 'tous') {
-    sql += ` WHERE c.nom = ? `;
+  if (categorie && categorie !== "tous") {
+    sql += " WHERE c.nom = ?";
     params.push(categorie);
   }
-
-  sql += ` ORDER BY c.nom, p.nom, l.ciment_type, l.classe`;
-
   db.query(sql, params, (err, rows) => {
-    if (err) {
-      console.error("❌ Erreur SQL:", err);
-      return res.status(500).json({ error: "Erreur serveur" });
-    }
-
-    // Nest limits under each parameter
+    if (err) return res.status(500).json({ error: "DB Error" });
     const data = [];
     const map = {};
-
     rows.forEach(r => {
       if (!map[r.parametre_id]) {
         map[r.parametre_id] = {
@@ -177,7 +167,6 @@ app.get('/api/parametres-with-limites', (req, res) => {
         };
         data.push(map[r.parametre_id]);
       }
-
       if (r.limite_id) {
         map[r.parametre_id].limites.push({
           id: r.limite_id,
@@ -185,15 +174,25 @@ app.get('/api/parametres-with-limites', (req, res) => {
           classe: r.classe,
           limite_inf: r.limite_inf,
           limite_sup: r.limite_sup,
-          limite_garantie: r.limite_garantie,
-          commentaire: r.commentaire
+          limite_garantie: r.limite_garantie
         });
       }
     });
-
     res.json(data);
   });
 });
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
