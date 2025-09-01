@@ -14,11 +14,14 @@ export default function LoginPage() {
     e.preventDefault();
 
     try {
-      const response = await fetch('http://localhost:3001/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+
+const response = await fetch(`${API_BASE}/api/login`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email, password }),
+});
+
 
       if (!response.ok) throw new Error('Login failed');
 

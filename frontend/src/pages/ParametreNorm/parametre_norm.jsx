@@ -12,28 +12,28 @@ export default function ParametreNorm() {
   const [data, setData] = useState([]); 
 
   // ✅ Récupération dynamique
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const url = selectedOption === "tous"
-          ? `${API_BASE}/api/parametres-with-limites`
-          : `${API_BASE}/api/parametres-with-limites?categorie=${selectedOption}`;
-        
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        setData(json);
-      } catch (e) {
-        console.error(e);
-        setError('❌ Impossible de charger les paramètres. Vérifie API et DB.');
-      } finally {
-        setLoading(false);
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      // fetch categories
+      const response = await fetch(`${API_BASE}/api/categories`);
+      const categoriesData = await response.json();
+      setCategories(categoriesData);
+
+      // fetch parameters for the first category (example)
+      if (categoriesData.length > 0) {
+        const cat = categoriesData[0].nom; // or "mecanique"
+        const response2 = await fetch(`${API_BASE}/api/parametres-with-limites?categorie=${cat}`);
+        const paramsData = await response2.json();
+        setParams(paramsData);
       }
-    };
-    fetchData();
-  }, [selectedOption]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+  fetchData();
+}, []);
+
 
   const titleCase = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
