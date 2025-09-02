@@ -127,6 +127,7 @@ INSERT INTO categories_parametre (nom) VALUES
 ('chimique'),
 ('supplémentaire');
 
+RENAME TABLE categories_parametre TO categories;
 
 
 -- =========================
@@ -694,4 +695,70 @@ INSERT INTO parametres (type_ciment_id, categorie_id, nom_parametre, limite_gara
 
 
 
+CREATE TABLE limites (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    parametre_id INT NOT NULL,
+    ciment_type VARCHAR(50),
+    classe VARCHAR(50),
+    limite_inf FLOAT,
+    limite_sup FLOAT,
+    FOREIGN KEY (parametre_id) REFERENCES parametres(id)
+);
+
+
+INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup)
+SELECT 
+    p.id AS parametre_id,
+    p.type_ciment_id AS ciment_type,
+    p.classe_resistance_id AS classe,
+    0 AS limite_inf,               -- default or calculated
+    CAST(p.limite_garantie AS DECIMAL(10,2)) AS limite_sup
+FROM parametres p
+WHERE p.limite_garantie IS NOT NULL;
+
+
+
+
+
+
+
+
+
+
+-----------------------------
+-- parametre entreprise --
+-----------------------------
+CREATE TABLE clients (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  sigle VARCHAR(50) DEFAULT NULL,
+  nom_resaux_sociale VARCHAR(255) DEFAULT NULL,
+  adresse TEXT DEFAULT NULL,
+  famillecement VARCHAR(50) DEFAULT NULL,
+  typecement VARCHAR(50) DEFAULT NULL,
+  methodeessai VARCHAR(50) DEFAULT NULL
+);
+
+
+
+
+
+--
+-- Déchargement des données de la table `clients`
+--
+
+INSERT INTO `clients` (`id`, `sigle`, `nom_resaux_sociale`, `adresse`) VALUES
+(1, 'CETIM', 'Centre d?Etudes et de Contrôle des Matériaux', 'Zone industrielle, Alger'),
+(2, 'ENPC', 'Entreprise Nationale des Produits de Construction', 'Rue des cimenteries, Oran'),
+(3, 'CETIM', 'Centre d?Études des Matériaux', 'Zone industrielle - Alger'),
+(4, 'SONACIM', 'Société Nationale des Ciments', 'Boumerdès, Algérie'),
+(5, 'LAFARGE', 'Lafarge Cement Company', 'Zéralda, Alger'),
+(6, 'HOLCIM', 'Holcim Algérie', 'Oran - Route d?Arzew'),
+(7, 'GRAVAL', 'Graval Construction', 'Constantine - Route El Khroub');
+
+
+UPDATE clients
+SET famillecement = 'CEM II',
+    typecement = 'CEM II/A-S',
+    methodeessai = 'EN196-2'
+WHERE id = 2;
 

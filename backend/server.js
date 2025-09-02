@@ -137,51 +137,31 @@ app.get("/api/categories", (req, res) => {
 });
 
 // parametres-with-limites route
+// server.js (Express)
+
 app.get("/api/parametres-with-limites", (req, res) => {
-  const { categorie } = req.query;
-  let sql = `
-    SELECT p.id AS parametre_id, p.nom, p.unite, c.nom AS categorie,
-           l.id AS limite_id, l.ciment_type, l.classe,
-           l.limite_inf, l.limite_sup, l.limite_garantie
+  const categorie = req.query.categorie || 'mecanique'; // default for testing
+  const sql = `
+    SELECT
+      p.id AS parametre_id,
+      p.nom_parametre AS nom,
+      p.limite_garantie,
+      c.nom AS categorie,
+      l.id AS limite_id,
+      l.ciment_type,
+      l.classe,
+      l.limite_inf,
+      l.limite_sup
     FROM parametres p
     JOIN categories c ON c.id = p.categorie_id
     LEFT JOIN limites l ON l.parametre_id = p.id
+    WHERE LOWER(c.nom) = LOWER(?)
   `;
-  const params = [];
-  if (categorie && categorie !== "tous") {
-    sql += " WHERE c.nom = ?";
-    params.push(categorie);
-  }
-  db.query(sql, params, (err, rows) => {
-    if (err) return res.status(500).json({ error: "DB Error" });
-    const data = [];
-    const map = {};
-    rows.forEach(r => {
-      if (!map[r.parametre_id]) {
-        map[r.parametre_id] = {
-          id: r.parametre_id,
-          nom: r.nom,
-          unite: r.unite,
-          categorie: r.categorie,
-          limites: []
-        };
-        data.push(map[r.parametre_id]);
-      }
-      if (r.limite_id) {
-        map[r.parametre_id].limites.push({
-          id: r.limite_id,
-          ciment_type: r.ciment_type,
-          classe: r.classe,
-          limite_inf: r.limite_inf,
-          limite_sup: r.limite_sup,
-          limite_garantie: r.limite_garantie
-        });
-      }
-    });
-    res.json(data);
+  db.query(sql, [categorie], (err, results) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    res.json(results);
   });
 });
-
 
 
 
