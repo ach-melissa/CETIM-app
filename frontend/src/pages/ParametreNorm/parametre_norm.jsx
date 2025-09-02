@@ -7,33 +7,31 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3001";
 export default function ParametreNorm() {
   // ✅ Déclare toujours l’état au tout début
   const [selectedOption, setSelectedOption] = useState('tous');
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState([]); 
 
   // ✅ Récupération dynamique
 useEffect(() => {
-  const fetchData = async () => {
-    try {
-      // fetch categories
-      const response = await fetch(`${API_BASE}/api/categories`);
-      const categoriesData = await response.json();
-      setCategories(categoriesData);
+    const fetchData = async () => {
+      try {
+        // Fetch categories
+        const response = await fetch(`${API_BASE}/api/categories`);
+        const data = await response.json();
+        setCategories(data);
 
-      // fetch parameters for the first category (example)
-      if (categoriesData.length > 0) {
-        const cat = categoriesData[0].nom; // or "mecanique"
-        const response2 = await fetch(`${API_BASE}/api/parametres-with-limites?categorie=${cat}`);
+        // Example: fetch parameters for "mecanique" category
+        const response2 = await fetch(`${API_BASE}/api/parametres-with-limites?categorie=mecanique`);
         const paramsData = await response2.json();
         setParams(paramsData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
       }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    }
-  };
-  fetchData();
-}, []);
+    };
 
+    fetchData();
+  }, []);
 
   const titleCase = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
