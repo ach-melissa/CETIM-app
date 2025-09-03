@@ -1,232 +1,161 @@
-/* =============== Base =============== */
-:root {
-  --bg: #ffffff;
-  --fg: #111827;            /* slate-900 */
-  --muted: #6b7280;         /* gray-500 */
-  --card: #ffffff;
-  --card-border: #e5e7eb;   /* gray-200 */
-  --primary: #2563eb;       /* blue-600 */
-  --primary-weak: #dbeafe;  /* blue-100 */
-  --table-head: #f3f4f6;    /* gray-100 */
-  --table-row: #ffffff;
-  --table-row-alt: #fafafa;
-  --shadow: 0 6px 20px rgba(0,0,0,.06);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b0f15;
-    --fg: #e5e7eb;
-    --muted: #9ca3af;
-    --card: #0f1720;
-    --card-border: #1f2937;
-    --primary: #60a5fa;
-    --primary-weak: #0b254a;
-    --table-head: #111827;
-    --table-row: #0f1720;
-    --table-row-alt: #0c131c;
-    --shadow: 0 8px 24px rgba(0,0,0,.35);
-  }
-}
-
-html, body {
-  color: var(--fg);
-}
 .parametreNormPage {
   min-height: 100vh;
-  color: var(--fg);
+  background-color: #f5f7f9;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin-top: 300px;
 }
 
-/* If Header is fixed, push content down */
-.parametreNormPage .content {
-  padding-top: 200px; /* adjust to your Header height */
-  padding-left: 20px;
-  padding-right: 20px;
+.content {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-/* =============== Headings =============== */
 h1 {
- 
-  font-size: clamp(1.4rem, 1.1rem + 1vw, 2rem);
-  margin: 12px 0 10px;
-  letter-spacing: .2px;
-  color: rgb(15, 15, 88);
+  color: #2c3e50;
+  text-align: center;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 15px;
 }
+
 h2 {
-  font-size: clamp(1.05rem, .95rem + .5vw, 1.25rem);
-  margin: 18px 0 10px;
-  color: rgb(15, 15, 88);
-}
-h3 {
-  font-size: 1.05rem;
-  margin: 14px 0 10px;
-  color: rgb(15, 15, 88);
+  color: #34495e;
+  margin-bottom: 20px;
 }
 
-/* =============== Radio Filters =============== */
-/* works with your current structure: <label><input type="radio" /> Text</label> */
-label {
-  cursor: pointer;
-  user-select: none;
+.category-selection {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
 }
 
-label input[type="radio"] {
-  accent-color: var(--primary);
-  transform: translateY(1px);
-  margin-right: 6px;
-}
-
-/* Add a pill-like look to the whole label */
-label:has(input[type="radio"]) {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: 1px solid var(--card-border);
-  border-radius: 999px;
-  background: var(--card);
-  box-shadow: var(--shadow);
-  transition: border-color .2s ease, background .2s ease, transform .06s ease;
-}
-
-label:has(input[type="radio"]:checked) {
-  border-color: var(--primary);
-  background: color-mix(in oklab, var(--primary-weak) 50%, var(--card));
-}
-
-label:active {
-  transform: translateY(1px);
-}
-
-/* =============== Property Cards =============== */
-.propCard {
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: 14px;
-  padding: 14px 16px;
-  box-shadow: var(--shadow);
-  min-height: 84px;
+.category-buttons {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  transition: transform .12s ease, box-shadow .2s ease, border-color .2s ease;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.propCard:hover {
-  transform: translateY(-2px);
-  border-color: var(--primary);
-  box-shadow: 0 10px 28px rgba(0,0,0,.10);
+.category-buttons button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 6px;
+  background-color: #ecf0f1;
+  color: #2c3e50;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.propCard strong {
-  font-weight: 700;
+.category-buttons button:hover {
+  background-color: #d6dbdf;
 }
 
-.propCard label {
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+.category-buttons button.active {
+  background-color: #3498db;
+  color: white;
 }
 
-/* =============== Limits Table =============== */
-table {
+.loading {
+  text-align: center;
+  padding: 40px;
+  font-size: 18px;
+  color: #7f8c8d;
+}
+
+.error-message {
+  background-color: #e74c3c;
+  color: white;
+  padding: 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.parameters-container {
+  background-color: white;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.parameter-card {
+  margin-bottom: 40px;
+  padding-bottom: 30px;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.parameter-card:last-child {
+  border-bottom: none;
+}
+
+.parameter-card h3 {
+  color: #2c3e50;
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+
+.table-container {
+  overflow-x: auto;
+  margin-top: 15px;
+}
+
+.parameter-table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
-  overflow: hidden; /* keep rounded corners on header */
-  box-shadow: var(--shadow);
 }
 
-thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--table-head);
-  color: var(--fg);
-  text-align: left;
+.parameter-table th {
+  background-color: #34495e;
+  color: white;
+  padding: 12px;
+  text-align: center;
   font-weight: 600;
-  letter-spacing: .2px;
-  border-bottom: 1px solid var(--card-border);
 }
 
-th, td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--card-border);
-  vertical-align: top;
-  font-size: 0.95rem;
+.parameter-table td {
+  padding: 10px;
+  border: 1px solid #ecf0f1;
+  text-align: center;
 }
 
-tbody tr:nth-child(even) {
-  background: var(--table-row-alt);
+.cement-type {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  text-align: left !important;
 }
 
-tbody tr:hover {
-  outline: 1px solid var(--primary);
-  outline-offset: -1px;
-  background: color-mix(in oklab, var(--primary-weak) 35%, transparent);
+.garantie-cell {
+  background-color: #e8f4fc;
+  color: #2980b9;
+  font-weight: 600;
 }
 
-/* Dashes look lighter */
-td:empty::after,
-td:has(> span.empty)::after {
-  content: "—";
-  color: var(--muted);
+.no-limits {
+  text-align: center;
+  font-style: italic;
+  color: #999;
 }
 
-/* Numbers alignment */
-td:nth-child(3),
-td:nth-child(4),
-td:nth-child(5) {
-  font-variant-numeric: tabular-nums;
-}
-
-/* =============== Status / Helpers =============== */
-p[style*="color: red"] {
-  padding: 10px 12px;
-  border: 1px solid #ef4444;
-  background: color-mix(in oklab, #ef4444 10%, var(--bg));
-  border-radius: 10px;
-}
-
-p:has(> svg),
-p:has(> .spinner) {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* =============== Mobile Responsive Table =============== */
-@media (max-width: 720px) {
-  thead {
-    display: none;
+/* Responsive design */
+@media (max-width: 768px) {
+  .content {
+    padding: 15px;
   }
-  table,
-  tbody,
-  tr,
-  td {
-    display: block;
+  
+  .category-buttons {
+    flex-direction: column;
+  }
+  
+  .category-buttons button {
     width: 100%;
   }
-  tbody tr {
-    border-bottom: 1px solid var(--card-border);
-    margin-bottom: 10px;
-    background: var(--card);
-  }
-  td {
-    border: 0;
-    padding: 8px 12px;
-  }
-  td::before {
-    content: attr(data-label);
-    display: block;
-    font-size: .82rem;
-    color: var(--muted);
-    margin-bottom: 4px;
-    text-transform: uppercase;
-    letter-spacing: .4px;
+  
+  .parameter-table th,
+  .parameter-table td {
+    padding: 8px 5px;
+    font-size: 14px;
   }
 }
-
