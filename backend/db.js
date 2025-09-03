@@ -1,12 +1,13 @@
-// db.js
-const mysql = require("mysql2");
+const mysql = require('mysql2');
 
-const db = mysql.createPool({
-  host: "localhost",
-  user: "root",
-  password: "your_password",
-  database: "ciment_conformite"
+const connection = mysql.createConnection({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'ciment_conformite'
 });
 
-module.exports = db;
+// Use promise wrapper
+const db = connection.promise();
 
+module.exports = db;
