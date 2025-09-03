@@ -15,15 +15,43 @@ const TraitDonnes = () => {
   const [success, setSuccess] = useState('');
   const [activeTab, setActiveTab] = useState('donnees');
   const [loading, setLoading] = useState(false);
+  
+  // States for charts
+  const [selectedParameter, setSelectedParameter] = useState('rc28j');
+  const [selectedClass, setSelectedClass] = useState('42.5N');
+  const [chartStats, setChartStats] = useState(null);
 
-  // Charger la liste des clients
+  // Parameter options
+  const parameters = [
+    { id: 'rc2j', label: 'Résistance 2 jours (RC2J)' },
+    { id: 'rc7j', label: 'Résistance 7 jours (RC7J)' },
+    { id: 'rc28j', label: 'Résistance 28 jours (RC28J)' },
+    { id: 'tdprise', label: 'Temps de début de prise' },
+    { id: 'stblt', label: 'Stabilité (expansion)' },
+    { id: 'cl', label: 'Chaleur d\'hydratation' },
+    { id: 'ptf', label: 'Perte au feu' },
+    { id: 'resinso', label: 'Résidu insoluble' },
+    { id: 'so3', label: 'SO3' },
+    { id: 'chl', label: 'Chlorures' },
+    { id: 'pouz', label: 'Pouzzolanicité' },
+    { id: 'so3sr', label: 'SO3 (SR)' },
+    { id: 'c3a', label: 'C3A (clinker)' },
+    { id: 'pouzsr', label: 'Pouzzolanicité (SR)' }
+  ];
+
+  // Class options organized by type
+  const classOptions = {
+    'N': ['32.5N', '42.5N', '52.5N'],
+    'R': ['32.5R', '42.5R', '52.5R'],
+    'L': ['32.5L', '42.5L', '52.5L']
+  };
+
+  // Load clients list
   useEffect(() => {
     setLoading(true);
     fetch('http://localhost:3001/api/clients')
       .then(res => {
-        if (!res.ok) {
-          throw new Error('Erreur réseau');
-        }
+        if (!res.ok) throw new Error('Erreur réseau');
         return res.json();
       })
       .then(data => {
@@ -35,7 +63,7 @@ const TraitDonnes = () => {
         setError("Erreur lors du chargement des clients. Vérifiez que le serveur est démarré.");
         setLoading(false);
         
-        // Données factices pour tester
+        // Mock data for testing
         setClients([
           { id: 1, nom_raison_sociale: 'CETIM - Centre d\'Études et de Contrôle des Matériaux' },
           { id: 2, nom_raison_sociale: 'ENPC - Entreprise Nationale des Produits de Construction' },
@@ -46,7 +74,7 @@ const TraitDonnes = () => {
       });
   }, []);
 
-  // Charger les produits lorsqu'un client est sélectionné
+  // Load products when a client is selected
   useEffect(() => {
     if (!selectedClient) {
       setProduits([]);
@@ -55,7 +83,7 @@ const TraitDonnes = () => {
       return;
     }
 
-    // Données factices pour les produits
+    // Mock products data
     const produitsFactices = [
       { id: 1, nom: 'CEM I', description: 'Ciment Portland' },
       { id: 2, nom: 'CEM II/A', description: 'Ciment Portland composé' },
@@ -68,7 +96,7 @@ const TraitDonnes = () => {
     setProduits(produitsFactices);
   }, [selectedClient]);
 
-  // Mettre à jour la description du produit sélectionné
+  // Update description of selected product
   useEffect(() => {
     if (!selectedProduit) {
       setProduitDescription('');
@@ -81,34 +109,107 @@ const TraitDonnes = () => {
     }
   }, [selectedProduit, produits]);
 
-  // Charger les données du tableau lorsque tous les critères sont sélectionnés
+  // Load table data when all criteria are selected
   useEffect(() => {
     if (!selectedClient || !selectedProduit || !phase) {
       setTableData([]);
       return;
     }
 
-    // Données factices pour le tableau
+    // Mock table data
     const donneesFactices = [
       { id: 1, num_ech: 'E001', date: '2023-10-01', rc2j: 25.4, rc7j: 35.2, rc28j: 45.8, prise: '120 min', stabilite: 'OK', hydratation: 'Normal', pfeu: 2.1, r_insoluble: 0.8, so3: 3.2, chlorure: 0.01, c3a: 7.5, ajout_percent: 5, type_ajout: 'Calcaire' },
       { id: 2, num_ech: 'E002', date: '2023-10-02', rc2j: 26.1, rc7j: 36.5, rc28j: 46.2, prise: '125 min', stabilite: 'OK', hydratation: 'Normal', pfeu: 2.2, r_insoluble: 0.7, so3: 3.1, chlorure: 0.02, c3a: 7.8, ajout_percent: 6, type_ajout: 'Calcaire' },
-      { id: 3, num_ech: 'E003', date: '2023-10-03', rc2j: 24.8, rc7j: 34.7, rc28j: 44.9, prise: '118 min', stabilite: 'OK', hydratation: 'Normal', pfeu: 2.0, r_insoluble: 0.9, so3: 3.3, chlorure: 0.015, c3a: 7.2, ajout_percent: 4, type_ajout: 'Calcaire' }
+      { id: 3, num_ech: 'E003', date: '2023-10-03', rc2j: 24.8, rc7j: 34.7, rc28j: 44.9, prise: '118 min', stabilite: 'OK', hydratation: 'Normal', pfeu: 2.0, r_insoluble: 0.9, so3: 3.3, chlorure: 0.015, c3a: 7.2, ajout_percent: 4, type_ajout: 'Calcaire' },
+      { id: 4, num_ech: 'E004', date: '2023-10-04', rc2j: 27.2, rc7j: 37.8, rc28j: 48.3, prise: '122 min', stabilite: 'OK', hydratation: 'Normal', pfeu: 2.3, r_insoluble: 0.6, so3: 3.0, chlorure: 0.018, c3a: 8.1, ajout_percent: 5.5, type_ajout: 'Calcaire' },
+      { id: 5, num_ech: 'E005', date: '2023-10-05', rc2j: 23.9, rc7j: 33.5, rc28j: 43.7, prise: '115 min', stabilite: 'OK', hydratation: 'Normal', pfeu: 1.9, r_insoluble: 1.0, so3: 3.4, chlorure: 0.012, c3a: 7.0, ajout_percent: 4.5, type_ajout: 'Calcaire' }
     ];
 
     setTableData(donneesFactices);
   }, [selectedClient, selectedProduit, phase]);
 
-  // Gérer l'import de fichier
+  // Calculate statistics for charts
+  useEffect(() => {
+    if (tableData.length === 0 || !selectedParameter) {
+      setChartStats(null);
+      return;
+    }
+
+    // Filter data based on selected parameter
+    const values = tableData.map(item => item[selectedParameter]).filter(val => val !== undefined);
+    
+    if (values.length === 0) {
+      setChartStats(null);
+      return;
+    }
+
+    // Calculate statistics
+    const moyenne = values.reduce((sum, val) => sum + val, 0) / values.length;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    
+    // Define limits based on selected class
+    let limiteInf, limiteSup, limiteGarantie;
+    
+    switch(selectedClass) {
+      case '32.5N':
+        limiteInf = 12.0;
+        limiteSup = 52.5;
+        limiteGarantie = 32.5;
+        break;
+      case '42.5N':
+        limiteInf = 20.0;
+        limiteSup = 62.5;
+        limiteGarantie = 42.5;
+        break;
+      case '52.5N':
+        limiteInf = 30.0;
+        limiteSup = 72.5;
+        limiteGarantie = 52.5;
+        break;
+      default:
+        limiteInf = 20.0;
+        limiteSup = 62.5;
+        limiteGarantie = 42.5;
+    }
+    
+    // Count values outside limits
+    const countBelowInf = values.filter(v => v < limiteInf).length;
+    const countAboveSup = values.filter(v => v > limiteSup).length;
+    const countBelowGarantie = values.filter(v => v < limiteGarantie).length;
+    
+    const percentBelowInf = (countBelowInf / values.length * 100).toFixed(1);
+    const percentAboveSup = (countAboveSup / values.length * 100).toFixed(1);
+    const percentBelowGarantie = (countBelowGarantie / values.length * 100).toFixed(1);
+
+    setChartStats({
+      moyenne: moyenne.toFixed(3),
+      min: min.toFixed(2),
+      max: max.toFixed(2),
+      count: values.length,
+      limiteInf,
+      limiteSup,
+      limiteGarantie,
+      countBelowInf,
+      countAboveSup,
+      countBelowGarantie,
+      percentBelowInf,
+      percentAboveSup,
+      percentBelowGarantie
+    });
+  }, [tableData, selectedParameter, selectedClass]);
+
+  // File import handler
   const handleFileImport = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Simuler l'importation
+    // Simulate import
     setSuccess('Fichier importé avec succès!');
     setTimeout(() => setSuccess(''), 3000);
   };
 
-  // Exporter les données
+  // Export data handler
   const handleExport = () => {
     if (tableData.length === 0) {
       setError("Aucune donnée à exporter.");
@@ -119,12 +220,12 @@ const TraitDonnes = () => {
     setTimeout(() => setSuccess(''), 3000);
   };
 
-  // Imprimer les données
+  // Print data handler
   const handlePrint = () => {
     window.print();
   };
 
-  // Modifier une ligne de données
+  // Edit a data row
   const handleEdit = (id, field, value) => {
     setTableData(prevData => 
       prevData.map(item => 
@@ -133,13 +234,13 @@ const TraitDonnes = () => {
     );
   };
 
-  // Sauvegarder les modifications
+  // Save changes
   const handleSave = () => {
     setSuccess('Modifications sauvegardées avec succès!');
     setTimeout(() => setSuccess(''), 3000);
   };
 
-  // Supprimer des lignes sélectionnées
+  // Delete selected rows
   const handleDelete = () => {
     if (selectedRows.length === 0) {
       setError("Veuillez sélectionner au moins une ligne à supprimer.");
@@ -156,7 +257,7 @@ const TraitDonnes = () => {
     setTimeout(() => setSuccess(''), 3000);
   };
 
-  // Gérer la sélection des lignes
+  // Toggle row selection
   const toggleRowSelection = (id) => {
     setSelectedRows(prev => 
       prev.includes(id) 
@@ -165,7 +266,7 @@ const TraitDonnes = () => {
     );
   };
 
-  // Sélectionner/désélectionner toutes les lignes
+  // Toggle select all rows
   const toggleSelectAll = () => {
     if (selectedRows.length === tableData.length) {
       setSelectedRows([]);
@@ -174,7 +275,7 @@ const TraitDonnes = () => {
     }
   };
 
-  // Fonction pour générer des données de graphique simulées
+  // Generate mock chart data
   const generateChartData = () => {
     if (!tableData || tableData.length === 0) return null;
     
@@ -188,7 +289,7 @@ const TraitDonnes = () => {
 
   const chartData = generateChartData();
 
-  // Fonction pour calculer les statistiques
+  // Calculate statistics
   const calculateStats = () => {
     if (tableData.length === 0) return null;
     
@@ -211,11 +312,11 @@ const TraitDonnes = () => {
       
       <h1 className="trait-donnees-title">Traitement Données</h1>
       
-      {/* Messages d'alerte */}
+      {/* Alert messages */}
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
 
-      {/* Navigation par onglets */}
+      {/* Tab navigation */}
       <div className="tabs-container">
         <button 
           className={activeTab === 'donnees' ? 'active-tab' : 'tab'}
@@ -237,11 +338,11 @@ const TraitDonnes = () => {
         </button>
       </div>
 
-      {/* Contenu des onglets */}
+      {/* Tab content */}
       <div className="tab-content">
         {activeTab === 'donnees' && (
           <div>
-            {/* Sélections uniquement dans l'onglet Données Traitées */}
+            {/* Selections only in Données Traitées tab */}
             <div className="inputs-layout">
               <div className="input-block">
                 <label htmlFor="client">Choisir un client:</label>
@@ -314,7 +415,7 @@ const TraitDonnes = () => {
               </div>
             </div>
 
-            {/* Actions sur les données */}
+            {/* Data actions */}
             <div className="actions-bar">
               <div className="file-actions">
                 <label htmlFor="file-import" className="action-btn import-btn">
@@ -353,7 +454,7 @@ const TraitDonnes = () => {
               </div>
             </div>
 
-            {/* Tableau des données */}
+            {/* Data table */}
             <h3>📄 Tableau des Résultats</h3>
             {tableData.length > 0 ? (
               <div className="table-container">
@@ -505,92 +606,124 @@ const TraitDonnes = () => {
           <div className="charts-section">
             <h3>📈 Graphiques des Résultats</h3>
             
-            {chartData ? (
-              <div className="charts-container">
-                <div className="chart">
-                  <h4>Résistance à la Compression (MPa)</h4>
-                  <div className="chart-bars">
-                    {chartData.rc2j.map((value, index) => (
-                      <div key={index} className="bar-container">
-                        <div className="bar-label">Éch {index + 1}</div>
-                        <div className="bar-group">
-                          <div 
-                            className="bar bar-2j"
-                            style={{ height: `${value * 2}px` }}
-                            title={`RC2J: ${value} MPa`}
-                          ></div>
-                          <div 
-                            className="bar bar-7j"
-                            style={{ height: `${chartData.rc7j[index] * 2}px` }}
-                            title={`RC7J: ${chartData.rc7j[index]} MPa`}
-                          ></div>
-                          <div 
-                            className="bar bar-28j"
-                            style={{ height: `${chartData.rc28j[index] * 2}px` }}
-                            title={`RC28J: ${chartData.rc28j[index]} MPa`}
-                          ></div>
-                        </div>
+            {/* Chart controls */}
+            <div className="chart-controls">
+              <div className="chart-input">
+                <label htmlFor="parameter">Paramètre:</label>
+                <select
+                  id="parameter"
+                  value={selectedParameter}
+                  onChange={e => setSelectedParameter(e.target.value)}
+                >
+                  {parameters.map(param => (
+                    <option key={param.id} value={param.id}>{param.label}</option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Class selection with radio buttons */}
+              <div className="chart-input">
+                <label >Classe:</label>
+                <div className="radio-groups-container">
+                  {Object.entries(classOptions).map(([type, classes]) => (
+                    <div key={type} className="radio-group">
+                      
+                      <div className="radio-options">
+                        {classes.map((className) => (
+                          <div key={className} className="radio-item">
+                            <input
+                              type="radio"
+                              id={className}
+                              name="cementClass"
+                              value={className}
+                              checked={selectedClass === className}
+                              onChange={() => setSelectedClass(className)}
+                              className="radio-input"
+                            />
+                            <label htmlFor={className} className="radio-label">
+                              {className}
+                            </label>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                  <div className="legend">
-                    <div className="legend-item">
-                      <div className="legend-color" style={{backgroundColor: '#ff6b6b'}}></div>
-                      <span>RC2J</span>
                     </div>
-                    <div className="legend-item">
-                      <div className="legend-color" style={{backgroundColor: '#4ecdc4'}}></div>
-                      <span>RC7J</span>
-                    </div>
-                    <div className="legend-item">
-                      <div className="legend-color" style={{backgroundColor: '#45b7d1'}}></div>
-                      <span>RC28J</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="chart">
-                  <h4>Évolution Moyenne des Résistances</h4>
-                  <div className="average-chart">
-                    <div className="average-bar" title={`Moyenne RC2J: ${stats.moyenneRC2J} MPa`}>
-                      <div className="average-value">2J</div>
-                      <div 
-                        className="average-fill" 
-                        style={{ 
-                          height: `${stats.moyenneRC2J * 2}px`, 
-                          backgroundColor: '#ff6b6b' 
-                        }}
-                      ></div>
-                    </div>
-                    <div className="average-bar" title={`Moyenne RC7J: ${stats.moyenneRC7J} MPa`}>
-                      <div className="average-value">7J</div>
-                      <div 
-                        className="average-fill" 
-                        style={{ 
-                          height: `${stats.moyenneRC7J * 2}px`, 
-                          backgroundColor: '#4ecdc4' 
-                        }}
-                      ></div>
-                    </div>
-                    <div className="average-bar" title={`Moyenne RC28J: ${stats.moyenneRC28J} MPa`}>
-                      <div className="average-value">28J</div>
-                      <div 
-                        className="average-fill" 
-                        style={{ 
-                          height: `${stats.moyenneRC28J * 2}px`, 
-                          backgroundColor: '#45b7d1' 
-                        }}
-                      ></div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
-            ) : (
-              <p className="no-data">Veuillez d'abord sélectionner un client, un produit et une phase dans l'onglet "Données Traitées".</p>
-            )}
+            </div>
+            
+{chartData && chartStats ? (
+  <div className="charts-container">
+    {/* Bar chart */}
+    <div className="chart">
+      <h4>Résistance à la Compression (MPa) - {selectedParameter.toUpperCase()}</h4>
+      <div className="chart-bars">
+        {chartData[selectedParameter].map((value, index) => (
+          <div key={index} className="bar-container">
+            <div className="bar-label">Éch {index + 1}</div>
+            <div className="bar-group">
+              <div 
+                className="bar"
+                style={{ height: `${value * 2}px` }}
+                title={`${selectedParameter.toUpperCase()}: ${value} MPa`}
+              ></div>
+            </div>
+            <div className="bar-value">{value} MPa</div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Statistics */}
+    <div className="chart-stats">
+      <h4>Résistance courante {selectedParameter.toUpperCase()} - Classe {selectedClass}</h4>
+      
+      {chartStats ? (
+        <div className="stats-grid">
+          <div className="stats-column">
+            <h5>Classe</h5>
+            <div className="class-types">
+              <div>32.5L ● 42.5L ● 52.5L</div>
+              <div>32.5N ● <strong>42.5N</strong> ● 52.5N</div>
+              <div>32.5R ● 42.5R ● 52.5R</div>
+            </div>
+          </div>
+          
+          <div className="stats-column">
+            <h5>Limite inférieure</h5>
+            <div>{selectedClass} &lt;= {chartStats.limiteInf} MPa : {chartStats.countBelowInf} ({chartStats.percentBelowInf}%)</div>
+            
+            <h5>Limite supérieure</h5>
+            <div>{selectedClass} &gt;= {chartStats.limiteSup} MPa : {chartStats.countAboveSup} ({chartStats.percentAboveSup}%)</div>
+            
+            <h5>Limite garantie</h5>
+            <div>{selectedClass} &lt;= {chartStats.limiteGarantie} MPa : {chartStats.countBelowGarantie} ({chartStats.percentBelowGarantie}%)</div>
+          </div>
+          
+          <div className="stats-column">
+            <h5>Moyenne</h5>
+            <div className="average-value">{chartStats.moyenne} MPa</div>
+          </div>
+        </div>
+      ) : (
+        <p>Calcul des statistiques en cours...</p>
+      )}
+      
+      <div className="sample-count">
+        <strong>{chartStats ? chartStats.count : 0} : 1</strong>
+      </div>
+    </div>
+  </div>
+) : (
+  <p className="no-data">Veuillez d'abord sélectionner un client, un produit et une phase dans l'onglet "Données Traitées".</p>
+)}
           </div>
         )}
       </div>
+    
+    
+    
+    
     </div>
   );
 };

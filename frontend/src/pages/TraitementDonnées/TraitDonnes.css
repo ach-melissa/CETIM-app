@@ -450,3 +450,44 @@
   text-align: center;
   border-left: 4px solid #dc2626;
 }
+/* Radio button styles for class selection */
+.radio-groups-container {
+  display: flex;
+  justify-content: space-between;
+  height: 90px;
+  width: 90px;
+    margin-bottom: 10px;
+}
+
+.radio-group {
+  flex: 1;  
+  padding: 2px;
+  border-radius: 8px;
+
+}
+
+.radio-group h3 {
+  text-align: center;
+  font-size: 15px;
+}
+
+.radio-item {
+  display: flex;
+  align-items: center;
+  color: black;
+}
+
+.radio-item label {
+  cursor: pointer;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .radio-groups-container {
+    flex-direction: column;
+  }
+}
+.no-data{
+margin-top: 100px;
+color: rgb(84, 80, 80);
+}
