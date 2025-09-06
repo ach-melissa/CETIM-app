@@ -1,3 +1,4 @@
+
 {/* to receive the data from DB */}
 
 import React from 'react';
