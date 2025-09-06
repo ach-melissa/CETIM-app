@@ -671,3 +671,170 @@ INSERT INTO `clients` (`id`, `sigle`, `nom_resaux_sociale`, `adresse`) VALUES
 (6, 'HOLCIM', 'Holcim Algérie', 'Oran - Route d?Arzew'),
 (7, 'GRAVAL', 'Graval Construction', 'Constantine - Route El Khroub');
 
+
+
+
+
+
+
+
+
+CREATE TABLE controles_conformite (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  parametre VARCHAR(255) NOT NULL,
+  type_controle ENUM('mesure','attribut') NOT NULL,
+  methode_reference VARCHAR(100),
+  categorie VARCHAR(100),
+  ciment_soumis VARCHAR(255),
+  frequence_courante VARCHAR(50),
+  frequence_admission VARCHAR(50)
+);
+
+
+-- ======================
+-- CONTRÔLES PAR MESURE (Résistances)
+-- ======================
+
+INSERT INTO controles_conformite 
+(parametre, type_controle, methode_reference, categorie, ciment_soumis, frequence_courante, frequence_admission) VALUES
+('Résistance  à 2 jours', 'mesure', 'EN 196-1', 'mécanique', 'Tous', '2/semaine', '4/semaine'),
+('Résistance  à 7 jours', 'mesure', 'EN 196-1', 'mécanique', 'Tous', '2/semaine', '4/semaine'),
+('Résistance à 28 jours', 'mesure', 'EN 196-1', 'mécanique', 'Tous', '2/semaine', '4/semaine');
+
+-- ======================
+-- CONTRÔLES PAR ATTRIBUT (Résistances)
+-- ======================
+
+INSERT INTO controles_conformite 
+(parametre, type_controle, methode_reference, categorie, ciment_soumis, frequence_courante, frequence_admission) VALUES
+('Temps debut de prise', 'attribut', 'EN 196-3', 'physique', 'Tous', '2/semaine', '4/semaine'),
+('Stabilité (expansion)', 'attribut', 'EN 196-3', 'physique', 'Tous', '1/semaine', '4/semaine'),
+('Perte au feu', 'attribut', 'EN 196-2', 'chimique', 'CEM I, CEM III', '2/mois', '1/semaine'),
+('Résidu insoluble', 'attribut', 'EN 196-2', 'chimique', 'CEM I, CEM III', '2/mois', '1/semaine'),
+('Teneur en sulfate', 'attribut', 'EN 196-2', 'chimique', 'Tous', '2/semaine', '4/semaine'),
+('Teneur en chlorure', 'attribut', 'EN 196-2', 'chimique', 'Tous', '2/mois', '1/semaine'),
+('C3A dans le clinker', 'attribut', 'EN 196-2 (calc)', 'supplémentaire', 'CEM I-SR 0, CEM I-SR 3, CEM I-SR 5, CEM II/A-SR, CEM IV/B-SR', '2/mois', '1/semaine'),
+('C3A dans le clinker', NULL, 'EN 196-2 (calc)', 'supplémentaire', 'CEM II/A-SR, CEM IV/B-SR', NULL, NULL),
+('Pouzzolanicité', 'attribut', 'EN 196-5', 'chimique', 'CEM IV', '2/mois', '1/semaine'),
+('Chaleur d’hydratation', 'attribut', 'EN 196-8 ou EN 196-9', 'physique', 'Ciments courants à faible chaleur d’hydratation', '1/mois', '1/semaine'),
+('Composition', 'attribut', NULL, 'chimique', 'Tous', '1/mois', '1/semaine');
+
+
+
+-- Table des valeurs statistiques (Tableau 7)
+CREATE TABLE valeurs_statistiques (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    categorie VARCHAR(100) NOT NULL,       -- mécanique / physique_chimique
+    sous_type VARCHAR(100) NULL,           -- limite inférieure / limite supérieure / NULL
+    percentile_pk DECIMAL(5,2) NOT NULL,   -- valeur en %
+    prob_acceptation_cr DECIMAL(5,2) NOT NULL  -- valeur en %
+);
+
+-- ======================
+-- Données du Tableau 7
+-- ======================
+
+-- Exigences mécaniques (limite inférieure)
+INSERT INTO valeurs_statistiques (categorie, sous_type, percentile_pk, prob_acceptation_cr)
+VALUES ('mecanique', 'limite_inferieure', 5.00, 5.00);
+
+-- Exigences mécaniques (limite supérieure)
+INSERT INTO valeurs_statistiques (categorie, sous_type, percentile_pk, prob_acceptation_cr)
+VALUES ('mecanique', 'limite_superieure', 10.00, 5.00);
+
+-- Exigences physiques et chimiques
+INSERT INTO valeurs_statistiques (categorie, sous_type, percentile_pk, prob_acceptation_cr)
+VALUES ('physique_chimique', NULL, 10.00, 5.00);
+
+
+
+CREATE TABLE coefficients_k (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  n_min INT NOT NULL,
+  n_max INT NOT NULL,
+  n_range VARCHAR(20) NOT NULL,   -- textual range as in the norm
+  k_pk5 DECIMAL(4,2) NOT NULL,    -- k for Pk = 5% (résistance, limite inférieure)
+  k_pk10 DECIMAL(4,2) NOT NULL    -- k for Pk = 10% (autres propriétés / limite sup)
+);
+
+INSERT INTO coefficients_k (n_min, n_max, n_range, k_pk5, k_pk10) VALUES
+(20, 21, '20 à 21', 2.40, 1.93),
+(22, 23, '22 à 23', 2.35, 1.89),
+(24, 25, '24 à 25', 2.31, 1.85),
+(26, 27, '26 à 27', 2.27, 1.82),
+(28, 29, '28 à 29', 2.24, 1.80),
+(30, 34, '30 à 34', 2.22, 1.78),
+(35, 39, '35 à 39', 2.17, 1.73),
+(40, 44, '40 à 44', 2.13, 1.70),
+(45, 49, '45 à 49', 2.09, 1.67),
+(50, 59, '50 à 59', 2.07, 1.65),
+(60, 69, '60 à 69', 2.02, 1.61),
+(70, 79, '70 à 79', 1.99, 1.58),
+(80, 89, '80 à 89', 1.97, 1.56),
+(90, 99, '90 à 99', 1.94, 1.54),
+(100, 149, '100 à 149', 1.93, 1.53),
+(150, 199, '150 à 199', 1.87, 1.48),
+(200, 299, '200 à 299', 1.84, 1.45),
+(300, 399, '300 à 399', 1.80, 1.42),
+(401, 1000000, '> 400', 1.78, 1.40);
+
+
+
+CREATE TABLE conditions_statistiques (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  n_min INT NOT NULL,
+  n_max INT NOT NULL,
+  pk_percentile DECIMAL(4,2) NOT NULL,   -- Pk (% fractile)
+  ca_probabilite DECIMAL(4,2) NOT NULL   -- Ca (% probabilité d’acceptation)
+);
+
+
+INSERT INTO conditions_statistiques (n_min, n_max, pk_percentile, ca_probabilite) VALUES
+-- (0, 19, 10, 0);
+(20, 39, 10, 0),
+(40, 54, 10, 1),
+(40, 54, 10, 2),
+(40, 54, 10, 3),
+(40, 54, 10, 4),
+(40, 54, 10, 5),
+(40, 54, 10, 6),
+(40, 54, 10, 7);
+
+
+---------------------
+-- referance norm 
+---------------------
+CREATE TABLE parametres_norme (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  categorie_id INT NOT NULL,
+  nom VARCHAR(255) NOT NULL,       -- e.g., "Résistance à 28 jours", "SO3"
+  reference_norme VARCHAR(50),     -- e.g., "EN 196-1"
+  unite VARCHAR(50),               -- e.g., "MPa", "%", "J/g", "mm"
+  FOREIGN KEY (categorie_id) REFERENCES categories_parametre(id)
+);
+
+-- Mécaniques
+INSERT INTO parametres_norme (categorie_id, nom, reference_norme, unite) VALUES
+(1, 'Resistance à 2 jours', 'EN 196-1', 'MPa'),
+(1, 'Resistance à 7 jours', 'EN 196-1', 'MPa'),
+(1, 'Resistance à 28 jours', 'EN 196-1', 'MPa');
+
+-- Physiques
+INSERT INTO parametres_norme (categorie_id, nom, reference_norme, unite) VALUES
+(2, 'Temps de debut de prise', 'EN 196-3', 'min'),
+(2, 'Stabilite (expansion)', 'EN 196-3', 'mm'),
+(2, 'Chaleur d’hydratation', 'EN 196-8/9', 'J/g');
+
+-- Chimiques
+INSERT INTO parametres_norme (categorie_id, nom, reference_norme, unite) VALUES
+(3, 'Perte au feu', 'EN 196-2', '%'),
+(3, 'Residu insoluble', 'EN 196-2', '%'),
+(3, 'SO3', 'EN 196-2', '%'),
+(3, 'Chlorures', 'EN 196-2', '%'),
+(3, 'Pouzzolanicite', 'EN 196-5', 'Essai');
+
+-- Supplémentaires (SR)
+INSERT INTO parametres_norme (categorie_id, nom, reference_norme, unite) VALUES
+(4, 'SO3 (SR)', 'EN 196-2', '%'),
+(4, 'C3A (clinker)', 'EN 196-2', '%'),
+(4, 'Pouzzolanicite (SR)', 'EN 196-5', 'Essai');
