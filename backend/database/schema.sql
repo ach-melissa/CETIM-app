@@ -128,600 +128,521 @@ INSERT INTO categories_parametre (nom) VALUES
 ('supplémentaire');
 
 RENAME TABLE categories_parametre TO categories;
+-- Supprimer la catégorie "supplémentaire" de la table categories
+DELETE FROM categories WHERE nom = 'supplémentaire';
+-- Vérifier le contenu restant de la table categories
+SELECT * FROM categories;
+
 
 
 -- =========================
--- 5. Parameters Definitions
+-- 5. Mechanical Properties Table (Updated with min/sup limits for 2/7 days)
 -- =========================
-CREATE TABLE parametres_norme (
+CREATE TABLE proprietes_mecaniques (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  categorie_id INT NOT NULL,
-  nom VARCHAR(255) NOT NULL,       -- e.g., "Résistance à 28 jours", "SO3"
-  reference_norme VARCHAR(50),     -- e.g., "EN 196-1"
-  unite VARCHAR(50),               -- e.g., "MPa", "%", "J/g", "mm"
-  FOREIGN KEY (categorie_id) REFERENCES categories_parametre(id)
+  classe_resistance_id INT NOT NULL,
+  resistance_2j_min DECIMAL(5,1) NULL,       -- Minimum resistance at 2 days (MPa)
+  resistance_2j_sup DECIMAL(5,1) NULL,       -- Superior resistance at 2 days (MPa)
+  garantie_2j DECIMAL(5,1) NULL,             -- Guarantee limit at 2 days (MPa)
+  resistance_7j_min DECIMAL(5,1) NULL,       -- Minimum resistance at 7 days (MPa)
+  resistance_7j_sup DECIMAL(5,1) NULL,       -- Superior resistance at 7 days (MPa)
+  garantie_7j DECIMAL(5,1) NULL,             -- Guarantee limit at 7 days (MPa)
+  resistance_28j_min DECIMAL(5,1) NOT NULL,  -- Minimum resistance at 28 days (MPa)
+  resistance_28j_sup DECIMAL(5,1) NULL,      -- Superior resistance at 28 days (MPa)
+  garantie_28j DECIMAL(5,1) NOT NULL,        -- Guaranteed value at 28 days (MPa)
+  FOREIGN KEY (classe_resistance_id) REFERENCES classes_resistance(id)
 );
 
--- Mécaniques
-INSERT INTO parametres_norme (categorie_id, nom, reference_norme, unite) VALUES
-(1, 'Resistance à 2 jours', 'EN 196-1', 'MPa'),
-(1, 'Resistance à 7 jours', 'EN 196-1', 'MPa'),
-(1, 'Resistance à 28 jours', 'EN 196-1', 'MPa');
-
--- Physiques
-INSERT INTO parametres_norme (categorie_id, nom, reference_norme, unite) VALUES
-(2, 'Temps de debut de prise', 'EN 196-3', 'min'),
-(2, 'Stabilite (expansion)', 'EN 196-3', 'mm'),
-(2, 'Chaleur d’hydratation', 'EN 196-8/9', 'J/g');
-
--- Chimiques
-INSERT INTO parametres_norme (categorie_id, nom, reference_norme, unite) VALUES
-(3, 'Perte au feu', 'EN 196-2', '%'),
-(3, 'Residu insoluble', 'EN 196-2', '%'),
-(3, 'SO3', 'EN 196-2', '%'),
-(3, 'Chlorures', 'EN 196-2', '%'),
-(3, 'Pouzzolanicite', 'EN 196-5', 'Essai');
-
--- Supplémentaires (SR)
-INSERT INTO parametres_norme (categorie_id, nom, reference_norme, unite) VALUES
-(4, 'SO3 (SR)', 'EN 196-2', '%'),
-(4, 'C3A (clinker)', 'EN 196-2', '%'),
-(4, 'Pouzzolanicite (SR)', 'EN 196-5', 'Essai');
-
-
+-- Insert mechanical properties for all classes with min/sup limits
+INSERT INTO proprietes_mecaniques (classe_resistance_id, resistance_2j_min, resistance_2j_sup, garantie_2j, resistance_7j_min, resistance_7j_sup, garantie_7j, resistance_28j_min, resistance_28j_sup, garantie_28j) VALUES
+-- 32.5 L (Only for CEM III)
+((SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'L'), NULL, NULL, NULL, 12.0, NULL, 10.0, 32.5, 52.5, 30.0),
+-- 32.5 N
+((SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'N'), NULL, NULL, NULL, 16.0, NULL, 14.0, 32.5, 52.5, 30.0),
+-- 32.5 R
+((SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'R'), 10.0, NULL, 8.0, NULL, NULL, NULL, 32.5, 52.5, 30.0),
+-- 42.5 L (Only for CEM III)
+((SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'L'), NULL, NULL, NULL, 16.0, NULL, 14.0, 42.5, 62.5, 40.0),
+-- 42.5 N
+((SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'N'), 10.0, NULL, 8.0, NULL, NULL, NULL, 42.5, 62.5, 40.0),
+-- 42.5 R
+((SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'R'), 20.0, NULL, 18.0, NULL, NULL, NULL, 42.5, 62.5, 40.0),
+-- 52.5 L (Only for CEM III)
+((SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'L'), 10.0, NULL, 8.0, NULL, NULL, NULL, 52.5, NULL, 50.0),
+-- 52.5 N
+((SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'N'), 20.0, NULL, 18.0, NULL, NULL, NULL, 52.5, NULL, 50.0),
+-- 52.5 R
+((SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'R'), 30.0, NULL, 28.0, NULL, NULL, NULL, 52.5, NULL, 50.0);
 
 -- =========================
--- 6. Values per Cement Type/Class
+-- 6. Link table between cement types and resistance classes
+-- This table is created but not populated automatically
 -- =========================
-CREATE TABLE valeurs_parametres (
+CREATE TABLE types_ciment_classes (
   id INT AUTO_INCREMENT PRIMARY KEY,
   type_ciment_id INT NOT NULL,
-  classe_id INT,                    -- nullable if same for all classes
-  parametre_id INT NOT NULL,
-  valeur_min DECIMAL(10,2),         -- lower limit if applicable
-  valeur_max DECIMAL(10,2),         -- upper limit if applicable
-  valeur_exacte DECIMAL(10,2),      -- for fixed values (e.g. C3A=0%)
-  commentaire TEXT,                 -- notes like "≤", "≥", "résultat positif"
+  classe_resistance_id INT NOT NULL,
   FOREIGN KEY (type_ciment_id) REFERENCES types_ciment(id),
-  FOREIGN KEY (classe_id) REFERENCES classes_resistance(id),
-  FOREIGN KEY (parametre_id) REFERENCES parametres_norme(id)
-);
-
--- 32.5N
-INSERT INTO valeurs_parametres (type_ciment_id, classe_id, parametre_id, valeur_min, valeur_max, commentaire)
-VALUES
-(NULL, 1, 2, 16.0, NULL, '≥ 16 MPa à 7 jours'),
-(NULL, 1, 3, 32.5, 52.5, '28 jours 32.5–52.5'),
-(NULL, 1, 4, 75, NULL, '≥ 75 min début de prise'),
-(NULL, 1, 5, NULL, 10, 'Expansion ≤ 10mm');
-
--- 32.5R
-INSERT INTO valeurs_parametres (classe_id, parametre_id, valeur_min, commentaire)
-VALUES
-(2, 1, 10.0, '≥ 10 MPa à 2 jours'),
-(2, 3, 32.5, 52.5, '28 jours 32.5–52.5');
-
--- 42.5N
-INSERT INTO valeurs_parametres (classe_id, parametre_id, valeur_min, valeur_max, commentaire)
-VALUES
-(3, 2, 16.0, NULL, '≥ 16 MPa à 7 jours'),
-(3, 3, 42.5, 62.5, '28 jours 42.5–62.5');
-
--- 42.5R
-INSERT INTO valeurs_parametres (classe_id, parametre_id, valeur_min, commentaire)
-VALUES
-(4, 1, 20.0, '≥ 20 MPa à 2 jours'),
-(4, 3, 42.5, 62.5, '28 jours 42.5–62.5');
-
--- 52.5N
-INSERT INTO valeurs_parametres (classe_id, parametre_id, valeur_min, commentaire)
-VALUES
-(5, 2, 20.0, '≥ 20 MPa à 7 jours'),
-(5, 3, 52.5, NULL, '≥ 52.5 à 28 jours');
-
--- 52.5R
-INSERT INTO valeurs_parametres (classe_id, parametre_id, valeur_min, commentaire)
-VALUES
-(6, 1, 30.0, '≥ 30 MPa à 2 jours'),
-(6, 3, 52.5, NULL, '≥ 52.5 à 28 jours');
-
-
-
--- Perte au feu et Résidu insoluble
-INSERT INTO valeurs_parametres (parametre_id, valeur_max, commentaire)
-VALUES
-(7, 5.0, '≤ 5%'),
-(8, 5.0, '≤ 5%');
-
--- SO3 (cas par classe/type)
-INSERT INTO valeurs_parametres (classe_id, parametre_id, valeur_max, commentaire)
-VALUES
-(1, 9, 3.5, '32.5N ≤ 3.5%'),
-(2, 9, 3.5, '32.5R ≤ 3.5%'),
-(3, 9, 3.5, '42.5N ≤ 3.5%'),
-(4, 9, 4.0, '42.5R ≤ 4.0%'),
-(5, 9, 4.0, '52.5N ≤ 4.0%'),
-(6, 9, 4.0, '52.5R ≤ 4.0%');
-
--- Chlorures
-INSERT INTO valeurs_parametres (parametre_id, valeur_max, commentaire)
-VALUES
-(10, 0.10, '≤ 0.10% (sauf CEM III tolérance plus haute)');
-
--- Pouzzolanicité
-INSERT INTO valeurs_parametres (parametre_id, commentaire)
-VALUES
-(11, 'CEM IV doit réussir EN 196-5');
-
-
--- SO3 SR
-INSERT INTO valeurs_parametres (classe_id, parametre_id, valeur_max, commentaire)
-VALUES
-(1, 12, 3.0, '32.5N ≤ 3.0%'),
-(2, 12, 3.0, '32.5R ≤ 3.0%'),
-(3, 12, 3.0, '42.5N ≤ 3.0%'),
-(4, 12, 3.5, '42.5R ≤ 3.5%'),
-(5, 12, 3.5, '52.5N ≤ 3.5%'),
-(6, 12, 3.5, '52.5R ≤ 3.5%');
-
--- C3A clinker
-INSERT INTO valeurs_parametres (type_ciment_id, parametre_id, valeur_exacte, valeur_max, commentaire)
-VALUES
-(2, 13, 0, NULL, 'CEM I-SR 0 = 0%'),
-(3, 13, NULL, 3, 'CEM I-SR 3 ≤ 3%'),
-(4, 13, NULL, 5, 'CEM I-SR 5 ≤ 5%'),
-(15, 13, NULL, 9, 'CEM IV-SR ≤ 9%');
-
--- Pouzzolanicité SR
-INSERT INTO valeurs_parametres (type_ciment_id, parametre_id, commentaire)
-VALUES
-(15, 14, 'CEM IV/A-SR doit être positif à 8 jours'),
-(16, 14, 'CEM IV/B-SR doit être positif à 8 jours');
-
--- Chaleur d’hydratation ≤ 270 J/g
--- Chaleur d’hydratation ≤ 270 J/g (parametre_id = 6)
-INSERT INTO valeurs_parametres (type_ciment_id, parametre_id, valeur_max, commentaire)
-VALUES
-(6, 6, 270, 'CEM III/A-L ≤ 270 J/g'),
-(7, 6, 270, 'CEM III/B-L ≤ 270 J/g'),
-(8, 6, 270, 'CEM III/C-L ≤ 270 J/g');
-
-
-
-CREATE TABLE controles_conformite (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  parametre VARCHAR(255) NOT NULL,
-  type_controle ENUM('mesure','attribut') NOT NULL,
-  methode_reference VARCHAR(100),
-  categorie VARCHAR(100),
-  ciment_soumis VARCHAR(255),
-  frequence_courante VARCHAR(50),
-  frequence_admission VARCHAR(50)
+  FOREIGN KEY (classe_resistance_id) REFERENCES classes_resistance(id),
+  UNIQUE KEY (type_ciment_id, classe_resistance_id)
 );
 
 
--- ======================
--- CONTRÔLES PAR MESURE (Résistances)
--- ======================
-
-INSERT INTO controles_conformite 
-(parametre, type_controle, methode_reference, categorie, ciment_soumis, frequence_courante, frequence_admission) VALUES
-('Résistance  à 2 jours', 'mesure', 'EN 196-1', 'mécanique', 'Tous', '2/semaine', '4/semaine'),
-('Résistance  à 7 jours', 'mesure', 'EN 196-1', 'mécanique', 'Tous', '2/semaine', '4/semaine'),
-('Résistance à 28 jours', 'mesure', 'EN 196-1', 'mécanique', 'Tous', '2/semaine', '4/semaine');
-
--- ======================
--- CONTRÔLES PAR ATTRIBUT (Résistances)
--- ======================
-
-INSERT INTO controles_conformite 
-(parametre, type_controle, methode_reference, categorie, ciment_soumis, frequence_courante, frequence_admission) VALUES
-('Temps debut de prise', 'attribut', 'EN 196-3', 'physique', 'Tous', '2/semaine', '4/semaine'),
-('Stabilité (expansion)', 'attribut', 'EN 196-3', 'physique', 'Tous', '1/semaine', '4/semaine'),
-('Perte au feu', 'attribut', 'EN 196-2', 'chimique', 'CEM I, CEM III', '2/mois', '1/semaine'),
-('Résidu insoluble', 'attribut', 'EN 196-2', 'chimique', 'CEM I, CEM III', '2/mois', '1/semaine'),
-('Teneur en sulfate', 'attribut', 'EN 196-2', 'chimique', 'Tous', '2/semaine', '4/semaine'),
-('Teneur en chlorure', 'attribut', 'EN 196-2', 'chimique', 'Tous', '2/mois', '1/semaine'),
-('C3A dans le clinker', 'attribut', 'EN 196-2 (calc)', 'supplémentaire', 'CEM I-SR 0, CEM I-SR 3, CEM I-SR 5, CEM II/A-SR, CEM IV/B-SR', '2/mois', '1/semaine'),
-('C3A dans le clinker', NULL, 'EN 196-2 (calc)', 'supplémentaire', 'CEM II/A-SR, CEM IV/B-SR', NULL, NULL),
-('Pouzzolanicité', 'attribut', 'EN 196-5', 'chimique', 'CEM IV', '2/mois', '1/semaine'),
-('Chaleur d’hydratation', 'attribut', 'EN 196-8 ou EN 196-9', 'physique', 'Ciments courants à faible chaleur d’hydratation', '1/mois', '1/semaine'),
-('Composition', 'attribut', NULL, 'chimique', 'Tous', '1/mois', '1/semaine');
-
-
-
--- Table des valeurs statistiques (Tableau 7)
-CREATE TABLE valeurs_statistiques (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    categorie VARCHAR(100) NOT NULL,       -- mécanique / physique_chimique
-    sous_type VARCHAR(100) NULL,           -- limite inférieure / limite supérieure / NULL
-    percentile_pk DECIMAL(5,2) NOT NULL,   -- valeur en %
-    prob_acceptation_cr DECIMAL(5,2) NOT NULL  -- valeur en %
-);
-
--- ======================
--- Données du Tableau 7
--- ======================
-
--- Exigences mécaniques (limite inférieure)
-INSERT INTO valeurs_statistiques (categorie, sous_type, percentile_pk, prob_acceptation_cr)
-VALUES ('mecanique', 'limite_inferieure', 5.00, 5.00);
-
--- Exigences mécaniques (limite supérieure)
-INSERT INTO valeurs_statistiques (categorie, sous_type, percentile_pk, prob_acceptation_cr)
-VALUES ('mecanique', 'limite_superieure', 10.00, 5.00);
-
--- Exigences physiques et chimiques
-INSERT INTO valeurs_statistiques (categorie, sous_type, percentile_pk, prob_acceptation_cr)
-VALUES ('physique_chimique', NULL, 10.00, 5.00);
-
-
-
-CREATE TABLE coefficients_k (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  n_min INT NOT NULL,
-  n_max INT NOT NULL,
-  n_range VARCHAR(20) NOT NULL,   -- textual range as in the norm
-  k_pk5 DECIMAL(4,2) NOT NULL,    -- k for Pk = 5% (résistance, limite inférieure)
-  k_pk10 DECIMAL(4,2) NOT NULL    -- k for Pk = 10% (autres propriétés / limite sup)
-);
-
-INSERT INTO coefficients_k (n_min, n_max, n_range, k_pk5, k_pk10) VALUES
-(20, 21, '20 à 21', 2.40, 1.93),
-(22, 23, '22 à 23', 2.35, 1.89),
-(24, 25, '24 à 25', 2.31, 1.85),
-(26, 27, '26 à 27', 2.27, 1.82),
-(28, 29, '28 à 29', 2.24, 1.80),
-(30, 34, '30 à 34', 2.22, 1.78),
-(35, 39, '35 à 39', 2.17, 1.73),
-(40, 44, '40 à 44', 2.13, 1.70),
-(45, 49, '45 à 49', 2.09, 1.67),
-(50, 59, '50 à 59', 2.07, 1.65),
-(60, 69, '60 à 69', 2.02, 1.61),
-(70, 79, '70 à 79', 1.99, 1.58),
-(80, 89, '80 à 89', 1.97, 1.56),
-(90, 99, '90 à 99', 1.94, 1.54),
-(100, 149, '100 à 149', 1.93, 1.53),
-(150, 199, '150 à 199', 1.87, 1.48),
-(200, 299, '200 à 299', 1.84, 1.45),
-(300, 399, '300 à 399', 1.80, 1.42),
-(401, 1000000, '> 400', 1.78, 1.40);
-
-
-
-CREATE TABLE conditions_statistiques (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  n_min INT NOT NULL,
-  n_max INT NOT NULL,
-  pk_percentile DECIMAL(4,2) NOT NULL,   -- Pk (% fractile)
-  ca_probabilite DECIMAL(4,2) NOT NULL   -- Ca (% probabilité d’acceptation)
-);
-
-
-INSERT INTO conditions_statistiques (n_min, n_max, pk_percentile, ca_probabilite) VALUES
--- (0, 19, 10, 0);
-(20, 39, 10, 0),
-(40, 54, 10, 1),
-(40, 54, 10, 2),
-(40, 54, 10, 3),
-(40, 54, 10, 4),
-(40, 54, 10, 5),
-(40, 54, 10, 6),
-(40, 54, 10, 7);
-
-
-
-
--- =========================
--- tab10 : limit de garanti
--- =========================
-CREATE TABLE parametres (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    type_ciment_id INT NULL,               -- parfois utilisé (stabilité, SO3, C3A, etc.)
-    classe_resistance_id INT NULL,         -- parfois utilisé (résistance 7j, 28j, prise, etc.)
-    categorie_id INT NOT NULL,             -- mécanique, physique, chimique, supplémentaire
-    nom_parametre VARCHAR(100) NOT NULL,   -- nom du paramètre (Résistance 7j, SO3, Cl-, etc.)
-    limite_garantie DECIMAL(10,2) NOT NULL,
-
-    FOREIGN KEY (type_ciment_id) REFERENCES types_ciment(id),
-    FOREIGN KEY (classe_resistance_id) REFERENCES classes_resistance(id),
-    FOREIGN KEY (categorie_id) REFERENCES categories_parametre(id)
-);
-
-
--- 1) Résistance 2 jours (valeur limite inférieure)
-INSERT INTO parametres (classe_resistance_id, categorie_id, nom_parametre, limite_garantie) VALUES
-(2, 1, 'Résistance 2 jours',  8.0),  -- 32.5 R
-(3, 1, 'Résistance 2 jours',  8.0),  -- 42.5 N
-(4, 1, 'Résistance 2 jours', 18.0),  -- 42.5 R
-(9, 1, 'Résistance 2 jours',  8.0),  -- 52.5 L (CEM III)
-(5, 1, 'Résistance 2 jours', 18.0),  -- 52.5 N
-(6, 1, 'Résistance 2 jours', 28.0);  -- 52.5 R
-
--- 2) Résistance 7 jours (valeur limite inférieure)
-INSERT INTO parametres (classe_resistance_id, categorie_id, nom_parametre, limite_garantie) VALUES
-(7, 1, 'Résistance 7 jours', 10.0),  -- 32.5 L (CEM III)
-(1, 1, 'Résistance 7 jours', 14.0),  -- 32.5 N
-(8, 1, 'Résistance 7 jours', 14.0);  -- 42.5 L (CEM III)
-
--- 3) Résistance 28 jours (valeur limite inférieure)
--- Apply per class (same value for L/N/R within the class)
-INSERT INTO parametres (classe_resistance_id, categorie_id, nom_parametre, limite_garantie) VALUES
-(1, 1, 'Résistance 28 jours', 30.0), -- 32.5 N
-(2, 1, 'Résistance 28 jours', 30.0), -- 32.5 R
-(7, 1, 'Résistance 28 jours', 30.0), -- 32.5 L
-(3, 1, 'Résistance 28 jours', 40.0), -- 42.5 N
-(4, 1, 'Résistance 28 jours', 40.0), -- 42.5 R
-(8, 1, 'Résistance 28 jours', 40.0), -- 42.5 L
-(5, 1, 'Résistance 28 jours', 50.0), -- 52.5 N
-(6, 1, 'Résistance 28 jours', 50.0), -- 52.5 R
-(9, 1, 'Résistance 28 jours', 50.0); -- 52.5 L
-
--- =========================
--- Temps de début de prise (min)
--- =========================
-INSERT INTO parametres (classe_resistance_id, categorie_id, nom_parametre, limite_garantie) VALUES
-(1, 4, 'Temps début de prise', 60),
-(2, 4, 'Temps début de prise', 60),
-(7, 4, 'Temps début de prise', 60),
-(3, 4, 'Temps début de prise', 50),
-(4, 4, 'Temps début de prise', 50),
-(8, 4, 'Temps début de prise', 50),
-(5, 4, 'Temps début de prise', 40),
-(6, 4, 'Temps début de prise', 40),
-(9, 4, 'Temps début de prise', 40);
-
--- =========================
--- Stabilité (expansion en mm)
--- =========================
-INSERT INTO parametres (classe_resistance_id, categorie_id, nom_parametre, limite_garantie) VALUES
-(1, 1, 'Stabilité (Le Chatelier)', 10.0),
-(2, 1, 'Stabilité (Le Chatelier)', 10.0),
-(3, 1, 'Stabilité (Le Chatelier)', 10.0),
-(4, 1, 'Stabilité (Le Chatelier)', 10.0),
-(5, 1, 'Stabilité (Le Chatelier)', 10.0),
-(6, 1, 'Stabilité (Le Chatelier)', 10.0),
-(7, 1, 'Stabilité (Le Chatelier)', 10.0),
-(8, 1, 'Stabilité (Le Chatelier)', 10.0),
-(9, 1, 'Stabilité (Le Chatelier)', 10.0);
-
--- =========================
--- Teneur en sulfates (SO3 %)
--- =========================
--- CEM I (including SR variants)
-INSERT INTO parametres (type_ciment_id, classe_resistance_id, categorie_id, nom_parametre, limite_garantie) VALUES
-(1, 1, 3, 'SO3', 4), -- CEM I 32.5N
-(1, 2, 3, 'SO3', 4), -- CEM I 32.5R
-(1, 3, 3, 'SO3', 4.0), -- CEM I 42.5N
-(1, 4, 3, 'SO3', 4.5), -- CEM I 42.5R
-(1, 5, 3, 'SO3', 4.5), -- CEM I 52.5N
-(1, 6, 3, 'SO3', 4.5), -- CEM I 52.5R
-
-
--- 🔹 CEM II (Portland composite cements)
-(2, 1, 3, 'SO3', 4.0), -- CEM II 32.5N
-(2, 2, 3, 'SO3', 4.0), -- CEM II 32.5R
-(2, 3, 3, 'SO3', 4.0), -- CEM II 42.5N
-(2, 4, 3, 'SO3', 4.5), -- CEM II 42.5R
-(2, 5, 3, 'SO3', 4.5), -- CEM II 52.5N
-(2, 6, 3, 'SO3', 4.5), -- CEM II 52.5R
-
--- 🔹 CEM IV (Pozzolanic cements)
-(4, 1, 3, 'SO3', 4.0), -- CEM IV 32.5N
-(4, 2, 3, 'SO3', 4.0), -- CEM IV 32.5R
-(4, 3, 3, 'SO3', 4.0), -- CEM IV 42.5N
-(4, 4, 3, 'SO3', 4.5), -- CEM IV 42.5R
-(4, 5, 3, 'SO3', 4.5), -- CEM IV 52.5N
-(4, 6, 3, 'SO3', 4.5), -- CEM IV 52.5R
-
--- 🔹 CEM V (Composite cements)
-(5, 1, 3, 'SO3', 4.0), -- CEM V 32.5N
-(5, 2, 3, 'SO3', 4.0), -- CEM V 32.5R
-(5, 3, 3, 'SO3', 4.0), -- CEM V 42.5N
-(5, 4, 3, 'SO3', 4.5), -- CEM V 42.5R
-(5, 5, 3, 'SO3', 4.5), -- CEM V 52.5N
-(5, 6, 3, 'SO3', 4.5); -- CEM V 52.5R
-
-
--- 🔹 CEM I-SR 0 / SR 3 / SR 5
-(6, 1, 3, 'SO3', 3.5), -- CEM I-SR0 32.5N
-(6, 2, 3, 'SO3', 3.5), -- CEM I-SR0 32.5R
-(6, 3, 3, 'SO3', 3.5), -- CEM I-SR0 42.5N
-(6, 4, 3, 'SO3', 4.0), -- CEM I-SR0 42.5R
-(6, 5, 3, 'SO3', 4.0), -- CEM I-SR0 52.5N
-(6, 6, 3, 'SO3', 4.0), -- CEM I-SR0 52.5R
-
-(7, 1, 3, 'SO3', 3.5), -- CEM I-SR3 32.5N
-(7, 2, 3, 'SO3', 3.5), -- CEM I-SR3 32.5R
-(7, 3, 3, 'SO3', 3.5), -- CEM I-SR3 42.5N
-(7, 4, 3, 'SO3', 4.0), -- CEM I-SR3 42.5R
-(7, 5, 3, 'SO3', 4.0), -- CEM I-SR0 52.5N
-(7, 6, 3, 'SO3', 4.0), -- CEM I-SR3 52.5R
-
-(8, 1, 3, 'SO3', 3.5), -- CEM I-SR5 32.5N
-(8, 2, 3, 'SO3', 3.5), -- CEM I-SR5 32.5R
-(8, 3, 3, 'SO3', 3.5), -- CEM I-SR5 42.5N
-(8, 4, 3, 'SO3', 4.0), -- CEM I-SR5 42.5R
-(8, 5, 3, 'SO3', 4.0), -- CEM I-SR0 52.5N
-(8, 6, 3, 'SO3', 4.0), -- CEM I-SR5 52.5R
-
--- 🔹 CEM IV/A-SR
-(14, 1, 3, 'SO3', 4.0), -- CEM IV/A-SR 32.5N
-(14, 2, 3, 'SO3', 4.0), -- CEM IV/A-SR 32.5R
-(14, 3, 3, 'SO3', 4.0), -- CEM IV/A-SR 42.5N
-(14, 4, 3, 'SO3', 4.0), -- CEM IV/A-SR 42.5R
-(14, 5, 3, 'SO3', 4.0), -- CEM IV/A-SR 52.5N
-(14, 6, 3, 'SO3', 4.0), -- CEM IV/A-SR 52.5R
-
--- 🔹 CEM IV/B-SR
-(15, 1, 3, 'SO3', 4.0), -- CEM IV/B-SR 32.5N
-(15, 2, 3, 'SO3', 4.0), -- CEM IV/B-SR 32.5R
-(15, 3, 3, 'SO3', 4.0), -- CEM IV/B-SR 42.5N
-(15, 4, 3, 'SO3', 4.0), -- CEM IV/B-SR 42.5R
-(15, 5, 3, 'SO3', 4.0), -- CEM IV/B-SR 52.5N
-(15, 6, 3, 'SO3', 4.0); -- CEM IV/B-SR 52.5R
-
-
-
--- CEM III/A
-(7, 1, 3, 'SO3', 4.5), -- 32.5 N
-(7, 2, 3, 'SO3', 4.5), -- 32.5 R
-(7, 7, 3, 'SO3', 4.5), -- 32.5 L
-(7, 3, 3, 'SO3', 4.5), -- 42.5 N
-(7, 4, 3, 'SO3', 4.5), -- 42.5 R
-(7, 8, 3, 'SO3', 4.5), -- 42.5 L
-(7, 5, 3, 'SO3', 4.5), -- 52.5 N
-(7, 6, 3, 'SO3', 4.5), -- 52.5 R
-(7, 9, 3, 'SO3', 4.5), -- 52.5 L
-
--- CEM III/B
-(8, 1, 3, 'SO3', 4.5), -- 32.5 N
-(8, 2, 3, 'SO3', 4.5), -- 32.5 R
-(8, 7, 3, 'SO3', 4.5), -- 32.5 L
-(8, 3, 3, 'SO3', 4.5), -- 42.5 N
-(8, 4, 3, 'SO3', 4.5), -- 42.5 R
-(8, 8, 3, 'SO3', 4.5), -- 42.5 L
-(8, 5, 3, 'SO3', 4.5), -- 52.5 N
-(8, 6, 3, 'SO3', 4.5), -- 52.5 R
-(8, 9, 3, 'SO3', 4.5), -- 52.5 L
-
--- CEM III/C
-(9, 1, 3, 'SO3', 5.0), -- 32.5 N
-(9, 2, 3, 'SO3', 5.0), -- 32.5 R
-(9, 7, 3, 'SO3', 5.0), -- 32.5 L
-(9, 3, 3, 'SO3', 5.0), -- 42.5 N
-(9, 4, 3, 'SO3', 5.0), -- 42.5 R
-(9, 8, 3, 'SO3', 5.0), -- 42.5 L
-(9, 5, 3, 'SO3', 5.0), -- 52.5 N
-(9, 6, 3, 'SO3', 5.0), -- 52.5 R
-(9, 9, 3, 'SO3', 5.0); -- 52.5 L
-
-
-
--- =========================
--- C3A (%) (uniquement pour SR)
--- =========================
-INSERT INTO parametres (type_ciment_id, classe_resistance_id, categorie_id, nom_parametre, limite_garantie) VALUES
--- CEM I SR 0
-(6, 1, 3, 'C3A', 1),   -- CEM I SR 0 - classe 32,5N
-(6, 2, 3, 'C3A', 1),   -- CEM I SR 0 - classe 32,5R
-(6, 7, 3, 'C3A', 1),   -- CEM I SR 0 - classe 32,5L
-(6, 3, 3, 'C3A', 1),   -- CEM I SR 0 - classe 42,5N
-(6, 4, 3, 'C3A', 1),   -- CEM I SR 0 - classe 42,5R
-(6, 8, 3, 'C3A', 1),   -- CEM I SR 0 - classe 42,5L
-(6, 5, 3, 'C3A', 1),   -- CEM I SR 0 - classe 52,5N
-(6, 6, 3, 'C3A', 1),   -- CEM I SR 0 - classe 52,5R
-(6, 9, 3, 'C3A', 1),   -- CEM I SR 0 - classe 52,5L
--- CEM I SR 3 (C3A ≤ 3%)
-(7, 1, 3, 'C3A', 4),   -- classe 32,5N
-(7, 2, 3, 'C3A', 4),   -- classe 32,5R
-(7, 7, 3, 'C3A', 4),   -- classe 32,5L
-(7, 3, 3, 'C3A', 4),   -- classe 42,5N
-(7, 4, 3, 'C3A', 4),   -- classe 42,5R
-(7, 8, 3, 'C3A', 4),   -- classe 42,5L
-(7, 5, 3, 'C3A', 4),   -- classe 52,5N
-(7, 6, 3, 'C3A', 4),   -- classe 52,5R
-(7, 9, 3, 'C3A', 4),   -- classe 52,5L
-
--- CEM I SR 5 (C3A ≤ 5%)
-(8, 1, 3, 'C3A', 6),   -- classe 32,5N
-(8, 2, 3, 'C3A', 6),   -- classe 32,5R
-(8, 7, 3, 'C3A', 6),   -- classe 32,5L
-(8, 3, 3, 'C3A', 6),   -- classe 42,5N
-(8, 4, 3, 'C3A', 6),   -- classe 42,5R
-(8, 8, 3, 'C3A', 6),   -- classe 42,5L
-(8, 5, 3, 'C3A', 6),   -- classe 52,5N
-(8, 6, 3, 'C3A', 6),   -- classe 52,5R
-(8, 9, 3, 'C3A', 6),   -- classe 52,5L
-
--- CEM IV/A-SR (C3A ≤ 3%)
-(9, 1, 3, 'C3A', 10),   -- classe 32,5N
-(9, 2, 3, 'C3A', 10),   -- classe 32,5R
-(9, 7, 3, 'C3A', 10),   -- classe 32,5L
-(9, 3, 3, 'C3A', 10),   -- classe 42,5N
-(9, 4, 3, 'C3A', 10),   -- classe 42,5R
-(9, 8, 3, 'C3A', 10),   -- classe 42,5L
-(9, 5, 3, 'C3A', 10),   -- classe 52,5N
-(9, 6, 3, 'C3A', 10),   -- classe 52,5R
-(9, 9, 3, 'C3A', 10),   -- classe 52,5L
-
--- CEM IV/B-SR (C3A ≤ 3%)
-(10, 1, 3, 'C3A', 10),   -- classe 32,5N
-(10, 2, 3, 'C3A', 10),   -- classe 32,5R
-(10, 7, 3, 'C3A', 10),   -- classe 32,5L
-(10, 3, 3, 'C3A', 10),   -- classe 42,5N
-(10, 4, 3, 'C3A', 10),   -- classe 42,5R
-(10, 8, 3, 'C3A', 10),   -- classe 42,5L
-(10, 5, 3, 'C3A', 10),   -- classe 52,5N
-(10, 6, 3, 'C3A', 10),   -- classe 52,5R
-(10, 9, 3, 'C3A', 10);   -- classe 52,5L
-
--- =========================
--- Chlorures (%)
--- =========================
-INSERT INTO parametres (classe_resistance_id, categorie_id, nom_parametre, limite_garantie) VALUES
-(1, 1, 'Chlorures (Cl⁻)', 0.10),
-(2, 1, 'Chlorures (Cl⁻)', 0.10),
-(3, 1, 'Chlorures (Cl⁻)', 0.10),
-(4, 1, 'Chlorures (Cl⁻)', 0.10),
-(5, 1, 'Chlorures (Cl⁻)', 0.10),
-(6, 1, 'Chlorures (Cl⁻)', 0.10),
-(7, 1, 'Chlorures (Cl⁻)', 0.10),
-(8, 1, 'Chlorures (Cl⁻)', 0.10),
-(9, 1, 'Chlorures (Cl⁻)', 0.10);
-
-ALTER TABLE parametres MODIFY limite_garantie VARCHAR(50);
-
--- =========================
--- Pouzzolane (positivité après 15 jours)
--- =========================
-INSERT INTO parametres (type_ciment_id, classe_resistance_id, categorie_id, nom_parametre, limite_garantie) VALUES
-(4, 1, 3, 'Pouzzolanicité', 'Positive après 15 jours'),
-(4, 2, 3, 'Pouzzolanicité', 'Positive après 15 jours'),
-(4, 3, 3, 'Pouzzolanicité', 'Positive après 15 jours'),
-(4, 4, 3, 'Pouzzolanicité', 'Positive après 15 jours'),
-(4, 5, 3, 'Pouzzolanicité', 'Positive après 15 jours'),
-(4, 6, 3, 'Pouzzolanicité', 'Positive après 15 jours');
-
-
--- =========================
--- Chaleur d’hydratation (J/g)
--- =========================
-INSERT INTO parametres (type_ciment_id, categorie_id, nom_parametre, limite_garantie) VALUES
-(3, 4, 'Chaleur hydratation', 300), -- CEM III LH
-(5, 4, 'Chaleur hydratation', 300); -- CEM V LH
-
-
-
-
-
-CREATE TABLE limites (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    parametre_id INT NOT NULL,
-    ciment_type VARCHAR(50),
-    classe VARCHAR(50),
-    limite_inf FLOAT,
-    limite_sup FLOAT,
-    FOREIGN KEY (parametre_id) REFERENCES parametres(id)
-);
-
-
-INSERT INTO limites (parametre_id, ciment_type, classe, limite_inf, limite_sup)
+-- 7-View to show all mechanical properties with all limits
+CREATE VIEW vue_proprietes_mecaniques_complet AS
 SELECT 
-    p.id AS parametre_id,
-    p.type_ciment_id AS ciment_type,
-    p.classe_resistance_id AS classe,
-    0 AS limite_inf,               -- default or calculated
-    CAST(p.limite_garantie AS DECIMAL(10,2)) AS limite_sup
-FROM parametres p
-WHERE p.limite_garantie IS NOT NULL;
+    cr.classe,
+    cr.type_court_terme,
+    pm.resistance_2j_min,
+    pm.resistance_2j_sup,
+    pm.garantie_2j,
+    pm.resistance_7j_min,
+    pm.resistance_7j_sup,
+    pm.garantie_7j,
+    pm.resistance_28j_min,
+    pm.resistance_28j_sup,
+    pm.garantie_28j
+FROM proprietes_mecaniques pm
+JOIN classes_resistance cr ON pm.classe_resistance_id = cr.id
+ORDER BY 
+    CAST(SUBSTRING_INDEX(cr.classe, '.', 1) AS UNSIGNED),
+    CASE cr.type_court_terme 
+        WHEN 'L' THEN 1 
+        WHEN 'N' THEN 2 
+        WHEN 'R' THEN 3 
+    END;
+
+-- View to show all cement types with their properties
+-- Drop the old view if it exists
+DROP VIEW IF EXISTS vue_tous_ciments_proprietes;
+
+-- Create the updated view
+CREATE VIEW vue_tous_ciments_proprietes AS
+SELECT 
+    fc.code AS famille_code,
+    fc.nom AS famille_nom,
+    tc.code AS type_code,
+    tc.description AS type_description,
+    tc.sr AS sulfate_resistant,
+    cr.classe,
+    cr.type_court_terme,
+    pm.resistance_2j_min,
+    pm.resistance_2j_sup,
+    pm.garantie_2j,
+    pm.resistance_7j_min,
+    pm.resistance_7j_sup,
+    pm.garantie_7j,
+    pm.resistance_28j_min,
+    pm.resistance_28j_sup,
+    pm.garantie_28j
+FROM types_ciment_classes tcc
+JOIN types_ciment tc ON tcc.type_ciment_id = tc.id
+JOIN familles_ciment fc ON tc.famille_id = fc.id
+JOIN classes_resistance cr ON tcc.classe_resistance_id = cr.id
+JOIN proprietes_mecaniques pm ON cr.id = pm.classe_resistance_id
+ORDER BY 
+    fc.code, 
+    tc.code,
+    CAST(SUBSTRING_INDEX(cr.classe, '.', 1) AS UNSIGNED),
+    CASE cr.type_court_terme 
+        WHEN 'L' THEN 1 
+        WHEN 'N' THEN 2 
+        WHEN 'R' THEN 3 
+    END;
+
+
+-- =========================
+-- POPULATE types_ciment_classes TABLE
+-- =========================
+
+-- For CEM I, II, IV, V: Only N and R classes (not L)
+INSERT INTO types_ciment_classes (type_ciment_id, classe_resistance_id)
+SELECT tc.id, cr.id
+FROM types_ciment tc
+CROSS JOIN classes_resistance cr
+WHERE tc.famille_id IN (
+    SELECT id FROM familles_ciment 
+    WHERE code IN ('CEM I', 'CEM II', 'CEM IV', 'CEM V')
+) 
+AND cr.type_court_terme IN ('N', 'R');
+
+-- For CEM III: All classes (N, R, L)
+INSERT INTO types_ciment_classes (type_ciment_id, classe_resistance_id)
+SELECT tc.id, cr.id
+FROM types_ciment tc
+CROSS JOIN classes_resistance cr
+WHERE tc.famille_id IN (
+    SELECT id FROM familles_ciment WHERE code = 'CEM III'
+);
+
+-- Verify the associations were created
+SELECT COUNT(*) AS total_associations FROM types_ciment_classes;
+
+-- Check some sample associations
+SELECT 
+    fc.code AS famille_code,
+    tc.code AS type_code, 
+    cr.classe,
+    cr.type_court_terme,
+    COUNT(*) AS count
+FROM types_ciment_classes tcc
+JOIN types_ciment tc ON tcc.type_ciment_id = tc.id
+JOIN familles_ciment fc ON tc.famille_id = fc.id
+JOIN classes_resistance cr ON tcc.classe_resistance_id = cr.id
+GROUP BY fc.code, tc.code, cr.classe, cr.type_court_terme
+ORDER BY fc.code, tc.code, cr.classe, cr.type_court_terme;
+
+-- Now the views should return data
+SELECT COUNT(*) AS count FROM vue_tous_ciments_proprietes;
+
+-- Check CEM II specifically
+SELECT * FROM vue_tous_ciments_proprietes
+WHERE famille_code = 'CEM II'
+ORDER BY type_code, classe, type_court_terme;
 
 
 
 
+-- Query to see all cement types with all limits and guarantees
+SELECT * FROM vue_tous_ciments_proprietes;
+
+-- For CEM II only
+SELECT * FROM vue_tous_ciments_proprietes 
+WHERE famille_code = 'CEM II'
+ORDER BY type_code, classe, type_court_terme;
+
+-- For CEM III only (which includes L classes)
+SELECT * FROM vue_tous_ciments_proprietes 
+WHERE famille_code = 'CEM III'
+ORDER BY type_code, classe, type_court_terme;
+
+
+-- Alternative view that shows all possible combinations
+CREATE OR REPLACE VIEW vue_tous_ciments_proprietes_complet AS
+SELECT 
+    fc.code AS famille_code,
+    fc.nom AS famille_nom,
+    tc.code AS type_code,
+    tc.description AS type_description,
+    tc.sr AS sulfate_resistant,
+    cr.classe,
+    cr.type_court_terme,
+    pm.resistance_2j_min,
+    pm.resistance_2j_sup,
+    pm.garantie_2j,
+    pm.resistance_7j_min,
+    pm.resistance_7j_sup,
+    pm.garantie_7j,
+    pm.resistance_28j_min,
+    pm.resistance_28j_sup,
+    pm.garantie_28j
+FROM types_ciment tc
+JOIN familles_ciment fc ON tc.famille_id = fc.id
+CROSS JOIN classes_resistance cr
+LEFT JOIN proprietes_mecaniques pm ON cr.id = pm.classe_resistance_id
+ORDER BY 
+    fc.code, 
+    tc.code,
+    CAST(SUBSTRING_INDEX(cr.classe, '.', 1) AS UNSIGNED),
+    CASE cr.type_court_terme 
+        WHEN 'L' THEN 1 
+        WHEN 'N' THEN 2 
+        WHEN 'R' THEN 3 
+    END;
+
+-- Use this view to see all combinations
+SELECT * FROM vue_tous_ciments_proprietes_complet LIMIT 10;
+
+-- Alternative view that shows all possible combinations
+CREATE OR REPLACE VIEW vue_tous_ciments_proprietes_complet AS
+SELECT 
+    fc.code AS famille_code,
+    fc.nom AS famille_nom,
+    tc.code AS type_code,
+    tc.description AS type_description,
+    tc.sr AS sulfate_resistant,
+    cr.classe,
+    cr.type_court_terme,
+    pm.resistance_2j_min,
+    pm.resistance_2j_sup,
+    pm.garantie_2j,
+    pm.resistance_7j_min,
+    pm.resistance_7j_sup,
+    pm.garantie_7j,
+    pm.resistance_28j_min,
+    pm.resistance_28j_sup,
+    pm.garantie_28j
+FROM types_ciment tc
+JOIN familles_ciment fc ON tc.famille_id = fc.id
+CROSS JOIN classes_resistance cr
+LEFT JOIN proprietes_mecaniques pm ON cr.id = pm.classe_resistance_id
+ORDER BY 
+    fc.code, 
+    tc.code,
+    CAST(SUBSTRING_INDEX(cr.classe, '.', 1) AS UNSIGNED),
+    CASE cr.type_court_terme 
+        WHEN 'L' THEN 1 
+        WHEN 'N' THEN 2 
+        WHEN 'R' THEN 3 
+    END;
+
+-- Use this view to see all combinations
+SELECT * FROM vue_tous_ciments_proprietes_complet LIMIT 10;
+
+-- =========================
+-- 7. Unified Physical Properties Table
+-- =========================
+CREATE TABLE proprietes_physiques (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  categorie ENUM('temps_debut_prise', 'stabilite', 'chaleur_hydratation') NOT NULL,
+  classe_resistance_id INT NULL,  -- NULL for properties that apply to all classes
+  famille_ciment_id INT NULL,     -- NULL for properties that apply to all families, or specific family ID
+  temps_debut_prise_min INT NULL,             -- Minimum limit for setting time
+  temps_debut_prise_sup INT NULL,             -- Maximum limit for setting time
+  temps_debut_prise_garanti INT NULL,         -- Guaranteed value for setting time
+  stabilite_min INT NULL,                     -- Minimum limit for stability
+  stabilite_sup INT NULL,                     -- Maximum limit for stability
+  stabilite_garanti INT NULL,                 -- Guaranteed value for stability
+  chaleur_hydratation_min INT NULL,           -- Minimum limit for heat of hydration
+  chaleur_hydratation_sup INT NULL,           -- Maximum limit for heat of hydration
+  chaleur_hydratation_garanty INT NULL,       -- Guaranteed value for heat of hydration
+  FOREIGN KEY (classe_resistance_id) REFERENCES classes_resistance(id),
+  FOREIGN KEY (famille_ciment_id) REFERENCES familles_ciment(id)
+);
+
+-- Insert setting time requirements (temps de début de prise)
+INSERT INTO proprietes_physiques (categorie, classe_resistance_id, famille_ciment_id, temps_debut_prise_min, temps_debut_prise_sup, temps_debut_prise_garanti) VALUES
+-- 32.5 classes
+('temps_debut_prise', (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'N'), NULL, 75, NULL, 60),
+('temps_debut_prise', (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'R'), NULL, 75, NULL, 60),
+('temps_debut_prise', (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'L'), NULL, 75, NULL, 60),
+-- 42.5 classes
+('temps_debut_prise', (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'N'), NULL, 60, NULL, 50),
+('temps_debut_prise', (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'R'), NULL, 60, NULL, 50),
+('temps_debut_prise', (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'L'), NULL, 60, NULL, 50),
+-- 52.5 classes
+('temps_debut_prise', (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'N'), NULL, 45, NULL, 40),
+('temps_debut_prise', (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'R'), NULL, 45, NULL, 40),
+('temps_debut_prise', (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'L'), NULL, 45, NULL, 40);
+
+-- Insert stability requirements (stabilite) - applies to all cements
+INSERT INTO proprietes_physiques (categorie, classe_resistance_id, famille_ciment_id, stabilite_min, stabilite_sup, stabilite_garanti) VALUES
+('stabilite', NULL, NULL, NULL, 10, 10);
+
+-- Insert heat of hydration requirements (chaleur d'hydratation) - Only for CEM III
+INSERT INTO proprietes_physiques (categorie, classe_resistance_id, famille_ciment_id, chaleur_hydratation_min, chaleur_hydratation_sup, chaleur_hydratation_garanty) VALUES
+('chaleur_hydratation', NULL, (SELECT id FROM familles_ciment WHERE code = 'CEM III'), NULL, 270, 300);
+
+-- =========================
+-- 8. Views for Physical Properties
+-- =========================
+
+-- View for all physical properties
+CREATE VIEW vue_proprietes_physiques AS
+SELECT 
+    fc.code AS famille_code,
+    fc.nom AS famille_nom,
+    tc.code AS type_code,
+    tc.description AS type_description,
+    cr.classe,
+    cr.type_court_terme,
+    pp.temps_debut_prise_min,
+    pp.temps_debut_prise_sup,
+    pp.temps_debut_prise_garanti,
+    pp.stabilite_min,
+    pp.stabilite_sup,
+    pp.stabilite_garanti,
+    pp.chaleur_hydratation_min,
+    pp.chaleur_hydratation_sup,
+    pp.chaleur_hydratation_garanty
+FROM types_ciment_classes tcc
+JOIN types_ciment tc ON tcc.type_ciment_id = tc.id
+JOIN familles_ciment fc ON tc.famille_id = fc.id
+JOIN classes_resistance cr ON tcc.classe_resistance_id = cr.id
+LEFT JOIN proprietes_physiques pp ON (
+    (pp.classe_resistance_id = cr.id AND pp.categorie = 'temps_debut_prise') OR
+    (pp.classe_resistance_id IS NULL AND pp.famille_ciment_id IS NULL AND pp.categorie = 'stabilite') OR
+    (pp.famille_ciment_id = fc.id AND pp.categorie = 'chaleur_hydratation')
+)
+ORDER BY 
+    fc.code, 
+    tc.code,
+    CAST(SUBSTRING_INDEX(cr.classe, '.', 1) AS UNSIGNED),
+    CASE cr.type_court_terme 
+        WHEN 'L' THEN 1 
+        WHEN 'N' THEN 2 
+        WHEN 'R' THEN 3 
+    END;
+
+-- View for setting time requirements only
+CREATE VIEW vue_temps_debut_prise AS
+SELECT 
+    cr.classe,
+    cr.type_court_terme,
+    pp.temps_debut_prise_min,
+    pp.temps_debut_prise_sup,
+    pp.temps_debut_prise_garanti
+FROM proprietes_physiques pp
+JOIN classes_resistance cr ON pp.classe_resistance_id = cr.id
+WHERE pp.categorie = 'temps_debut_prise'
+ORDER BY 
+    CAST(SUBSTRING_INDEX(cr.classe, '.', 1) AS UNSIGNED),
+    CASE cr.type_court_terme 
+        WHEN 'L' THEN 1 
+        WHEN 'N' THEN 2 
+        WHEN 'R' THEN 3 
+    END;
 
 
 
+-- Voir toutes les propriétés physiques
+SELECT * FROM vue_proprietes_physiques;
+
+-- Voir seulement la stabilité
+SELECT famille_code, type_code, classe, type_court_terme, 
+       stabilite_min, stabilite_sup, stabilite_garanti 
+FROM vue_proprietes_physiques;
+
+-- Voir seulement la chaleur d'hydratation (surtout pour CEM III)
+SELECT famille_code, type_code, classe, type_court_terme,
+       chaleur_hydratation_min, chaleur_hydratation_sup, chaleur_hydratation_garanty
+FROM vue_proprietes_physiques
+WHERE chaleur_hydratation_min IS NOT NULL 
+   OR chaleur_hydratation_sup IS NOT NULL 
+   OR chaleur_hydratation_garanty IS NOT NULL;
+
+-- Check physical properties
+SELECT COUNT(*) AS count FROM vue_proprietes_physiques;
+--SELECT * FROM vue_proprietes_physiques;
+    SELECT * FROM vue_proprietes_physiques;
+--View setting time requirements only
+    SELECT * FROM vue_temps_debut_prise;
+
+    
+
+-- =========================
+-- 9. Chemical Properties Table
+-- =========================
+CREATE TABLE proprietes_chimiques (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  categorie ENUM('pert_au_feu', 'residu_insoluble', 'teneur_chlour', 'pouzzolanicite', 'SO3', 'SO3_supp', 'pouzzolanicite_supp', 'C3A') NOT NULL,
+  famille_ciment_id INT NULL,
+  classe_resistance_id INT NULL,
+  type_court_terme ENUM('N','R','L') NULL,
+  limit_inf DECIMAL(5,2) NULL,
+  limit_sup DECIMAL(5,2) NULL,
+  limit_garanti DECIMAL(5,2) NULL,
+  description_garanti TEXT NULL,
+  FOREIGN KEY (famille_ciment_id) REFERENCES familles_ciment(id),
+  FOREIGN KEY (classe_resistance_id) REFERENCES classes_resistance(id)
+);
+
+-- Insert chemical properties data
+INSERT INTO proprietes_chimiques (categorie, famille_ciment_id, classe_resistance_id, type_court_terme, limit_inf, limit_sup, limit_garanti, description_garanti) VALUES
+-- Pert au feu (Ciment 1 and 2, all classes)
+('pert_au_feu', 1, NULL, NULL, NULL, 5.00, 5.00, 'Limit sup = 5%'),
+('pert_au_feu', 2, NULL, NULL, NULL, 5.00, 5.00, 'Limit sup = 5%'),
+
+-- Residu insoluble (Ciment 1 and 3, all classes)
+('residu_insoluble', 1, NULL, NULL, NULL, 5.00, 5.00, 'Limit sup = 5%'),
+('residu_insoluble', 3, NULL, NULL, NULL, 5.00, 5.00, 'Limit sup = 5%'),
+
+-- Teneur en chlour (All ciments, all classes)
+('teneur_chlour', NULL, NULL, NULL, NULL, 0.10, 0.10, 'Limit sup = 0.10%'),
+
+-- Pouzzolanicite (Only cement 4, classes N and R)
+('pouzzolanicite', 4, NULL, 'N', NULL, NULL, NULL, 'Satisfait à l essai - Positive après 15 jours'),
+('pouzzolanicite', 4, NULL, 'R', NULL, NULL, NULL, 'Satisfait à l essai - Positive après 15 jours'),
+
+-- SO3 for CEM I, II, IV, V
+('SO3', 1, (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'N'), NULL, NULL, 3.50, 4.00, NULL),
+('SO3', 1, (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'R'), NULL, NULL, 3.50, 4.00, NULL),
+('SO3', 1, (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'N'), NULL, NULL, 3.50, 4.00, NULL),
+('SO3', 1, (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'R'), NULL, NULL, 4.00, 4.50, NULL),
+('SO3', 1, (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'N'), NULL, NULL, 4.00, 4.50, NULL),
+('SO3', 1, (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'R'), NULL, NULL, 4.00, 4.50, NULL),
+
+-- SO3 for CEM II
+('SO3', 2, (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'N'), NULL, NULL, 3.50, 4.00, NULL),
+('SO3', 2, (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'R'), NULL, NULL, 3.50, 4.00, NULL),
+('SO3', 2, (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'N'), NULL, NULL, 3.50, 4.00, NULL),
+('SO3', 2, (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'R'), NULL, NULL, 4.00, 4.50, NULL),
+('SO3', 2, (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'N'), NULL, NULL, 4.00, 4.50, NULL),
+('SO3', 2, (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'R'), NULL, NULL, 4.00, 4.50, NULL),
+
+-- SO3 for CEM IV
+('SO3', 4, (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'N'), NULL, NULL, 3.50, 4.00, NULL),
+('SO3', 4, (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'R'), NULL, NULL, 3.50, 4.00, NULL),
+('SO3', 4, (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'N'), NULL, NULL, 3.50, 4.00, NULL),
+('SO3', 4, (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'R'), NULL, NULL, 4.00, 4.50, NULL),
+('SO3', 4, (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'N'), NULL, NULL, 4.00, 4.50, NULL),
+('SO3', 4, (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'R'), NULL, NULL, 4.00, 4.50, NULL),
+
+-- SO3 for CEM V
+('SO3', 5, (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'N'), NULL, NULL, 3.50, 4.00, NULL),
+('SO3', 5, (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'R'), NULL, NULL, 3.50, 4.00, NULL),
+('SO3', 5, (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'N'), NULL, NULL, 3.50, 4.00, NULL),
+('SO3', 5, (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'R'), NULL, NULL, 4.00, 4.50, NULL),
+('SO3', 5, (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'N'), NULL, NULL, 4.00, 4.50, NULL),
+('SO3', 5, (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'R'), NULL, NULL, 4.00, 4.50, NULL),
+
+-- SO3 for CEM III
+('SO3', 3, NULL, NULL, NULL, 4.00, 4.50, 'For CEM III/A and CEM III/B'),
+('SO3', 3, NULL, NULL, NULL, 4.00, 5.00, 'For CEM III/C'),
+
+-- SO3 supplémentaire pour ciments SR
+('SO3_supp', 1, (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'N'), NULL, NULL, 3.00, 3.00, 'For SR cements: 32.5N'),
+('SO3_supp', 1, (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'R'), NULL, NULL, 3.00, 3.00, 'For SR cements: 32.5R'),
+('SO3_supp', 1, (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'N'), NULL, NULL, 3.00, 3.00, 'For SR cements: 42.5N'),
+('SO3_supp', 1, (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'R'), NULL, NULL, 3.50, 3.50, 'For SR cements: 42.5R'),
+('SO3_supp', 1, (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'N'), NULL, NULL, 3.50, 3.50, 'For SR cements: 52.5N'),
+('SO3_supp', 1, (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'R'), NULL, NULL, 3.50, 3.50, 'For SR cements: 52.5R'),
+
+('SO3_supp', 4, (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'N'), NULL, NULL, 3.00, 3.00, 'For SR cements: 32.5N'),
+('SO3_supp', 4, (SELECT id FROM classes_resistance WHERE classe = '32.5' AND type_court_terme = 'R'), NULL, NULL, 3.00, 3.00, 'For SR cements: 32.5R'),
+('SO3_supp', 4, (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'N'), NULL, NULL, 3.00, 3.00, 'For SR cements: 42.5N'),
+('SO3_supp', 4, (SELECT id FROM classes_resistance WHERE classe = '42.5' AND type_court_terme = 'R'), NULL, NULL, 3.50, 3.50, 'For SR cements: 42.5R'),
+('SO3_supp', 4, (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'N'), NULL, NULL, 3.50, 3.50, 'For SR cements: 52.5N'),
+('SO3_supp', 4, (SELECT id FROM classes_resistance WHERE classe = '52.5' AND type_court_terme = 'R'), NULL, NULL, 3.50, 3.50, 'For SR cements: 52.5R'),
+
+-- Pouzzolanicité supplémentaire
+('pouzzolanicite_supp', 4, NULL, 'N', NULL, NULL, NULL, 'Résultat doit être positif à 8 jours'),
+('pouzzolanicite_supp', 4, NULL, 'R', NULL, NULL, NULL, 'Résultat doit être positif à 8 jours'),
+
+-- C3A
+('C3A', 1, NULL, NULL, NULL, 0.00, 2.00, 'C3A limit for I-SR0: max 0%, garanty 2%'),
+('C3A', 1, NULL, NULL, NULL, 3.00, 4.00, 'C3A limit for I-SR3: max 3%, garanty 4%'),
+('C3A', 1, NULL, NULL, NULL, 5.00, 6.00, 'C3A limit for I-SR5: max 5%, garanty 6%'),
+('C3A', 4, NULL, NULL, NULL, 9.00, 10.00, 'C3A limit for IV/A-SR: max 9%, garanty 10%'),
+('C3A', 4, NULL, NULL, NULL, 9.00, 10.00, 'C3A limit for IV/B-SR: max 9%, garanty 10%');
+
+-- =========================
+-- 10. View for Chemical Properties
+-- =========================
+CREATE OR REPLACE VIEW vue_proprietes_chimiques AS
+SELECT 
+    fc.code AS famille_code,
+    fc.nom AS famille_nom,
+    tc.code AS type_code,
+    tc.description AS type_description,
+    cr.classe,
+    cr.type_court_terme,
+    pc.categorie,
+    pc.limit_inf,
+    pc.limit_sup,
+    pc.limit_garanti,
+    pc.description_garanti
+FROM proprietes_chimiques pc
+LEFT JOIN familles_ciment fc ON pc.famille_ciment_id = fc.id
+LEFT JOIN types_ciment tc ON tc.famille_id = fc.id
+LEFT JOIN classes_resistance cr ON pc.classe_resistance_id = cr.id
+ORDER BY fc.code, tc.code, pc.categorie, cr.classe, cr.type_court_terme;
+
+-- Vérification des données
+SELECT * FROM vue_proprietes_chimiques WHERE categorie = 'SO3';
+SELECT * FROM vue_proprietes_chimiques WHERE categorie = 'SO3_supp';
+SELECT * FROM vue_proprietes_chimiques WHERE categorie = 'C3A';
+SELECT * FROM vue_proprietes_chimiques WHERE categorie = 'pouzzolanicite_supp';
 
 
 
@@ -739,12 +660,7 @@ CREATE TABLE clients (
 );
 
 
-
-
-
---
 -- Déchargement des données de la table `clients`
---
 
 INSERT INTO `clients` (`id`, `sigle`, `nom_resaux_sociale`, `adresse`) VALUES
 (1, 'CETIM', 'Centre d?Etudes et de Contrôle des Matériaux', 'Zone industrielle, Alger'),
@@ -754,11 +670,4 @@ INSERT INTO `clients` (`id`, `sigle`, `nom_resaux_sociale`, `adresse`) VALUES
 (5, 'LAFARGE', 'Lafarge Cement Company', 'Zéralda, Alger'),
 (6, 'HOLCIM', 'Holcim Algérie', 'Oran - Route d?Arzew'),
 (7, 'GRAVAL', 'Graval Construction', 'Constantine - Route El Khroub');
-
-
-UPDATE clients
-SET famillecement = 'CEM II',
-    typecement = 'CEM II/A-S',
-    methodeessai = 'EN196-2'
-WHERE id = 2;
 

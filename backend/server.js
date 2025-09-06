@@ -72,74 +72,163 @@ app.post('/api/login', async (req, res) => {
 
 
 
-// Categories API
-app.get('/api/categories', async (req, res) => {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Get parameters for a specific category
+app.get('/api/proprietes/category/:categoryId', async (req, res) => {
   try {
-    const [categories] = await promisePool.execute('SELECT id, nom FROM categories');
-    res.json(categories);
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-
-
-
-
-// Parameters API - FIXED VERSION
-// Get details for a specific parameter
-app.get('/api/parametres/:id', async (req, res) => {
-  const { id } = req.params;
-  const { categorie } = req.query;
-  
-  try {
-    console.log('Fetching details for parameter:', id, 'in category:', categorie);
-    
-    // Get the specific parameter
-    const [parameterResults] = await promisePool.execute(
-      `SELECT pn.*, c.nom as categorie 
-       FROM parametres_norme pn 
-       JOIN categories c ON pn.categorie_id = c.id 
-       WHERE pn.id = ? AND c.nom = ?`,
-      [id, categorie]
+    const { categoryId } = req.params;
+    // Query your database for parameters in this category
+    const [rows] = await req.connection.execute(
+      'SELECT * FROM parameters WHERE category_id = ?', 
+      [categoryId]
     );
-    
-    if (parameterResults.length === 0) {
-      return res.status(404).json({ error: 'Parameter not found' });
-    }
-    
-    const parameter = parameterResults[0];
-    
-    // Get limits for this parameter
-    const [limites] = await promisePool.execute(`
-      SELECT 
-        tc.code as ciment_type,
-        CONCAT(cr.classe, ' ', cr.type_court_terme) as classe,
-        vp.valeur_min as limite_inf,
-        vp.valeur_max as limite_sup,
-        vp.valeur_exacte as limite_garantie
-      FROM valeurs_parametres vp
-      LEFT JOIN types_ciment tc ON vp.type_ciment_id = tc.id
-      LEFT JOIN classes_resistance cr ON vp.classe_id = cr.id
-      WHERE vp.parametre_id = ?
-      AND tc.code IS NOT NULL
-      AND cr.classe IS NOT NULL
-      ORDER BY tc.code, cr.classe
-    `, [id]);
-    
-    console.log('Found', limites.length, 'limits for parameter', id);
-    
-    res.json({
-      ...parameter,
-      limites: limites || []
-    });
-    
+    res.json(rows);
   } catch (error) {
-    console.error('Error fetching parameter details:', error);
-    res.status(500).json({ error: 'Internal server error: ' + error.message });
+    res.status(500).json({ error: error.message });
   }
 });
+
+// Get parameter details for custom categories
+app.get('/api/proprietes/details/:categoryId/:paramId', async (req, res) => {
+  try {
+    const { categoryId, paramId } = req.params;
+    // Query your database for parameter details
+    const [rows] = await req.connection.execute(
+      'SELECT * FROM parameter_details WHERE category_id = ? AND parameter_id = ?', 
+      [categoryId, paramId]
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all mechanical properties with cement type information
+// Get all mechanical properties
+app.get('/api/proprietes/mecaniques', async (req, res) => {
+  try {
+    const [rows] = await req.connection.execute(`
+      SELECT 
+        id,
+        nom,
+        unite
+      FROM proprietes_mecaniques
+      ORDER BY nom
+    `);
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get mechanical properties details for a specific parameter
+app.get('/api/proprietes/mecaniques/details/:paramId', async (req, res) => {
+  try {
+    const { paramId } = req.params;
+    
+    // Determine which column to select based on parameter ID
+    let resistanceColumn = 'resistance_28j_min';
+    if (paramId === 'resistance_2j') resistanceColumn = 'resistance_2j_min';
+    if (paramId === 'resistance_7j') resistanceColumn = 'resistance_7j_min';
+    
+    const [rows] = await req.connection.execute(`
+      SELECT 
+        fc.code AS famille_code,
+        tc.code AS type_code,
+        cr.classe,
+        pm.${resistanceColumn} AS resistance_min,
+        pm.resistance_28j_sup AS resistance_max,
+        pm.garantie_28j AS garantie
+      FROM proprietes_mecaniques pm
+      JOIN classes_resistance cr ON pm.classe_resistance_id = cr.id
+      JOIN types_ciment_classes tcc ON cr.id = tcc.classe_resistance_id
+      JOIN types_ciment tc ON tcc.type_ciment_id = tc.id
+      JOIN familles_ciment fc ON tc.famille_id = fc.id
+      WHERE pm.${resistanceColumn} IS NOT NULL
+      ORDER BY fc.code, tc.code, cr.classe
+    `);
+    
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Similar endpoints for physical and chemical properties...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -197,6 +286,8 @@ app.get('/api/resultats', async (req, res) => {
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
+
+
 
 // Client info API
 app.get("/api/clients/:sigle", async (req, res) => {
