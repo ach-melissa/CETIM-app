@@ -18,8 +18,6 @@ INSERT INTO utilisateurs (email, mot_de_passe, role) VALUES
 ('admin@cetim.dz', '$2b$10$WSo10LJR.p4F3Vx5E98WSeq5VY7XXATT3gmgqYC12rtMrD8HLUk9y', 'admin'),
 ('user@cetim.dz',  '$2b$10$txGEp4e7f7gO6UXeeZPe5OXPaDVrpVCr.V2b7i0aLya8yw8NZi19W', 'user');
 
-
-
 -- =========================
 -- 1. Families of Cement
 -- =========================
@@ -29,16 +27,12 @@ CREATE TABLE familles_ciment (
   nom VARCHAR(255) NOT NULL       -- e.g., "Ciment Portland"
 );
 
-
-
 INSERT INTO familles_ciment (code, nom) VALUES
 ('CEM I', 'Ciment Portland'),
 ('CEM II', 'Ciment Portland composé'),
 ('CEM III', 'Ciment de haut fourneau'),
 ('CEM IV', 'Ciment pouzzolanique'),
 ('CEM V', 'Ciment composé');
-
-
 
 
 
@@ -88,8 +82,6 @@ INSERT INTO types_ciment (famille_id, code, description, sr) VALUES
 (5, 'CEM V/B', 'Composé (31–49% laitier + 31–49% cendres volantes)', 0);
 
 
-
-
 -- =========================
 -- 3. Classes of Resistance
 -- =========================
@@ -111,8 +103,6 @@ INSERT INTO classes_resistance (classe, type_court_terme) VALUES
 ('52.5','L'); -- Only for CEM III
 
 
-
-
 -- =========================
 -- 4. Categories of Parameters
 -- =========================
@@ -132,7 +122,6 @@ RENAME TABLE categories_parametre TO categories;
 DELETE FROM categories WHERE nom = 'supplémentaire';
 -- Vérifier le contenu restant de la table categories
 SELECT * FROM categories;
-
 
 
 -- =========================
@@ -299,8 +288,6 @@ SELECT COUNT(*) AS count FROM vue_tous_ciments_proprietes;
 SELECT * FROM vue_tous_ciments_proprietes
 WHERE famille_code = 'CEM II'
 ORDER BY type_code, classe, type_court_terme;
-
-
 
 
 -- Query to see all cement types with all limits and guarantees
@@ -493,8 +480,6 @@ ORDER BY
         WHEN 'R' THEN 3 
     END;
 
-
-
 -- Voir toutes les propriétés physiques
 SELECT * FROM vue_proprietes_physiques;
 
@@ -517,8 +502,6 @@ SELECT COUNT(*) AS count FROM vue_proprietes_physiques;
     SELECT * FROM vue_proprietes_physiques;
 --View setting time requirements only
     SELECT * FROM vue_temps_debut_prise;
-
-    
 
 -- =========================
 -- 9. Chemical Properties Table
@@ -645,7 +628,6 @@ SELECT * FROM vue_proprietes_chimiques WHERE categorie = 'C3A';
 SELECT * FROM vue_proprietes_chimiques WHERE categorie = 'pouzzolanicite_supp';
 
 
-
 -----------------------------
 -- parametre entreprise --
 -----------------------------
@@ -659,7 +641,6 @@ CREATE TABLE clients (
   methodeessai VARCHAR(50) DEFAULT NULL
 );
 
-
 -- Déchargement des données de la table `clients`
 
 INSERT INTO `clients` (`id`, `sigle`, `nom_resaux_sociale`, `adresse`) VALUES
@@ -670,13 +651,6 @@ INSERT INTO `clients` (`id`, `sigle`, `nom_resaux_sociale`, `adresse`) VALUES
 (5, 'LAFARGE', 'Lafarge Cement Company', 'Zéralda, Alger'),
 (6, 'HOLCIM', 'Holcim Algérie', 'Oran - Route d?Arzew'),
 (7, 'GRAVAL', 'Graval Construction', 'Constantine - Route El Khroub');
-
-
-
-
-
-
-
 
 
 CREATE TABLE controles_conformite (
@@ -720,7 +694,6 @@ INSERT INTO controles_conformite
 ('Composition', 'attribut', NULL, 'chimique', 'Tous', '1/mois', '1/semaine');
 
 
-
 -- Table des valeurs statistiques (Tableau 7)
 CREATE TABLE valeurs_statistiques (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -745,7 +718,6 @@ VALUES ('mecanique', 'limite_superieure', 10.00, 5.00);
 -- Exigences physiques et chimiques
 INSERT INTO valeurs_statistiques (categorie, sous_type, percentile_pk, prob_acceptation_cr)
 VALUES ('physique_chimique', NULL, 10.00, 5.00);
-
 
 
 CREATE TABLE coefficients_k (
@@ -779,7 +751,6 @@ INSERT INTO coefficients_k (n_min, n_max, n_range, k_pk5, k_pk10) VALUES
 (401, 1000000, '> 400', 1.78, 1.40);
 
 
-
 CREATE TABLE conditions_statistiques (
   id INT AUTO_INCREMENT PRIMARY KEY,
   n_min INT NOT NULL,
@@ -787,7 +758,6 @@ CREATE TABLE conditions_statistiques (
   pk_percentile DECIMAL(4,2) NOT NULL,   -- Pk (% fractile)
   ca_probabilite DECIMAL(4,2) NOT NULL   -- Ca (% probabilité d’acceptation)
 );
-
 
 INSERT INTO conditions_statistiques (n_min, n_max, pk_percentile, ca_probabilite) VALUES
 -- (0, 19, 10, 0);
@@ -799,42 +769,3 @@ INSERT INTO conditions_statistiques (n_min, n_max, pk_percentile, ca_probabilite
 (40, 54, 10, 5),
 (40, 54, 10, 6),
 (40, 54, 10, 7);
-
-
----------------------
--- referance norm 
----------------------
-CREATE TABLE parametres_norme (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  categorie_id INT NOT NULL,
-  nom VARCHAR(255) NOT NULL,       -- e.g., "Résistance à 28 jours", "SO3"
-  reference_norme VARCHAR(50),     -- e.g., "EN 196-1"
-  unite VARCHAR(50),               -- e.g., "MPa", "%", "J/g", "mm"
-  FOREIGN KEY (categorie_id) REFERENCES categories_parametre(id)
-);
-
--- Mécaniques
-INSERT INTO parametres_norme (categorie_id, nom, reference_norme, unite) VALUES
-(1, 'Resistance à 2 jours', 'EN 196-1', 'MPa'),
-(1, 'Resistance à 7 jours', 'EN 196-1', 'MPa'),
-(1, 'Resistance à 28 jours', 'EN 196-1', 'MPa');
-
--- Physiques
-INSERT INTO parametres_norme (categorie_id, nom, reference_norme, unite) VALUES
-(2, 'Temps de debut de prise', 'EN 196-3', 'min'),
-(2, 'Stabilite (expansion)', 'EN 196-3', 'mm'),
-(2, 'Chaleur d’hydratation', 'EN 196-8/9', 'J/g');
-
--- Chimiques
-INSERT INTO parametres_norme (categorie_id, nom, reference_norme, unite) VALUES
-(3, 'Perte au feu', 'EN 196-2', '%'),
-(3, 'Residu insoluble', 'EN 196-2', '%'),
-(3, 'SO3', 'EN 196-2', '%'),
-(3, 'Chlorures', 'EN 196-2', '%'),
-(3, 'Pouzzolanicite', 'EN 196-5', 'Essai');
-
--- Supplémentaires (SR)
-INSERT INTO parametres_norme (categorie_id, nom, reference_norme, unite) VALUES
-(4, 'SO3 (SR)', 'EN 196-2', '%'),
-(4, 'C3A (clinker)', 'EN 196-2', '%'),
-(4, 'Pouzzolanicite (SR)', 'EN 196-5', 'Essai');
