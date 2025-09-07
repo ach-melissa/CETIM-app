@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Header from "../../header/Header";
 import "./parametre_norm.css";
 
+
 const API_BASE = "http://localhost:5000";
 const USE_MOCK_DATA = true; // Set to false when your API is working
 
@@ -47,117 +48,170 @@ export default function ParametreNorm() {
   };
 
   // Complete mock details for all parameters
-  const mockDetails = {
-    // Mechanical properties
-    resistance_2j: [
-      { famille_code: "CEM I", type_code: "CEM I", classe: "42.5 R", resistance_min: "20.0", resistance_max: null, garantie: "18.0" },
-      { famille_code: "CEM I", type_code: "CEM I", classe: "52.5 N", resistance_min: "20.0", resistance_max: null, garantie: "18.0" },
-      { famille_code: "CEM I", type_code: "CEM I-SR", classe: "42.5 N", resistance_min: "10.0", resistance_max: null, garantie: "8.0" },
-      { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "42.5 R", resistance_min: "20.0", resistance_max: null, garantie: "18.0" },
-      { famille_code: "CEM II", type_code: "CEM II/B-S", classe: "32.5 R", resistance_min: "10.0", resistance_max: null, garantie: "8.0" },
-      { famille_code: "CEM III", type_code: "CEM III/A", classe: "42.5 N", resistance_min: "10.0", resistance_max: null, garantie: "8.0" },
-      { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "42.5 N", resistance_min: "10.0", resistance_max: null, garantie: "8.0" },
-      { famille_code: "CEM V", type_code: "CEM V/A", classe: "32.5 N", resistance_min: null, resistance_max: null, garantie: null }
-    ],
-    resistance_7j: [
-      { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "32.5 N", resistance_min: "16.0", resistance_max: null, garantie: "14.0" },
-      { famille_code: "CEM III", type_code: "CEM III/A", classe: "32.5 N", resistance_min: "16.0", resistance_max: null, garantie: "14.0" },
-      { famille_code: "CEM III", type_code: "CEM III/B", classe: "32.5 L", resistance_min: "12.0", resistance_max: null, garantie: "10.0" },
-      { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "32.5 N", resistance_min: "16.0", resistance_max: null, garantie: "14.0" },
-      { famille_code: "CEM V", type_code: "CEM V/A", classe: "32.5 N", resistance_min: "16.0", resistance_max: null, garantie: "14.0" }
-    ],
-    resistance_28j: [
-      { famille_code: "CEM I", type_code: "CEM I", classe: "42.5 R", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
-      { famille_code: "CEM I", type_code: "CEM I", classe: "52.5 N", resistance_min: "52.5", resistance_max: "72.5", garantie: "50.0" },
-      { famille_code: "CEM I", type_code: "CEM I-SR", classe: "42.5 N", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
-      { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "32.5 N", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
-      { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "42.5 R", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
-      { famille_code: "CEM II", type_code: "CEM II/B-S", classe: "32.5 R", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
-      { famille_code: "CEM II", type_code: "CEM II/B-V", classe: "42.5 N", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
-      { famille_code: "CEM III", type_code: "CEM III/A", classe: "32.5 N", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
-      { famille_code: "CEM III", type_code: "CEM III/A", classe: "42.5 N", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
-      { famille_code: "CEM III", type_code: "CEM III/B", classe: "32.5 L", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
-      { famille_code: "CEM III", type_code: "CEM III/B", classe: "42.5 L", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
-      { famille_code: "CEM III", type_code: "CEM III/C", classe: "32.5 L", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
-      { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "32.5 N", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
-      { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "42.5 N", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
-      { famille_code: "CEM IV", type_code: "CEM IV/B", classe: "32.5 R", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
-      { famille_code: "CEM V", type_code: "CEM V/A", classe: "32.5 N", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
-      { famille_code: "CEM V", type_code: "CEM V/A", classe: "42.5 N", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
-      { famille_code: "CEM V", type_code: "CEM V/B", classe: "32.5 R", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" }
-    ],
-    
-    // Physical properties
-    temps_debut_prise: [
-      { famille_code: "CEM I", type_code: "CEM I", classe: "Tous", resistance_min: "45", resistance_max: null, garantie: null },
-      { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "Tous", resistance_min: "45", resistance_max: null, garantie: null },
-      { famille_code: "CEM III", type_code: "CEM III/A", classe: "Tous", resistance_min: "45", resistance_max: null, garantie: null },
-      { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "Tous", resistance_min: "45", resistance_max: null, garantie: null },
-      { famille_code: "CEM V", type_code: "CEM V/A", classe: "Tous", resistance_min: "45", resistance_max: null, garantie: null }
-    ],
-    stabilite: [
-      { famille_code: "CEM I", type_code: "CEM I", classe: "Tous", resistance_min: null, resistance_max: "10", garantie: null },
-      { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "Tous", resistance_min: null, resistance_max: "10", garantie: null },
-      { famille_code: "CEM III", type_code: "CEM III/A", classe: "Tous", resistance_min: null, resistance_max: "10", garantie: null },
-      { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "Tous", resistance_min: null, resistance_max: "10", garantie: null },
-      { famille_code: "CEM V", type_code: "CEM V/A", classe: "Tous", resistance_min: null, resistance_max: "10", garantie: null }
-    ],
-    chaleur_hydratation: [
-      { famille_code: "CEM I", type_code: "CEM I", classe: "Tous", resistance_min: null, resistance_max: "270", garantie: null },
-      { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "Tous", resistance_min: null, resistance_max: "270", garantie: null },
-      { famille_code: "CEM III", type_code: "CEM III/A", classe: "Tous", resistance_min: null, resistance_max: "270", garantie: null },
-      { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "Tous", resistance_min: null, resistance_max: "270", garantie: null },
-      { famille_code: "CEM V", type_code: "CEM V/A", classe: "Tous", resistance_min: null, resistance_max: "270", garantie: null }
-    ],
-    
-    // Chemical properties
-    SO3: [
-      { famille_code: "CEM I", type_code: "CEM I", classe: "Tous", resistance_min: null, resistance_max: "3.5", garantie: null },
-      { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "Tous", resistance_min: null, resistance_max: "3.5", garantie: null },
-      { famille_code: "CEM III", type_code: "CEM III/A", classe: "Tous", resistance_min: null, resistance_max: "3.5", garantie: null },
-      { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "Tous", resistance_min: null, resistance_max: "3.5", garantie: null },
-      { famille_code: "CEM V", type_code: "CEM V/A", classe: "Tous", resistance_min: null, resistance_max: "3.5", garantie: null }
-    ],
-    SO3_supp: [
-      { famille_code: "CEM I", type_code: "CEM I-SR", classe: "Tous", resistance_min: null, resistance_max: "3.0", garantie: null },
-      { famille_code: "CEM II", type_code: "CEM II/A-SR", classe: "Tous", resistance_min: null, resistance_max: "3.0", garantie: null },
-      { famille_code: "CEM III", type_code: "CEM III-SR", classe: "Tous", resistance_min: null, resistance_max: "3.0", garantie: null }
-    ],
-    C3A: [
-      { famille_code: "CEM I", type_code: "CEM I", classe: "Tous", resistance_min: null, resistance_max: "8.0", garantie: null },
-      { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "Tous", resistance_min: null, resistance_max: "8.0", garantie: null },
-      { famille_code: "CEM III", type_code: "CEM III/A", classe: "Tous", resistance_min: null, resistance_max: "8.0", garantie: null }
-    ],
-    pert_au_feu: [
-      { famille_code: "CEM I", type_code: "CEM I", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: null },
-      { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: null },
-      { famille_code: "CEM III", type_code: "CEM III/A", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: null },
-      { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: null },
-      { famille_code: "CEM V", type_code: "CEM V/A", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: null }
-    ],
-    residu_insoluble: [
-      { famille_code: "CEM I", type_code: "CEM I", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: null },
-      { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: null },
-      { famille_code: "CEM III", type_code: "CEM III/A", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: null },
-      { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: null },
-      { famille_code: "CEM V", type_code: "CEM V/A", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: null }
-    ],
-    teneur_chlour: [
-      { famille_code: "CEM I", type_code: "CEM I", classe: "Tous", resistance_min: null, resistance_max: "0.1", garantie: null },
-      { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "Tous", resistance_min: null, resistance_max: "0.1", garantie: null },
-      { famille_code: "CEM III", type_code: "CEM III/A", classe: "Tous", resistance_min: null, resistance_max: "0.1", garantie: null },
-      { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "Tous", resistance_min: null, resistance_max: "0.1", garantie: null },
-      { famille_code: "CEM V", type_code: "CEM V/A", classe: "Tous", resistance_min: null, resistance_max: "0.1", garantie: null }
-    ],
-    pouzzolanicite: [
-      { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "Tous", resistance_min: null, resistance_max: "10.0", garantie: null },
-      { famille_code: "CEM IV", type_code: "CEM IV/B", classe: "Tous", resistance_min: null, resistance_max: "10.0", garantie: null }
-    ],
-    pouzzolanicite_supp: [
-      { famille_code: "CEM IV", type_code: "CEM IV/A-SR", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: null },
-      { famille_code: "CEM IV", type_code: "CEM IV/B-SR", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: null }
-    ]
-  };
+const mockDetails = {
+  // Mechanical properties (unchanged as they already have garantie)
+  resistance_2j: [
+    { famille_code: "CEM I", type_code: "CEM I", classe: "42.5 R", resistance_min: "20.0", resistance_max: null, garantie: "18.0" },
+    { famille_code: "CEM I", type_code: "CEM I", classe: "52.5 N", resistance_min: "20.0", resistance_max: null, garantie: "18.0" },
+    { famille_code: "CEM I", type_code: "CEM I-SR", classe: "42.5 N", resistance_min: "10.0", resistance_max: null, garantie: "8.0" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "42.5 R", resistance_min: "20.0", resistance_max: null, garantie: "18.0" },
+    { famille_code: "CEM II", type_code: "CEM II/B-S", classe: "32.5 R", resistance_min: "10.0", resistance_max: null, garantie: "8.0" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "42.5 N", resistance_min: "10.0", resistance_max: null, garantie: "8.0" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "42.5 N", resistance_min: "10.0", resistance_max: null, garantie: "8.0" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "32.5 N", resistance_min: null, resistance_max: null, garantie: null }
+  ],
+  resistance_7j: [
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "32.5 N", resistance_min: "16.0", resistance_max: null, garantie: "14.0" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "32.5 N", resistance_min: "16.0", resistance_max: null, garantie: "14.0" },
+    { famille_code: "CEM III", type_code: "CEM III/B", classe: "32.5 L", resistance_min: "12.0", resistance_max: null, garantie: "10.0" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "32.5 N", resistance_min: "16.0", resistance_max: null, garantie: "14.0" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "32.5 N", resistance_min: "16.0", resistance_max: null, garantie: "14.0" }
+  ],
+  resistance_28j: [
+    { famille_code: "CEM I", type_code: "CEM I", classe: "42.5 R", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
+    { famille_code: "CEM I", type_code: "CEM I", classe: "52.5 N", resistance_min: "52.5", resistance_max: "72.5", garantie: "50.0" },
+    { famille_code: "CEM I", type_code: "CEM I-SR", classe: "42.5 N", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "32.5 N", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "42.5 R", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
+    { famille_code: "CEM II", type_code: "CEM II/B-S", classe: "32.5 R", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
+    { famille_code: "CEM II", type_code: "CEM II/B-V", classe: "42.5 N", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "32.5 N", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "42.5 N", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
+    { famille_code: "CEM III", type_code: "CEM III/B", classe: "32.5 L", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
+    { famille_code: "CEM III", type_code: "CEM III/B", classe: "42.5 L", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
+    { famille_code: "CEM III", type_code: "CEM III/C", classe: "32.5 L", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "32.5 N", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "42.5 N", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
+    { famille_code: "CEM IV", type_code: "CEM IV/B", classe: "32.5 R", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "32.5 N", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "42.5 N", resistance_min: "42.5", resistance_max: "62.5", garantie: "40.0" },
+    { famille_code: "CEM V", type_code: "CEM V/B", classe: "32.5 R", resistance_min: "32.5", resistance_max: "52.5", garantie: "30.0" }
+  ],
+  
+  // Physical properties - updated with garantie values
+  temps_debut_prise: [
+    { famille_code: "CEM I", type_code: "CEM I", classe: "32.5 N", resistance_min: "75", resistance_max: null, garantie: "60" },
+    { famille_code: "CEM I", type_code: "CEM I", classe: "32.5 R", resistance_min: "75", resistance_max: null, garantie: "60" },
+    { famille_code: "CEM I", type_code: "CEM I", classe: "42.5 N", resistance_min: "60", resistance_max: null, garantie: "50" },
+    { famille_code: "CEM I", type_code: "CEM I", classe: "42.5 R", resistance_min: "60", resistance_max: null, garantie: "50" },
+    { famille_code: "CEM I", type_code: "CEM I", classe: "52.5 N", resistance_min: "45", resistance_max: null, garantie: "40" },
+    { famille_code: "CEM I", type_code: "CEM I", classe: "52.5 R", resistance_min: "45", resistance_max: null, garantie: "40" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "32.5 N", resistance_min: "75", resistance_max: null, garantie: "60" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "32.5 R", resistance_min: "75", resistance_max: null, garantie: "60" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "42.5 N", resistance_min: "60", resistance_max: null, garantie: "50" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "42.5 R", resistance_min: "60", resistance_max: null, garantie: "50" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "52.5 N", resistance_min: "45", resistance_max: null, garantie: "40" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "52.5 R", resistance_min: "45", resistance_max: null, garantie: "40" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "32.5 N", resistance_min: "75", resistance_max: null, garantie: "60" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "32.5 R", resistance_min: "75", resistance_max: null, garantie: "60" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "32.5 L", resistance_min: "75", resistance_max: null, garantie: "60" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "42.5 N", resistance_min: "60", resistance_max: null, garantie: "50" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "42.5 R", resistance_min: "60", resistance_max: null, garantie: "50" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "42.5 L", resistance_min: "60", resistance_max: null, garantie: "50" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "52.5 N", resistance_min: "45", resistance_max: null, garantie: "40" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "52.5 R", resistance_min: "45", resistance_max: null, garantie: "40" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "52.5 L", resistance_min: "45", resistance_max: null, garantie: "40" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "32.5 N", resistance_min: "75", resistance_max: null, garantie: "60" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "32.5 R", resistance_min: "75", resistance_max: null, garantie: "60" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "42.5 N", resistance_min: "60", resistance_max: null, garantie: "50" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "42.5 R", resistance_min: "60", resistance_max: null, garantie: "50" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "52.5 N", resistance_min: "45", resistance_max: null, garantie: "40" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "52.5 R", resistance_min: "45", resistance_max: null, garantie: "40" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "32.5 N", resistance_min: "75", resistance_max: null, garantie: "60" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "32.5 R", resistance_min: "75", resistance_max: null, garantie: "60" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "42.5 N", resistance_min: "60", resistance_max: null, garantie: "50" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "42.5 R", resistance_min: "60", resistance_max: null, garantie: "50" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "52.5 N", resistance_min: "45", resistance_max: null, garantie: "40" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "52.5 R", resistance_min: "45", resistance_max: null, garantie: "40" }
+  ],
+  stabilite: [
+    { famille_code: "ALL", type_code: "ALL", classe: "Tous", resistance_min: null, resistance_max: "10", garantie: "10" }
+  ],
+  chaleur_hydratation: [
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "Tous", resistance_min: null, resistance_max: "270", garantie: "300" },
+    { famille_code: "CEM III", type_code: "CEM III/B", classe: "Tous", resistance_min: null, resistance_max: "270", garantie: "300" },
+    { famille_code: "CEM III", type_code: "CEM III/C", classe: "Tous", resistance_min: null, resistance_max: "270", garantie: "300" }
+  ],
+  
+  // Chemical properties - updated with garantie values
+  SO3: [
+    { famille_code: "CEM I", type_code: "CEM I", classe: "32.5 N", resistance_min: null, resistance_max: "3.5", garantie: "4.0" },
+    { famille_code: "CEM I", type_code: "CEM I", classe: "32.5 R", resistance_min: null, resistance_max: "3.5", garantie: "4.0" },
+    { famille_code: "CEM I", type_code: "CEM I", classe: "42.5 N", resistance_min: null, resistance_max: "3.5", garantie: "4.0" },
+    { famille_code: "CEM I", type_code: "CEM I", classe: "42.5 R", resistance_min: null, resistance_max: "4.0", garantie: "4.5" },
+    { famille_code: "CEM I", type_code: "CEM I", classe: "52.5 N", resistance_min: null, resistance_max: "4.0", garantie: "4.5" },
+    { famille_code: "CEM I", type_code: "CEM I", classe: "52.5 R", resistance_min: null, resistance_max: "4.0", garantie: "4.5" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "32.5 N", resistance_min: null, resistance_max: "3.5", garantie: "4.0" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "32.5 R", resistance_min: null, resistance_max: "3.5", garantie: "4.0" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "42.5 N", resistance_min: null, resistance_max: "3.5", garantie: "4.0" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "42.5 R", resistance_min: null, resistance_max: "4.0", garantie: "4.5" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "52.5 N", resistance_min: null, resistance_max: "4.0", garantie: "4.5" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "52.5 R", resistance_min: null, resistance_max: "4.0", garantie: "4.5" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "Tous", resistance_min: null, resistance_max: "4.0", garantie: "4.5" },
+    { famille_code: "CEM III", type_code: "CEM III/B", classe: "Tous", resistance_min: null, resistance_max: "4.0", garantie: "4.5" },
+    { famille_code: "CEM III", type_code: "CEM III/C", classe: "Tous", resistance_min: null, resistance_max: "4.0", garantie: "5.0" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "32.5 N", resistance_min: null, resistance_max: "3.5", garantie: "4.0" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "32.5 R", resistance_min: null, resistance_max: "3.5", garantie: "4.0" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "42.5 N", resistance_min: null, resistance_max: "3.5", garantie: "4.0" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "42.5 R", resistance_min: null, resistance_max: "4.0", garantie: "4.5" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "52.5 N", resistance_min: null, resistance_max: "4.0", garantie: "4.5" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "52.5 R", resistance_min: null, resistance_max: "4.0", garantie: "4.5" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "32.5 N", resistance_min: null, resistance_max: "3.5", garantie: "4.0" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "32.5 R", resistance_min: null, resistance_max: "3.5", garantie: "4.0" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "42.5 N", resistance_min: null, resistance_max: "3.5", garantie: "4.0" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "42.5 R", resistance_min: null, resistance_max: "4.0", garantie: "4.5" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "52.5 N", resistance_min: null, resistance_max: "4.0", garantie: "4.5" },
+    { famille_code: "CEM V", type_code: "CEM V/A", classe: "52.5 R", resistance_min: null, resistance_max: "4.0", garantie: "4.5" }
+  ],
+  SO3_supp: [
+    { famille_code: "CEM I", type_code: "CEM I-SR", classe: "32.5 N", resistance_min: null, resistance_max: "3.0", garantie: "3.0" },
+    { famille_code: "CEM I", type_code: "CEM I-SR", classe: "32.5 R", resistance_min: null, resistance_max: "3.0", garantie: "3.0" },
+    { famille_code: "CEM I", type_code: "CEM I-SR", classe: "42.5 N", resistance_min: null, resistance_max: "3.0", garantie: "3.0" },
+    { famille_code: "CEM I", type_code: "CEM I-SR", classe: "42.5 R", resistance_min: null, resistance_max: "3.5", garantie: "3.5" },
+    { famille_code: "CEM I", type_code: "CEM I-SR", classe: "52.5 N", resistance_min: null, resistance_max: "3.5", garantie: "3.5" },
+    { famille_code: "CEM I", type_code: "CEM I-SR", classe: "52.5 R", resistance_min: null, resistance_max: "3.5", garantie: "3.5" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A-SR", classe: "32.5 N", resistance_min: null, resistance_max: "3.0", garantie: "3.0" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A-SR", classe: "32.5 R", resistance_min: null, resistance_max: "3.0", garantie: "3.0" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A-SR", classe: "42.5 N", resistance_min: null, resistance_max: "3.0", garantie: "3.0" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A-SR", classe: "42.5 R", resistance_min: null, resistance_max: "3.5", garantie: "3.5" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A-SR", classe: "52.5 N", resistance_min: null, resistance_max: "3.5", garantie: "3.5" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A-SR", classe: "52.5 R", resistance_min: null, resistance_max: "3.5", garantie: "3.5" }
+  ],
+  C3A: [
+    { famille_code: "CEM I", type_code: "CEM I-SR0", classe: "Tous", resistance_min: null, resistance_max: "0.0", garantie: "2.0" },
+    { famille_code: "CEM I", type_code: "CEM I-SR3", classe: "Tous", resistance_min: null, resistance_max: "3.0", garantie: "4.0" },
+    { famille_code: "CEM I", type_code: "CEM I-SR5", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: "6.0" },
+    { famille_code: "CEM IV", type_code: "CEM IV/A-SR", classe: "Tous", resistance_min: null, resistance_max: "9.0", garantie: "10.0" },
+    { famille_code: "CEM IV", type_code: "CEM IV/B-SR", classe: "Tous", resistance_min: null, resistance_max: "9.0", garantie: "10.0" }
+  ],
+  pert_au_feu: [
+    { famille_code: "CEM I", type_code: "CEM I", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: "5.0" },
+    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: "5.0" }
+  ],
+  residu_insoluble: [
+    { famille_code: "CEM I", type_code: "CEM I", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: "5.0" },
+    { famille_code: "CEM III", type_code: "CEM III/A", classe: "Tous", resistance_min: null, resistance_max: "5.0", garantie: "5.0" }
+  ],
+  teneur_chlour: [
+    { famille_code: "ALL", type_code: "ALL", classe: "Tous", resistance_min: null, resistance_max: "0.1", garantie: "0.1" }
+  ],
+  pouzzolanicite: [
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "32.5 N", resistance_min: null, resistance_max: null, garantie: null },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "32.5 R", resistance_min: null, resistance_max: null, garantie: null },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "42.5 N", resistance_min: null, resistance_max: null, garantie: null },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "42.5 R", resistance_min: null, resistance_max: null, garantie: null },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "52.5 N", resistance_min: null, resistance_max: null, garantie: null },
+    { famille_code: "CEM IV", type_code: "CEM IV/A", classe: "52.5 R", resistance_min: null, resistance_max: null, garantie: null }
+  ],
+  pouzzolanicite_supp: [
+    { famille_code: "CEM IV", type_code: "CEM IV/A-SR", classe: "32.5 N", resistance_min: null, resistance_max: null, garantie: null },
+    { famille_code: "CEM IV", type_code: "CEM IV/A-SR", classe: "32.5 R", resistance_min: null, resistance_max: null, garantie: null },
+    { famille_code: "CEM IV", type_code: "CEM IV/A-SR", classe: "42.5 N", resistance_min: null, resistance_max: null, garantie: null },
+    { famille_code: "CEM IV", type_code: "CEM IV/A-SR", classe: "42.5 R", resistance_min: null, resistance_max: null, garantie: null },
+    { famille_code: "CEM IV", type_code: "CEM IV/A-SR", classe: "52.5 N", resistance_min: null, resistance_max: null, garantie: null },
+    { famille_code: "CEM IV", type_code: "CEM IV/A-SR", classe: "52.5 R", resistance_min: null, resistance_max: null, garantie: null }
+  ]
+};
 
   // Fetch categories data
   useEffect(() => {
@@ -391,9 +445,9 @@ export default function ParametreNorm() {
                       <th>Famille</th>
                       <th>Type</th>
                       <th>Classe</th>
-                      <th>Résistance Min</th>
-                      <th>Résistance Max</th>
-                      <th>Valeur Garantie</th>
+                      <th>limit inf</th>
+                      <th>limit sup</th>
+                      <th>limit Garantie</th>
                     </tr>
                   </thead>
                   <tbody>
