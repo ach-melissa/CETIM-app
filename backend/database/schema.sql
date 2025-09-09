@@ -18,7 +18,7 @@ INSERT INTO utilisateurs (email, mot_de_passe, role) VALUES
 ('admin@cetim.dz', '$2b$10$WSo10LJR.p4F3Vx5E98WSeq5VY7XXATT3gmgqYC12rtMrD8HLUk9y', 'admin'),
 ('user@cetim.dz',  '$2b$10$txGEp4e7f7gO6UXeeZPe5OXPaDVrpVCr.V2b7i0aLya8yw8NZi19W', 'user');
 
--- =========================
+-- =========================  
 -- 1. Families of Cement
 -- =========================
 CREATE TABLE familles_ciment (
@@ -58,28 +58,28 @@ INSERT INTO types_ciment (famille_id, code, description, sr) VALUES
 
 -- Example CEM II
 INSERT INTO types_ciment (famille_id, code, description, sr) VALUES
-(2, 'CEM II/A-S', 'Portland au laitier 6–20%', 0),
-(2, 'CEM II/B-S', 'Portland au laitier 21–35%', 0);
+(2, 'CEM II/A-S', 'Portland au laitier 6–20% S', 0),
+(2, 'CEM II/B-S', 'Portland au laitier 21–35% S', 0);
 
 -- CEM III
 INSERT INTO types_ciment (famille_id, code, description, sr) VALUES
-(3, 'CEM III/A', 'Haut fourneau (36–65%)', 0),
-(3, 'CEM III/B', 'Haut fourneau (66–80%)', 0),
-(3, 'CEM III/C', 'Haut fourneau (81–95%)', 0),
+(3, 'CEM III/A', 'Haut fourneau (36–65% S)', 0),
+(3, 'CEM III/B', 'Haut fourneau (66–80% S)', 0),
+(3, 'CEM III/C', 'Haut fourneau (81–95% S)', 0),
 (3, 'CEM III/B-SR', 'Haut fourneau SR', 1),
 (3, 'CEM III/C-SR', 'Haut fourneau SR', 1);
 
 -- CEM IV
 INSERT INTO types_ciment (famille_id, code, description, sr) VALUES
-(4, 'CEM IV/A', 'Pouzzolanique (11–35%)', 0),
-(4, 'CEM IV/B', 'Pouzzolanique (36–55%)', 0),
+(4, 'CEM IV/A', 'Pouzzolanique (11–35% D P Q V W)', 0),
+(4, 'CEM IV/B', 'Pouzzolanique (36–55% D P Q V W)', 0),
 (4, 'CEM IV/A-SR', 'Pouzzolanique SR (C3A ≤ 9%)', 1),
 (4, 'CEM IV/B-SR', 'Pouzzolanique SR (C3A ≤ 9%)', 1);
 
 -- CEM V
 INSERT INTO types_ciment (famille_id, code, description, sr) VALUES
-(5, 'CEM V/A', 'Composé (18–30% laitier + 18–30% cendres volantes)', 0),
-(5, 'CEM V/B', 'Composé (31–49% laitier + 31–49% cendres volantes)', 0);
+(5, 'CEM V/A', 'Composé (18–30% laitier + 18–30% P Q V )', 0),
+(5, 'CEM V/B', 'Composé (31–49% laitier + 31–49% P Q V )', 0);
 
 
 -- =========================
