@@ -15,13 +15,16 @@ export default function ParametreNorm() {
   const [paramLoading, setParamLoading] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [editedDetails, setEditedDetails] = useState([]);
 
   // Form state
   const [showAddForm, setShowAddForm] = useState(false);
   const [newParamName, setNewParamName] = useState("");
   const [newParamUnit, setNewParamUnit] = useState("");
-  const [validatedParams, setValidatedParams] = useState({});
-  const [rows, setRows] = useState([{ cas: "", limitInf: "", limitSup: "", garantie: "" }]);
+  const [newParamLimitInf, setNewParamLimitInf] = useState("");
+  const [newParamLimitSup, setNewParamLimitSup] = useState("");
+  const [newParamGarantie, setNewParamGarantie] = useState("");
 
   // Mock categories
   const mockCategories = [
@@ -36,13 +39,11 @@ export default function ParametreNorm() {
       { id: "resistance_2j", nom: "Résistance à 2 jours", unite: "MPa" },
       { id: "resistance_7j", nom: "Résistance à 7 jours", unite: "MPa" },
       { id: "resistance_28j", nom: "Résistance à 28 jours", unite: "MPa" },
-      { id: "ajt", nom: "L'ajoute", unite: null },
     ],
     physique: [
       { id: "temps_debut_prise", nom: "Temps de début de prise", unite: "min" },
       { id: "stabilite", nom: "Stabilité", unite: "mm" },
       { id: "chaleur_hydratation", nom: "Chaleur d'hydratation", unite: "J/g" },
-      { id: "ajt", nom: "L'ajoute", unite: null },
     ],
     chimique: [
       { id: "SO3", nom: "SO3", unite: "%" },
@@ -53,7 +54,6 @@ export default function ParametreNorm() {
       { id: "teneur_chlour", nom: "Teneur en chlour", unite: "%" },
       { id: "pouzzolanicite", nom: "Pouzzolanicité", unite: "" },
       { id: "pouzzolanicite_supp", nom: "Pouzzolanicité (SR)", unite: "" },
-      { id: "ajt", nom: "L'ajoute", unite: null },
     ],
   };
 
@@ -138,6 +138,29 @@ export default function ParametreNorm() {
     ],
   };
 
+  // Load saved data from localStorage
+  const loadSavedData = () => {
+    try {
+      const savedData = localStorage.getItem('savedParameterData');
+      return savedData ? JSON.parse(savedData) : {};
+    } catch (error) {
+      console.error("Error loading saved data:", error);
+      return {};
+    }
+  };
+
+  // Save data to localStorage
+  const saveData = (data) => {
+    try {
+      localStorage.setItem('savedParameterData', JSON.stringify(data));
+    } catch (error) {
+      console.error("Error saving data:", error);
+    }
+  };
+
+  // State for saved data
+  const [savedData, setSavedData] = useState(loadSavedData());
+
   // ------------------- Hooks -------------------
 
   useEffect(() => {
@@ -155,11 +178,23 @@ export default function ParametreNorm() {
   }, [selectedCategory]);
 
   useEffect(() => {
-    if (USE_MOCK_DATA) {
-      setParameterDetails(mockDetails[selectedParameter] || []);
+    if (USE_MOCK_DATA && selectedParameter) {
+      // Check if we have saved data for this parameter
+      if (savedData[selectedParameter]) {
+        setParameterDetails(savedData[selectedParameter]);
+        setEditing(false);
+      } else {
+        setParameterDetails(mockDetails[selectedParameter] || []);
+        setEditing(true);
+      }
       setDetailsLoading(false);
     }
   }, [selectedParameter]);
+
+  // Update editedDetails when parameterDetails changes
+  useEffect(() => {
+    setEditedDetails([...parameterDetails]);
+  }, [parameterDetails]);
 
   // ------------------- Helpers -------------------
 
@@ -178,39 +213,61 @@ export default function ParametreNorm() {
       id: `new-${Date.now()}`,
       nom: newParamName,
       unite: newParamUnit,
+      limit_inf: newParamLimitInf || null,
+      limit_sup: newParamLimitSup || null,
+      limit_garanti: newParamGarantie || null,
     };
     setParameters([...parameters, newParam]);
     setNewParamName("");
     setNewParamUnit("");
+    setNewParamLimitInf("");
+    setNewParamLimitSup("");
+    setNewParamGarantie("");
     setShowAddForm(false);
     setError("");
   };
 
+  const handleEditClick = () => {
+    setEditing(true);
+  };
+
+  const handleSaveClick = () => {
+    // Save the edited data
+    const updatedSavedData = {
+      ...savedData,
+      [selectedParameter]: editedDetails
+    };
+    setSavedData(updatedSavedData);
+    saveData(updatedSavedData);
+    setEditing(false);
+    setParameterDetails(editedDetails);
+  };
+
+  const handleCancelClick = () => {
+    setEditedDetails([...parameterDetails]);
+    setEditing(false);
+  };
+
+  const handleDetailChange = (index, field, value) => {
+    const updatedDetails = [...editedDetails];
+    updatedDetails[index] = {
+      ...updatedDetails[index],
+      [field]: value
+    };
+    setEditedDetails(updatedDetails);
+  };
+
   const handleAddRow = () => {
-    setRows([...rows, { cas: "", limitInf: "", limitSup: "", garantie: "" }]);
+    setEditedDetails([
+      ...editedDetails,
+      { famille_code: "", type_code: "", classe: "", resistance_min: "", resistance_max: "", garantie: "" }
+    ]);
   };
 
-  const handleRowChange = (index, field, value) => {
-    const updated = [...rows];
-    updated[index][field] = value;
-    setRows(updated);
-  };
-
-  const handleValidateAll = () => {
-    if (!selectedParameter) return;
-
-    setValidatedParams((prev) => ({
-      ...prev,
-      [selectedParameter]: [...rows]
-    }));
-
-    // Reset the form
-    setRows([{ cas: "", limitInf: "", limitSup: "", garantie: "" }]);
-  };
-
-  // Check if selected parameter is "L'ajoute"
-  const isAjouteParameter = () => {
-    return selectedParameter === "ajt";
+  const handleDeleteRow = (index) => {
+    const updatedDetails = [...editedDetails];
+    updatedDetails.splice(index, 1);
+    setEditedDetails(updatedDetails);
   };
 
   // ------------------- Render -------------------
@@ -230,6 +287,8 @@ export default function ParametreNorm() {
       <main className="content">
         <h1>Paramètres Norme Ciment</h1>
 
+        {USE_MOCK_DATA && <div className="demo-notice">Mode démonstration: données simulées</div>}
+
         {/* Category radios */}
         <div className="category-selection">
           <h2>Sélectionnez une catégorie:</h2>
@@ -244,7 +303,10 @@ export default function ParametreNorm() {
                     name="category"
                     value={category.nom}
                     checked={selectedCategory === category.nom}
-                    onChange={() => setSelectedCategory(category.nom)}
+                    onChange={() => {
+                      setSelectedCategory(category.nom);
+                      setSelectedParameter(null);
+                    }}
                   />
                   <label htmlFor={categoryId}>{formatCategoryName(category.nom)}</label>
                 </div>
@@ -257,170 +319,210 @@ export default function ParametreNorm() {
 
         {/* Parameters */}
         <div className="parameters-list">
+          <div className="parameters-header">
+            <h2>Paramètres {formatCategoryName(selectedCategory)}</h2>
+            <button className="add-param-btn" onClick={() => setShowAddForm(!showAddForm)}>
+              {showAddForm ? "Annuler" : "Ajouter un paramètre"}
+            </button>
+          </div>
 
+          {showAddForm && (
+            <div className="add-param-form">
+              <h3>Ajouter un nouveau paramètre</h3>
+              <form onSubmit={handleAddParameter}>
+                <div className="form-row">
+                  <input
+                    type="text"
+                    placeholder="Nom du paramètre"
+                    value={newParamName}
+                    onChange={(e) => setNewParamName(e.target.value)}
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="Unité"
+                    value={newParamUnit}
+                    onChange={(e) => setNewParamUnit(e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    placeholder="Limite Inférieure"
+                    value={newParamLimitInf}
+                    onChange={(e) => setNewParamLimitInf(e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    placeholder="Limite Supérieure"
+                    value={newParamLimitSup}
+                    onChange={(e) => setNewParamLimitSup(e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    placeholder="Limite Garantie"
+                    value={newParamGarantie}
+                    onChange={(e) => setNewParamGarantie(e.target.value)}
+                  />
+                  <button type="submit">Ajouter</button>
+                </div>
+              </form>
+            </div>
+          )}
 
           {parameters.length === 0 ? (
             <p>Aucun paramètre trouvé pour cette catégorie.</p>
           ) : (
             <>
-            
               <div className="parameter-buttons">
                 {parameters.map((param) => (
                   <button
                     key={param.id}
                     className={selectedParameter === param.id ? "active" : ""}
-                    onClick={() => {
-                      setSelectedParameter(param.id === selectedParameter ? null : param.id);
-                      // Reset rows when selecting a parameter
-                      setRows([{ cas: "", limitInf: "", limitSup: "", garantie: "" }]);
-                    }}
+                    onClick={() => setSelectedParameter(param.id === selectedParameter ? null : param.id)}
                   >
                     {param.nom} {param.unite && `(${param.unite})`}
                   </button>
                 ))}
               </div>
-              
+            
+              {selectedParameter && (
+                <div className="parameter-details">
+                  <div className="parameter-header">
+                    <h3>
+                      {parameters.find((p) => p.id === selectedParameter)?.nom}
+                      {parameters.find((p) => p.id === selectedParameter)?.unite &&
+                        ` (${parameters.find((p) => p.id === selectedParameter)?.unite})`}
+                    </h3>
+                    
+                    {!editing ? (
+                      <button className="edit-btn" onClick={handleEditClick}>
+                        Modifier
+                      </button>
+                    ) : (
+                      <div className="action-buttons">
+                        <button className="save-btn" onClick={handleSaveClick}>
+                          Validé
+                        </button>
+                        <button className="cancel-btn" onClick={handleCancelClick}>
+                          Annuler
+                        </button>
+                        <button className="add-row-btn" onClick={handleAddRow}>
+                          Ajouter une ligne
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
-
-              {/* Custom parameter table for "L'ajoute" */}
-              {isAjouteParameter() && (
-                <div className="parameter-details-form">
-                  <h3>L'ajoute</h3>
-                  <table className="parameter-table">
-                    <thead>
-                      <tr>
-                        <th>Cas</th>
-                        <th>Limit Inf</th>
-                        <th>Limit Sup</th>
-                        <th>Garantie</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {validatedParams[selectedParameter] ? (
-                        // Display validated data
-                        validatedParams[selectedParameter].map((row, index) => (
-                          <tr key={index}>
-                            <td>{row.cas}</td>
-                            <td>{row.limitInf}</td>
-                            <td>{row.limitSup}</td>
-                            <td>{row.garantie}</td>
-                            <td>
-                              <button 
-                                onClick={() => {
-                                  // Allow editing validated data
-                                  setRows(validatedParams[selectedParameter]);
-                                  setValidatedParams(prev => {
-                                    const updated = {...prev};
-                                    delete updated[selectedParameter];
-                                    return updated;
-                                  });
-                                }}
-                              >
-                                Modifier
-                              </button>
-                            </td>
+                  {editedDetails.length === 0 ? (
+                    <div className="no-data">
+                      <p>Aucune donnée disponible pour ce paramètre.</p>
+                      {editing && (
+                        <button className="add-row-btn" onClick={handleAddRow}>
+                          Ajouter une ligne
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="table-container">
+                      <table className="parameter-table">
+                        <thead>
+                          <tr>
+                            <th>Famille</th>
+                            <th>Type</th>
+                            <th>Classe</th>
+                            <th>Limit Inf</th>
+                            <th>Limit Sup</th>
+                            <th>Limit Garantie</th>
+                            {editing && <th>Action</th>}
                           </tr>
-                        ))
-                      ) : (
-                        // Display editable form
-                        <>
-                          {rows.map((row, index) => (
+                        </thead>
+                        <tbody>
+                          {editedDetails.map((detail, index) => (
                             <tr key={index}>
                               <td>
-                                <input
-                                  type="text"
-                                  value={row.cas}
-                                  onChange={(e) => handleRowChange(index, "cas", e.target.value)}
-                                />
+                                {editing ? (
+                                  <input
+                                    type="text"
+                                    value={detail.famille_code || ""}
+                                    onChange={(e) => handleDetailChange(index, "famille_code", e.target.value)}
+                                  />
+                                ) : (
+                                  detail.famille_code || "-"
+                                )}
                               </td>
                               <td>
-                                <input
-                                  type="number"
-                                  value={row.limitInf}
-                                  onChange={(e) => handleRowChange(index, "limitInf", e.target.value)}
-                                />
+                                {editing ? (
+                                  <input
+                                    type="text"
+                                    value={detail.type_code || ""}
+                                    onChange={(e) => handleDetailChange(index, "type_code", e.target.value)}
+                                  />
+                                ) : (
+                                  detail.type_code || "-"
+                                )}
                               </td>
                               <td>
-                                <input
-                                  type="number"
-                                  value={row.limitSup}
-                                  onChange={(e) => handleRowChange(index, "limitSup", e.target.value)}
-                                />
+                                {editing ? (
+                                  <input
+                                    type="text"
+                                    value={detail.classe || ""}
+                                    onChange={(e) => handleDetailChange(index, "classe", e.target.value)}
+                                  />
+                                ) : (
+                                  detail.classe || "-"
+                                )}
                               </td>
                               <td>
-                                <input
-                                  type="number"
-                                  value={row.garantie}
-                                  onChange={(e) => handleRowChange(index, "garantie", e.target.value)}
-                                />
+                                {editing ? (
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    value={detail.resistance_min || ""}
+                                    onChange={(e) => handleDetailChange(index, "resistance_min", e.target.value)}
+                                  />
+                                ) : (
+                                  detail.resistance_min || "-"
+                                )}
                               </td>
                               <td>
-                                <button 
-                                  onClick={() => {
-                                    const updated = [...rows];
-                                    updated.splice(index, 1);
-                                    setRows(updated);
-                                  }}
-                                >
-                                  Supprimer
-                                </button>
+                                {editing ? (
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    value={detail.resistance_max || ""}
+                                    onChange={(e) => handleDetailChange(index, "resistance_max", e.target.value)}
+                                  />
+                                ) : (
+                                  detail.resistance_max || "-"
+                                )}
                               </td>
+                              <td>
+                                {editing ? (
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    value={detail.garantie || ""}
+                                    onChange={(e) => handleDetailChange(index, "garantie", e.target.value)}
+                                  />
+                                ) : (
+                                  detail.garantie || "-"
+                                )}
+                              </td>
+                              {editing && (
+                                <td>
+                                  <button 
+                                    className="delete-row-btn"
+                                    onClick={() => handleDeleteRow(index)}
+                                  >
+                                    Supprimer
+                                  </button>
+                                </td>
+                              )}
                             </tr>
                           ))}
-                          <tr>
-                            <td colSpan="4">
-                              <button type="button" onClick={handleAddRow}>
-                                ➕ Ajouter une ligne
-                              </button>
-                            </td>
-                            <td>
-                              <button type="button" onClick={handleValidateAll}>
-                                ✔️ Valider
-                              </button>
-                            </td>
-                          </tr>
-                        </>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Standard parameter details display for other parameters */}
-              {selectedParameter && parameterDetails.length > 0 && !isAjouteParameter() && (
-                <div className="parameter-details">
-                  <h3>
-                    {parameters.find((p) => p.id === selectedParameter)?.nom}
-                    {parameters.find((p) => p.id === selectedParameter)?.unite &&
-                      ` (${parameters.find((p) => p.id === selectedParameter)?.unite})`}
-                  </h3>
-                  <div className="table-container">
-                    <table className="parameter-table">
-                      <thead>
-                        <tr>
-                          <th>Famille</th>
-                          <th>Type</th>
-                          <th>Classe</th>
-                          <th>Limit Inf</th>
-                          <th>Limit Sup</th>
-                          <th>Limit Garantie</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {parameterDetails.map((detail, index) => (
-                          <tr key={index}>
-                            <td>{detail.famille_code}</td>
-                            <td>{detail.type_code}</td>
-                            <td>{detail.classe}</td>
-                            <td>{detail.resistance_min || "-"}</td>
-                            <td>{detail.resistance_max || "-"}</td>
-                            <td>{detail.garantie || "-"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
             </>
