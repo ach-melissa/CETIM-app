@@ -15,8 +15,8 @@ CREATE TABLE utilisateurs (
 );
 
 INSERT INTO utilisateurs (email, mot_de_passe, role) VALUES
-('admin@cetim.dz', '$2b$10$WSo10LJR.p4F3Vx5E98WSeq5VY7XXATT3gmgqYC12rtMrD8HLUk9y', 'admin'),
-('user@cetim.dz',  '$2b$10$txGEp4e7f7gO6UXeeZPe5OXPaDVrpVCr.V2b7i0aLya8yw8NZi19W', 'user');
+('infomely@gmail.com', '$2b$10$A46BsmRiNw.FjnYLYcuyMunzyYFbDfjc8hUR7uXVdfV0cfD/c6iN.', 'admin'),
+('info@gmail.com',  '$2b$10$9wR2Jc9ltr13s4ihJ5OR.e1hjY8dXPWnjkr2kJBa7G5uUFMWri5y2', 'user');
 
 -- =========================  
 -- 1. Families of Cement
@@ -57,9 +57,28 @@ INSERT INTO types_ciment (famille_id, code, description, sr) VALUES
 (1, 'CEM I-SR 5', 'Ciment Portland SR (C3A ≤ 5%)', 1);
 
 -- Example CEM II
+-- Example CEM II
 INSERT INTO types_ciment (famille_id, code, description, sr) VALUES
 (2, 'CEM II/A-S', 'Portland au laitier 6–20% S', 0),
-(2, 'CEM II/B-S', 'Portland au laitier 21–35% S', 0);
+(2, 'CEM II/B-S', 'Portland au laitier 21–35% S', 0),
+(2, 'CEM II/A-D', 'Ciment portland à la fumée de silice 6–10% D', 0),
+(2, 'CEM II/A-P', 'Ciment portland à la pouzzolane 6–20% P', 0),
+(2, 'CEM II/B-P', 'Ciment portland à la pouzzolane 21–35% P', 0),
+(2, 'CEM II/A-Q', 'Ciment portland à la pouzzolane 6–20% Q', 0),
+(2, 'CEM II/B-Q', 'Ciment portland à la pouzzolane 21–35% Q', 0),
+(2, 'CEM II/A-V', 'Ciment portland aux cendres volantes 6–20% V', 0),
+(2, 'CEM II/B-V', 'Ciment portland aux cendres volantes 21–35% V', 0),
+(2, 'CEM II/A-W', 'Ciment portland aux cendres volantes 6–20% W', 0),
+(2, 'CEM II/B-W', 'Ciment portland aux cendres volantes 21–35% W', 0),
+(2, 'CEM II/A-T', 'Ciment portland aux schistes calcinés 6–20% T', 0),
+(2, 'CEM II/B-T', 'Ciment portland aux schistes calcinés 21–35% T', 0),
+(2, 'CEM II/A-L', 'Ciment portland au calcaire 6–20% L', 0),
+(2, 'CEM II/B-L', 'Ciment portland au calcaire 21–35% L', 0),
+(2, 'CEM II/A-LL', 'Ciment portland au calcaire 6–20% LL', 0),
+(2, 'CEM II/B-LL', 'Ciment portland au calcaire 21–35% LL', 0),
+(2, 'CEM II/A-M', 'Ciment portland composé 12–20% S D P Q V W T L LL', 0),
+(2, 'CEM II/B-M', 'Ciment portland composé 21–35% S D P Q V W T L LL', 0);
+
 
 -- CEM III
 INSERT INTO types_ciment (famille_id, code, description, sr) VALUES
@@ -114,14 +133,9 @@ CREATE TABLE categories_parametre (
 INSERT INTO categories_parametre (nom) VALUES
 ('mecanique'),
 ('physique'),
-('chimique'),
-('supplémentaire');
+('chimique');
 
 RENAME TABLE categories_parametre TO categories;
--- Supprimer la catégorie "supplémentaire" de la table categories
-DELETE FROM categories WHERE nom = 'supplémentaire';
--- Vérifier le contenu restant de la table categories
-SELECT * FROM categories;
 
 
 -- =========================
@@ -165,9 +179,8 @@ INSERT INTO proprietes_mecaniques (classe_resistance_id, resistance_2j_min, resi
 
 -- =========================
 -- 6. Link table between cement types and resistance classes
--- This table is created but not populated automatically
 -- =========================
-CREATE TABLE types_ciment_classes (
+CREATE TABLE IF NOT EXISTS types_ciment_classes (
   id INT AUTO_INCREMENT PRIMARY KEY,
   type_ciment_id INT NOT NULL,
   classe_resistance_id INT NOT NULL,
@@ -176,8 +189,11 @@ CREATE TABLE types_ciment_classes (
   UNIQUE KEY (type_ciment_id, classe_resistance_id)
 );
 
+-- =========================
+-- 7. Views for mechanical properties
+-- =========================
 
--- 7-View to show all mechanical properties with all limits
+-- View: mechanical properties only (per class)
 CREATE VIEW vue_proprietes_mecaniques_complet AS
 SELECT 
     cr.classe,
@@ -201,11 +217,7 @@ ORDER BY
         WHEN 'R' THEN 3 
     END;
 
--- View to show all cement types with their properties
--- Drop the old view if it exists
-DROP VIEW IF EXISTS vue_tous_ciments_proprietes;
-
--- Create the updated view
+-- View: cement types + properties
 CREATE VIEW vue_tous_ciments_proprietes AS
 SELECT 
     fc.code AS famille_code,
@@ -239,24 +251,55 @@ ORDER BY
         WHEN 'R' THEN 3 
     END;
 
+-- View: all possible cement type/class combinations (even without data)
+CREATE VIEW vue_tous_ciments_proprietes_complet AS
+SELECT 
+    fc.code AS famille_code,
+    fc.nom AS famille_nom,
+    tc.code AS type_code,
+    tc.description AS type_description,
+    tc.sr AS sulfate_resistant,
+    cr.classe,
+    cr.type_court_terme,
+    pm.resistance_2j_min,
+    pm.resistance_2j_sup,
+    pm.garantie_2j,
+    pm.resistance_7j_min,
+    pm.resistance_7j_sup,
+    pm.garantie_7j,
+    pm.resistance_28j_min,
+    pm.resistance_28j_sup,
+    pm.garantie_28j
+FROM types_ciment tc
+JOIN familles_ciment fc ON tc.famille_id = fc.id
+CROSS JOIN classes_resistance cr
+LEFT JOIN proprietes_mecaniques pm ON cr.id = pm.classe_resistance_id
+ORDER BY 
+    fc.code, 
+    tc.code,
+    CAST(SUBSTRING_INDEX(cr.classe, '.', 1) AS UNSIGNED),
+    CASE cr.type_court_terme 
+        WHEN 'L' THEN 1 
+        WHEN 'N' THEN 2 
+        WHEN 'R' THEN 3 
+    END;
 
 -- =========================
--- POPULATE types_ciment_classes TABLE
+-- POPULATE types_ciment_classes
 -- =========================
 
--- For CEM I, II, IV, V: Only N and R classes (not L)
-INSERT INTO types_ciment_classes (type_ciment_id, classe_resistance_id)
+-- 1) For CEM I, II, IV, V: only N and R classes
+INSERT IGNORE INTO types_ciment_classes (type_ciment_id, classe_resistance_id)
 SELECT tc.id, cr.id
 FROM types_ciment tc
 CROSS JOIN classes_resistance cr
 WHERE tc.famille_id IN (
-    SELECT id FROM familles_ciment 
-    WHERE code IN ('CEM I', 'CEM II', 'CEM IV', 'CEM V')
-) 
+    SELECT id FROM familles_ciment WHERE code IN ('CEM I', 'CEM II', 'CEM IV', 'CEM V')
+)
 AND cr.type_court_terme IN ('N', 'R');
 
--- For CEM III: All classes (N, R, L)
-INSERT INTO types_ciment_classes (type_ciment_id, classe_resistance_id)
+-- 2) For CEM III: all classes (L, N, R)
+INSERT IGNORE INTO types_ciment_classes (type_ciment_id, classe_resistance_id)
 SELECT tc.id, cr.id
 FROM types_ciment tc
 CROSS JOIN classes_resistance cr
@@ -264,10 +307,13 @@ WHERE tc.famille_id IN (
     SELECT id FROM familles_ciment WHERE code = 'CEM III'
 );
 
--- Verify the associations were created
+-- =========================
+-- Verification queries
+-- =========================
+-- Count associations
 SELECT COUNT(*) AS total_associations FROM types_ciment_classes;
 
--- Check some sample associations
+-- Check some associations
 SELECT 
     fc.code AS famille_code,
     tc.code AS type_code, 
@@ -281,100 +327,18 @@ JOIN classes_resistance cr ON tcc.classe_resistance_id = cr.id
 GROUP BY fc.code, tc.code, cr.classe, cr.type_court_terme
 ORDER BY fc.code, tc.code, cr.classe, cr.type_court_terme;
 
--- Now the views should return data
-SELECT COUNT(*) AS count FROM vue_tous_ciments_proprietes;
-
 -- Check CEM II specifically
 SELECT * FROM vue_tous_ciments_proprietes
 WHERE famille_code = 'CEM II'
 ORDER BY type_code, classe, type_court_terme;
 
-
--- Query to see all cement types with all limits and guarantees
-SELECT * FROM vue_tous_ciments_proprietes;
-
--- For CEM II only
-SELECT * FROM vue_tous_ciments_proprietes 
-WHERE famille_code = 'CEM II'
-ORDER BY type_code, classe, type_court_terme;
-
--- For CEM III only (which includes L classes)
-SELECT * FROM vue_tous_ciments_proprietes 
+-- Check CEM III specifically (includes L classes)
+SELECT * FROM vue_tous_ciments_proprietes
 WHERE famille_code = 'CEM III'
 ORDER BY type_code, classe, type_court_terme;
 
 
--- Alternative view that shows all possible combinations
-CREATE OR REPLACE VIEW vue_tous_ciments_proprietes_complet AS
-SELECT 
-    fc.code AS famille_code,
-    fc.nom AS famille_nom,
-    tc.code AS type_code,
-    tc.description AS type_description,
-    tc.sr AS sulfate_resistant,
-    cr.classe,
-    cr.type_court_terme,
-    pm.resistance_2j_min,
-    pm.resistance_2j_sup,
-    pm.garantie_2j,
-    pm.resistance_7j_min,
-    pm.resistance_7j_sup,
-    pm.garantie_7j,
-    pm.resistance_28j_min,
-    pm.resistance_28j_sup,
-    pm.garantie_28j
-FROM types_ciment tc
-JOIN familles_ciment fc ON tc.famille_id = fc.id
-CROSS JOIN classes_resistance cr
-LEFT JOIN proprietes_mecaniques pm ON cr.id = pm.classe_resistance_id
-ORDER BY 
-    fc.code, 
-    tc.code,
-    CAST(SUBSTRING_INDEX(cr.classe, '.', 1) AS UNSIGNED),
-    CASE cr.type_court_terme 
-        WHEN 'L' THEN 1 
-        WHEN 'N' THEN 2 
-        WHEN 'R' THEN 3 
-    END;
 
--- Use this view to see all combinations
-SELECT * FROM vue_tous_ciments_proprietes_complet LIMIT 10;
-
--- Alternative view that shows all possible combinations
-CREATE OR REPLACE VIEW vue_tous_ciments_proprietes_complet AS
-SELECT 
-    fc.code AS famille_code,
-    fc.nom AS famille_nom,
-    tc.code AS type_code,
-    tc.description AS type_description,
-    tc.sr AS sulfate_resistant,
-    cr.classe,
-    cr.type_court_terme,
-    pm.resistance_2j_min,
-    pm.resistance_2j_sup,
-    pm.garantie_2j,
-    pm.resistance_7j_min,
-    pm.resistance_7j_sup,
-    pm.garantie_7j,
-    pm.resistance_28j_min,
-    pm.resistance_28j_sup,
-    pm.garantie_28j
-FROM types_ciment tc
-JOIN familles_ciment fc ON tc.famille_id = fc.id
-CROSS JOIN classes_resistance cr
-LEFT JOIN proprietes_mecaniques pm ON cr.id = pm.classe_resistance_id
-ORDER BY 
-    fc.code, 
-    tc.code,
-    CAST(SUBSTRING_INDEX(cr.classe, '.', 1) AS UNSIGNED),
-    CASE cr.type_court_terme 
-        WHEN 'L' THEN 1 
-        WHEN 'N' THEN 2 
-        WHEN 'R' THEN 3 
-    END;
-
--- Use this view to see all combinations
-SELECT * FROM vue_tous_ciments_proprietes_complet LIMIT 10;
 
 -- =========================
 -- 7. Unified Physical Properties Table
@@ -628,29 +592,9 @@ SELECT * FROM vue_proprietes_chimiques WHERE categorie = 'C3A';
 SELECT * FROM vue_proprietes_chimiques WHERE categorie = 'pouzzolanicite_supp';
 
 
------------------------------
--- parametre entreprise --
------------------------------
-CREATE TABLE clients (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  sigle VARCHAR(50) DEFAULT NULL,
-  nom_resaux_sociale VARCHAR(255) DEFAULT NULL,
-  adresse TEXT DEFAULT NULL,
-  famillecement VARCHAR(50) DEFAULT NULL,
-  typecement VARCHAR(50) DEFAULT NULL,
-  methodeessai VARCHAR(50) DEFAULT NULL
-);
 
--- Déchargement des données de la table `clients`
 
-INSERT INTO `clients` (`id`, `sigle`, `nom_resaux_sociale`, `adresse`) VALUES
-(1, 'CETIM', 'Centre d?Etudes et de Contrôle des Matériaux', 'Zone industrielle, Alger'),
-(2, 'ENPC', 'Entreprise Nationale des Produits de Construction', 'Rue des cimenteries, Oran'),
-(3, 'CETIM', 'Centre d?Études des Matériaux', 'Zone industrielle - Alger'),
-(4, 'SONACIM', 'Société Nationale des Ciments', 'Boumerdès, Algérie'),
-(5, 'LAFARGE', 'Lafarge Cement Company', 'Zéralda, Alger'),
-(6, 'HOLCIM', 'Holcim Algérie', 'Oran - Route d?Arzew'),
-(7, 'GRAVAL', 'Graval Construction', 'Constantine - Route El Khroub');
+
 
 
 CREATE TABLE controles_conformite (
@@ -666,7 +610,7 @@ CREATE TABLE controles_conformite (
 
 
 -- ======================
--- CONTRÔLES PAR MESURE (Résistances)
+-- CONTRÔLES PAR MESURE 
 -- ======================
 
 INSERT INTO controles_conformite 
@@ -676,7 +620,7 @@ INSERT INTO controles_conformite
 ('Résistance à 28 jours', 'mesure', 'EN 196-1', 'mécanique', 'Tous', '2/semaine', '4/semaine');
 
 -- ======================
--- CONTRÔLES PAR ATTRIBUT (Résistances)
+-- CONTRÔLES PAR ATTRIBUT 
 -- ======================
 
 INSERT INTO controles_conformite 
@@ -687,14 +631,14 @@ INSERT INTO controles_conformite
 ('Résidu insoluble', 'attribut', 'EN 196-2', 'chimique', 'CEM I, CEM III', '2/mois', '1/semaine'),
 ('Teneur en sulfate', 'attribut', 'EN 196-2', 'chimique', 'Tous', '2/semaine', '4/semaine'),
 ('Teneur en chlorure', 'attribut', 'EN 196-2', 'chimique', 'Tous', '2/mois', '1/semaine'),
-('C3A dans le clinker', 'attribut', 'EN 196-2 (calc)', 'supplémentaire', 'CEM I-SR 0, CEM I-SR 3, CEM I-SR 5, CEM II/A-SR, CEM IV/B-SR', '2/mois', '1/semaine'),
-('C3A dans le clinker', NULL, 'EN 196-2 (calc)', 'supplémentaire', 'CEM II/A-SR, CEM IV/B-SR', NULL, NULL),
+('C3A dans le clinker', 'attribut', 'EN 196-2 (calc)', 'chimique', 'CEM I-SR 0, CEM I-SR 3, CEM I-SR 5, CEM II/A-SR, CEM IV/B-SR', '2/mois', '1/semaine'),
+('C3A dans le clinker', NULL, 'EN 196-2 (calc)', 'chimique', 'CEM II/A-SR, CEM IV/B-SR', NULL, NULL),
 ('Pouzzolanicité', 'attribut', 'EN 196-5', 'chimique', 'CEM IV', '2/mois', '1/semaine'),
 ('Chaleur d’hydratation', 'attribut', 'EN 196-8 ou EN 196-9', 'physique', 'Ciments courants à faible chaleur d’hydratation', '1/mois', '1/semaine'),
 ('Composition', 'attribut', NULL, 'chimique', 'Tous', '1/mois', '1/semaine');
 
 
--- Table des valeurs statistiques (Tableau 7)
+-- Table des valeurs statistiques Pk / Cr (Tableau 7)
 CREATE TABLE valeurs_statistiques (
     id INT AUTO_INCREMENT PRIMARY KEY,
     categorie VARCHAR(100) NOT NULL,       -- mécanique / physique_chimique
@@ -717,7 +661,10 @@ VALUES ('mecanique', 'limite_superieure', 10.00, 5.00);
 
 -- Exigences physiques et chimiques
 INSERT INTO valeurs_statistiques (categorie, sous_type, percentile_pk, prob_acceptation_cr)
-VALUES ('physique_chimique', NULL, 10.00, 5.00);
+VALUES ('physique', NULL, 10.00, 5.00),
+('chimique', NULL, 10.00, 5.00);
+
+
 
 
 CREATE TABLE coefficients_k (
@@ -751,6 +698,8 @@ INSERT INTO coefficients_k (n_min, n_max, n_range, k_pk5, k_pk10) VALUES
 (401, 1000000, '> 400', 1.78, 1.40);
 
 
+----------
+--valeur ca correspond to pk=10%
 CREATE TABLE conditions_statistiques (
   id INT AUTO_INCREMENT PRIMARY KEY,
   n_min INT NOT NULL,
@@ -769,3 +718,29 @@ INSERT INTO conditions_statistiques (n_min, n_max, pk_percentile, ca_probabilite
 (40, 54, 10, 5),
 (40, 54, 10, 6),
 (40, 54, 10, 7);
+
+
+-----------------------------
+-- parametre entreprise --
+-----------------------------
+CREATE TABLE clients (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  sigle VARCHAR(50) DEFAULT NULL,
+  nom_resaux_sociale VARCHAR(255) DEFAULT NULL,
+  adresse TEXT DEFAULT NULL,
+  famillecement VARCHAR(50) DEFAULT NULL,
+  typecement VARCHAR(50) DEFAULT NULL,
+  methodeessai VARCHAR(50) DEFAULT NULL
+);
+
+-- Déchargement des données de la table `clients`
+
+INSERT INTO `clients` (`id`, `sigle`, `nom_resaux_sociale`, `adresse`) VALUES
+(1, 'CETIM', 'Centre d?Etudes et de Contrôle des Matériaux', 'Zone industrielle, Alger'),
+(2, 'ENPC', 'Entreprise Nationale des Produits de Construction', 'Rue des cimenteries, Oran'),
+(3, 'CETIM', 'Centre d?Études des Matériaux', 'Zone industrielle - Alger'),
+(4, 'SONACIM', 'Société Nationale des Ciments', 'Boumerdès, Algérie'),
+(5, 'LAFARGE', 'Lafarge Cement Company', 'Zéralda, Alger'),
+(6, 'HOLCIM', 'Holcim Algérie', 'Oran - Route d?Arzew'),
+(7, 'GRAVAL', 'Graval Construction', 'Constantine - Route El Khroub');
+
