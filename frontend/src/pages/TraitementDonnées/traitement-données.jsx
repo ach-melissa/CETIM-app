@@ -571,47 +571,28 @@ const generateChartData = () => {
         )}
       </div>
 
-      <div className="input-block">
-        <label htmlFor="type">Type (CEM):</label>
-        <select
-          id="type"
-          value={selectedType}
-          onChange={(e) => {
-            setSelectedType(e.target.value);
-            setSelectedProduit(""); // reset produit
-            setProduitDescription("");
-          }}
-        >
-          <option value="">-- Choisir type --</option>
-          {typeFactices.map((type) => (
-            <option key={type.id} value={type.id}>
-              {type.nom}
-            </option>
-          ))}
-        </select>
+<div className="input-block">
+  <label htmlFor="produit">Produit:</label>
+  <select
+    id="produit"
+    value={selectedProduit}
+    onChange={handleProduitChange}
+  >
+    <option value="">-- Choisir produit --</option>
+    {produitsFactices.map((produit) => (
+      <option key={produit.id} value={produit.id}>
+        {produit.nom}
+      </option>
+    ))}
+  </select>
 
-        <label htmlFor="produit">Produit:</label>
-        <select
-          id="produit"
-          value={selectedProduit}
-          onChange={handleProduitChange}
-          disabled={!selectedType}
-        >
-          <option value="">-- Choisir produit --</option>
-          {produitsFiltres.map((produit) => (
-            <option key={produit.id} value={produit.id}>
-              {produit.nom}
-            </option>
-          ))}
-        </select>
+  {produitDescription && (
+    <div className="produit-description">
+      <strong>Description:</strong> {produitDescription}
+    </div>
+  )}
+</div>
 
-{/*     {produitDescription && (
-          <div className="produit-description">
-            <strong>Description:</strong> {produitDescription}
-          </div>
-        )}
-*/}      
-      </div>
 
       <div className="input-block">
         <label>Phase de production:</label>
