@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Header from '../../header/Header';
 import * as XLSX from 'xlsx';
 import './TraitDonnes.css';
 
@@ -514,7 +513,7 @@ const generateChartData = () => {
 
   return (
     <div className="trait-donnees-container">
-      <Header />
+    
       
       <h1 className="trait-donnees-title">Traitement Données</h1>
       
@@ -544,6 +543,8 @@ const generateChartData = () => {
         </button>
       </div>
 
+      
+      
       {/* Tab content */}
       <div className="tab-content">
 {activeTab === 'donnees' && (
