@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
-import './TraitDonnes.css';
+import React, { useState, useEffect } from "react";
+import * as XLSX from "xlsx";
+import "./TraitDonnes.css";
+
+import DonneesTraitees from "../components/DonneesTraitees/DonneesTraitees";
+import DonneesStatistiques from "../components/DonneesStatistiques/DonneesStatistiques";
+import DonneesGraphiques from "../components/DonneesGraphiques/DonneesGraphiques";
 
 const TraitDonnes = () => {
   const [clients, setClients] = useState([]);
@@ -22,7 +26,7 @@ const TraitDonnes = () => {
   const [selectedClass, setSelectedClass] = useState('42.5N');
   const [chartStats, setChartStats] = useState(null);
 
-  // Mock types data (was missing)
+  // Mock types data
   const typeFactices = [
     { id: 1, nom: 'CEM I', description: 'Ciment Portland' },
     { id: 2, nom: 'CEM II', description: 'Ciment Portland avec ajoute' },
@@ -31,7 +35,7 @@ const TraitDonnes = () => {
     { id: 5, nom: 'CEM V', description: 'Ciment composé' }
   ];
 
-  // Mock products data (moved outside useEffect for reuse)
+  // Mock products data
   const produitsFactices = [
     { id: 1, typeId: 1, nom: 'CEM I', description: 'Ciment Portland' },
     { id: 2, typeId: 2, nom: 'CEM II/A-S', description: 'Ciment Portland au laitier' },
@@ -62,26 +66,6 @@ const TraitDonnes = () => {
     { id: 27, typeId: 5, nom: 'CEM V/B', description: 'Ciment composé' },
   ];
 
-  // Load data from localStorage on component mount
-  useEffect(() => {
-    const savedData = localStorage.getItem('excelData');
-    if (savedData) {
-      try {
-        setTableData(JSON.parse(savedData));
-      } catch (e) {
-        console.error('Error loading saved data:', e);
-        setError('Error loading saved data');
-      }
-    }
-  }, []);
-
-  // Save data to localStorage whenever tableData changes
-  useEffect(() => {
-    if (tableData.length > 0) {
-      localStorage.setItem('excelData', JSON.stringify(tableData));
-    }
-  }, [tableData]);
-
   // Parameter options
   const parameters = [
     { id: 'rc2j', label: 'Résistance 2 jours (RC2J)' },
@@ -107,10 +91,30 @@ const TraitDonnes = () => {
     'L': ['32.5L', '42.5L', '52.5L']
   };
 
+  // Load data from localStorage on component mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('excelData');
+    if (savedData) {
+      try {
+        setTableData(JSON.parse(savedData));
+      } catch (e) {
+        console.error('Error loading saved data:', e);
+        setError('Error loading saved data');
+      }
+    }
+  }, []);
+
+  // Save data to localStorage whenever tableData changes
+  useEffect(() => {
+    if (tableData.length > 0) {
+      localStorage.setItem('excelData', JSON.stringify(tableData));
+    }
+  }, [tableData]);
+
   // Load clients list
   useEffect(() => {
     setLoading(true);
-    fetch('http://localhost:3001/api/clients')
+    fetch('http://localhost:5000/api/clients')
       .then(res => {
         if (!res.ok) throw new Error('Erreur réseau');
         return res.json();
@@ -203,8 +207,13 @@ const TraitDonnes = () => {
       }
     }
 
-
-
+    // Mock data for demonstration
+    const donneesFactices = [
+      { id: 1, num_ech: 'ECH001', date: '2023-01-15', rc2j: 15.2, rc7j: 28.5, rc28j: 42.3, prise: '2:15', stabilite: '0.5', hydratation: '250', pfeu: 2.1, r_insoluble: 0.8, so3: 3.2, chlorure: 0.05, c3a: 8.5, ajout_percent: 15, type_ajout: 'Laitier' },
+      { id: 2, num_ech: 'ECH002', date: '2023-01-16', rc2j: 16.8, rc7j: 30.1, rc28j: 45.2, prise: '2:10', stabilite: '0.4', hydratation: '255', pfeu: 2.0, r_insoluble: 0.7, so3: 3.1, chlorure: 0.04, c3a: 8.2, ajout_percent: 16, type_ajout: 'Laitier' },
+      { id: 3, num_ech: 'ECH003', date: '2023-01-17', rc2j: 14.5, rc7j: 27.8, rc28j: 40.9, prise: '2:20', stabilite: '0.6', hydratation: '248', pfeu: 2.2, r_insoluble: 0.9, so3: 3.3, chlorure: 0.06, c3a: 8.7, ajout_percent: 14, type_ajout: 'Laitier' },
+    ];
+    
     setTableData(donneesFactices);
   }, [selectedClient, selectedProduit, phase, tableData.length]);
 
@@ -236,6 +245,7 @@ const TraitDonnes = () => {
       min: min.toFixed(2),
       max: max.toFixed(2),
       count: numericValues.length,
+      isResistance: ['rc2j', 'rc7j', 'rc28j'].includes(selectedParameter)
     };
     
     // Add class-based statistics only for resistance parameters
@@ -292,6 +302,7 @@ const TraitDonnes = () => {
     
     setChartStats(stats);
   }, [tableData, selectedParameter, selectedClass]);
+
   // Excel file import handler
   const handleFileImport = (e) => {
     const file = e.target.files[0];
@@ -452,7 +463,7 @@ const TraitDonnes = () => {
 
   // Clear all data
   const handleClearAll = () => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer toutes les données? Cette action est irréversible.")) {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer toutes les données? Cette action is irréversible.")) {
       return;
     }
 
@@ -481,53 +492,23 @@ const TraitDonnes = () => {
     }
   };
 
-// Generate mock chart data
-const generateChartData = () => {
-  if (!tableData || tableData.length === 0) return null;
-
-  return {
-    labels: tableData.map((item, index) => `Échantillon ${index + 1}`),
-    values: tableData.map(item => item[selectedParameter] || 0),
-  };
-};
-
-
-  const chartData = generateChartData();
-
-  // Calculate statistics
-  const calculateStats = () => {
-    if (tableData.length === 0) return null;
-    
-    return {
-      moyenneRC2J: (tableData.reduce((sum, item) => sum + (item.rc2j || 0), 0) / tableData.length).toFixed(2),
-      moyenneRC7J: (tableData.reduce((sum, item) => sum + (item.rc7j || 0), 0) / tableData.length).toFixed(2),
-      moyenneRC28J: (tableData.reduce((sum, item) => sum + (item.rc28j || 0), 0) / tableData.length).toFixed(2),
-      minRC28J: Math.min(...tableData.map(item => item.rc28j || 0)).toFixed(2),
-      maxRC28J: Math.max(...tableData.map(item => item.rc28j || 0)).toFixed(2),
-      moyennePFeu: (tableData.reduce((sum, item) => sum + (item.pfeu || 0), 0) / tableData.length).toFixed(2),
-      count: tableData.length
-    };
-  };
-
-  const stats = calculateStats();
-
   return (
     <div className="trait-donnees-container">
-    
+      
       
       <h1 className="trait-donnees-title">Traitement Données</h1>
       
-{/*       Alert messages 
+      {/* Alert messages */}
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
-*/}
+
       {/* Tab navigation */}
       <div className="tabs-container">
         <button 
           className={activeTab === 'donnees' ? 'active-tab' : 'tab'}
           onClick={() => setActiveTab('donnees')}
         >
-           Données Traitées
+          Données Traitées
         </button>
         <button 
           className={activeTab === 'statistiques' ? 'active-tab' : 'tab'}
@@ -539,902 +520,71 @@ const generateChartData = () => {
           className={activeTab === 'graphiques' ? 'active-tab' : 'tab'}
           onClick={() => setActiveTab('graphiques')}
         >
-           Graphiques
+          Graphiques
         </button>
       </div>
 
-      
-      
       {/* Tab content */}
       <div className="tab-content">
-{activeTab === 'donnees' && (
-  <div>
-    {/* Selections only in Données Traitées tab */}
-    <div className="inputs-layout">
-      <div className="input-block">
-        <label htmlFor="client">Choisir un client:</label>
-        {loading ? (
-          <div>Chargement des clients...</div>
-        ) : (
-          <select
-            id="client"
-            value={selectedClient}
-            onChange={e => setSelectedClient(e.target.value)}
-          >
-            <option value="">-- Sélectionner un client --</option>
-            {clients.map(client => (
-              <option key={client.id} value={client.id}>
-                {client.nom_raison_sociale}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
-
-<div className="input-block">
-  <label htmlFor="produit">Produit:</label>
-  <select
-    id="produit"
-    value={selectedProduit}
-    onChange={handleProduitChange}
-  >
-    <option value="">-- Choisir produit --</option>
-    {produitsFactices.map((produit) => (
-      <option key={produit.id} value={produit.id}>
-        {produit.nom}
-      </option>
-    ))}
-  </select>
-
-  {produitDescription && (
-    <div className="produit-description">
-      <strong>Description:</strong> {produitDescription}
-    </div>
-  )}
-</div>
-
-
-      <div className="input-block">
-        <label>Phase de production:</label>
-        <div className="radio-group">
-          <label className="radio-label">
-            <input
-              type="radio"
-              value="production"
-              checked={phase === 'production'}
-              onChange={() => setPhase('production')}
-              className="radio-input"
-              disabled={!selectedProduit}
-            />
-            Situation courante
-          </label>
-        </div>
-        <div className="radio-group">
-          <label className="radio-label">
-            <input
-              type="radio"
-              value='developpement'
-              checked={phase === 'developpement'}
-              onChange={() => setPhase('developpement')}
-              className="radio-input"
-              disabled={!selectedProduit}
-            />
-            Nouveau type produit
-          </label>
-        </div>
-      </div>
-    </div>
-
-{/* Data table        " to calculate combien d'echantillon {tableData.length} lignes  */}
-    <h1></h1>
-    <h2>Données à traiter</h2>
-    <h2>Périod du ...... au ...........</h2>
-    <h3> {selectedProduit && ` ${produits.find(p => p.id == selectedProduit)?.nom}`} ({produitDescription})</h3>
-{tableData.length > 0 ? (
-  <div className="table-container">
-    <table className="table">
-      <thead>
-        <tr>
-          <th>
-            <input
-              type="checkbox"
-              checked={selectedRows.length === tableData.length && tableData.length > 0}
-              onChange={toggleSelectAll}
-            />
-          </th>
-          <th>Ech</th>
-          <th>Date</th>
-          <th>RC2J</th>
-          <th>RC7J</th>
-          <th>RC28J</th>
-          <th>Prise</th>
-          <th>Stabilité</th>
-          <th>Hydratation</th>
-          <th>P. Feu</th>
-          <th>R. Insoluble</th>
-          <th>SO3</th>
-          <th>Chlorure</th>
-          {/* Show C3A column only for CEM I */}
-          {selectedType && selectedType === "1" && (
-            <th>C3A</th>
-          )}
-          {/* Show additional columns only for CEM II, III, IV, V */}
-          {selectedType && selectedType !== "1" && (
-            <>
-              <th>Ajout(Type Ajout) %</th>
-            </>
-          )}
-        </tr>
-      </thead>
-      <tbody>
- {tableData.map((row) => (
-  <tr key={row.id} className={selectedRows.includes(row.id) ? 'selected' : ''}>
-    <td>
-      <input
-        type="checkbox"
-        checked={selectedRows.includes(row.id)}
-        onChange={() => toggleRowSelection(row.id)}
-      />
-    </td>
-    <td>{row.num_ech}</td>
-    <td>{row.date}</td>
-    <td>
-      <input
-        type="number"
-        value={row.rc2j || ''}
-        onChange={(e) => handleEdit(row.id, 'rc2j', e.target.value)}
-        className="editable-cell"
-      />
-    </td>
-    <td>
-      <input
-        type="number"
-        value={row.rc7j || ''}
-        onChange={(e) => handleEdit(row.id, 'rc7j', e.target.value)}
-        className="editable-cell"
-      />
-    </td>
-    <td>
-      <input
-        type="number"
-        value={row.rc28j || ''}
-        onChange={(e) => handleEdit(row.id, 'rc28j', e.target.value)}
-        className="editable-cell"
-      />
-    </td>
-    <td>
-      <input
-        type="text"
-        value={row.prise || ''}
-        onChange={(e) => handleEdit(row.id, 'prise', e.target.value)}
-        className="editable-cell"
-      />
-    </td>
-    <td>
-      <input
-        type="text"
-        value={row.stabilite || ''}
-        onChange={(e) => handleEdit(row.id, 'stabilite', e.target.value)}
-        className="editable-cell"
-      />
-    </td>
-    <td>
-      <input
-        type="text"
-        value={row.hydratation || ''}
-        onChange={(e) => handleEdit(row.id, 'hydratation', e.target.value)}
-        className="editable-cell"
-      />
-    </td>
-    <td>
-      <input
-        type="number"
-        value={row.pfeu || ''}
-        onChange={(e) => handleEdit(row.id, 'pfeu', e.target.value)}
-        className="editable-cell"
-      />
-    </td>
-    <td>
-      <input
-        type="number"
-        value={row.r_insoluble || ''}
-        onChange={(e) => handleEdit(row.id, 'r_insoluble', e.target.value)}
-        className="editable-cell"
-      />
-    </td>
-    <td>
-      <input
-        type="number"
-        value={row.so3 || ''}
-        onChange={(e) => handleEdit(row.id, 'so3', e.target.value)}
-        className="editable-cell"
-      />
-    </td>
-    <td>
-      <input
-        type="number"
-        value={row.chlorure || ''}
-        onChange={(e) => handleEdit(row.id, 'chlorure', e.target.value)}
-        className="editable-cell"
-      />
-    </td>
-    {/* Show C3A column only for CEM I */}
-    {selectedType && selectedType === "1" && (
-      <td>
-        <input
-          type="number"
-          value={row.c3a || ''}
-          onChange={(e) => handleEdit(row.id, 'c3a', e.target.value)}
-          className="editable-cell"
-        />
-      </td>
-    )}
-    {/* Show additional columns only for CEM II, III, IV, V */}
-    {selectedType && selectedType !== "1" && (
-      <>
-        <td>
-          <input
-            type="number"
-            value={row.ajout_percent || ''}
-            onChange={(e) => handleEdit(row.id, 'ajout_percent', e.target.value)}
-            className="editable-cell"
+        {activeTab === 'donnees' && (
+          <DonneesTraitees
+            tableData={tableData} 
+            clients={clients}
+            selectedClient={selectedClient}
+            setSelectedClient={setSelectedClient}
+            loading={loading}
+            typeFactices={typeFactices}
+            selectedType={selectedType}
+            setSelectedType={setSelectedType}
+            produitsFiltres={produitsFiltres}
+            selectedProduit={selectedProduit}
+            handleProduitChange={handleProduitChange}
+            produitDescription={produitDescription}
+            phase={phase}
+            setPhase={setPhase}
+            selectedRows={selectedRows}
+            toggleRowSelection={toggleRowSelection}
+            toggleSelectAll={toggleSelectAll}
+            handleEdit={handleEdit}
+            handleFileImport={handleFileImport}
+            handleExport={handleExport}
+            handlePrint={handlePrint}
+            handleSave={handleSave}
+            handleDelete={handleDelete}
+            handleClearAll={handleClearAll}
           />
-        </td>
-      </>
-    )}
-  </tr>
-))}
-      </tbody>
-    </table>
-  </div>
-) : (
-  <p className="no-data">
-    {selectedClient && selectedProduit && phase ? 
-      "Aucune donnée disponible pour ces critères." : 
-      "Veuillez sélectionner un client, un produit et une phase pour afficher les données."}
-  </p>
-)}
-        {/* Data actions */}
-            <div className="actions-bar">
-              <div className="file-actions">
-                <label htmlFor="file-import" className="action-btn import-btn">
-                  <i className="fas fa-file-import"></i> Importer Excel
-                </label>
-                <input
-                  id="file-import"
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileImport}
-                  style={{ display: 'none' }}
-                />
-
-                <button className="action-btn export-btn" onClick={handleExport} disabled={tableData.length === 0}>
-                  <i className="fas fa-file-export"></i> Exporter
-                </button>
-                <button className="action-btn print-btn" onClick={handlePrint} disabled={tableData.length === 0}>
-                  <i className="fas fa-print"></i> Imprimer
-                </button>
-              </div>
-              
-              <div className="data-actions">
-                <button 
-                  className="action-btn save-btn" 
-                  onClick={handleSave}
-                  disabled={tableData.length === 0}
-                >
-                  <i className="fas fa-save"></i> Sauvegarder
-                </button>
-                <button 
-                  className="action-btn delete-btn" 
-                  onClick={handleDelete}
-                  disabled={selectedRows.length === 0}
-                >
-                  <i className="fas fa-trash"></i> Supprimer ({selectedRows.length})
-                </button>
-                <button 
-                  className="action-btn clear-btn" 
-                  onClick={handleClearAll}
-                  disabled={tableData.length === 0}
-                >
-                  <i className="fas fa-broom"></i> Tout effacer
-                </button>
-              </div>
-            </div>
-
-  </div>
-)}
-        
+        )}
 
         {activeTab === 'statistiques' && (
-          <div className="stats-section" >
-            <p><strong>{clients.find(c => c.id == selectedClient)?.nom_raison_sociale || 'Aucun'}</strong></p>    
-            <h2> Données Statistiques</h2>
-            <h3> {selectedProduit && ` ${produits.find(p => p.id == selectedProduit)?.nom}`} ({produitDescription})</h3>
-{stats ? (
-  <div>
-    <table className="stats-table">
-      <thead>
-        <tr>
-          <th>Paramètre</th>
-          <th>RC2J</th>
-          <th>RC7J</th>
-          <th>RC28J</th>
-          <th>Prise</th>
-          <th>Stabilité</th>
-          <th>Hydratation</th>
-          <th>P. Feu</th>
-          <th>R. Insoluble</th>
-          <th>SO3</th>
-          <th>Chlorure</th>
-          {selectedType === "1" && <th>C3A</th>}
-          {selectedType !== "1" && <th>Ajout %</th>}
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Nombre</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          {selectedType === "1" ? <td></td> : <td></td>}
-        </tr>
-        <tr>
-          <td>Minimum</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          {selectedType === "1" ? <td></td> : <td></td>}
-        </tr>
-        <tr>
-          <td>Maximum</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          {selectedType === "1" ? <td></td> : <td></td>}
-        </tr>
-        <tr>
-          <td>Moyenne</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          {selectedType === "1" ? <td></td> : <td></td>}
-        </tr>
-        <tr>
-          <td>Écart type</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          {selectedType === "1" ? <td></td> : <td></td>}
-        </tr>
-
-
-        <h4>CLASSE 32.5L</h4> 
-    <tr>
-      <td>Limite inférieure (LI)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite supérieure (LS)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite garantie (LG)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-<h4>CLASSE 32.5N</h4> 
-    <tr>
-      <td>Limite inférieure (LI)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite supérieure (LS)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite garantie (LG)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-
-
-            
-<h4>CLASSE 32.5R</h4> 
-    <tr>
-      <td>Limite inférieure (LI)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite supérieure (LS)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite garantie (LG)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-
-
-            
-<h4>CLASSE 42.5L</h4> 
-    <tr>
-      <td>Limite inférieure (LI)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite supérieure (LS)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite garantie (LG)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-
-            
-<h4>CLASSE 42.5N</h4> 
-    <tr>
-      <td>Limite inférieure (LI)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite supérieure (LS)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite garantie (LG)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-
-            
-<h4>CLASSE 42.5R</h4> 
-    <tr>
-      <td>Limite inférieure (LI)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite supérieure (LS)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite garantie (LG)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-
-            
-<h4>CLASSE 52.5L</h4> 
-    <tr>
-      <td>Limite inférieure (LI)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite supérieure (LS)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite garantie (LG)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-
-            
-<h4>CLASSE 52.5N</h4> 
-    <tr>
-      <td>Limite inférieure (LI)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite supérieure (LS)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite garantie (LG)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-
-
-            
-<h4>CLASSE 52.5R</h4> 
-    <tr>
-      <td>Limite inférieure (LI)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LI</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite supérieure (LS)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &gt; LS</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>Limite garantie (LG)</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>N &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr>
-      <td>% &lt; LG</td>
-      <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-      </tbody>
-    </table>
-  </div>
-) : (
-  <p className="no-data">
-    Veuillez d'abord sélectionner un client, un produit et une phase.
-  </p>
-)}
-
-                 {/* Data actions */}
-            <div className="actions-bar">
-              <div className="file-actions">
-
-                <button className="action-btn export-btn" onClick={handleExport} disabled={tableData.length === 0}>
-                  <i className="fas fa-file-export"></i> Exporter
-                </button>
-                <button className="action-btn print-btn" onClick={handlePrint} disabled={tableData.length === 0}>
-                  <i className="fas fa-print"></i> Imprimer
-                </button>
-              </div>
-              
-              <div className="data-actions">
-                <button 
-                  className="action-btn save-btn" 
-                  onClick={handleSave}
-                  disabled={tableData.length === 0}
-                >
-                  <i className="fas fa-save"></i> Sauvegarder
-                </button>
-              </div>
-            </div>
-          </div>
-          
+          <DonneesStatistiques
+            tableData={tableData} 
+            clients={clients}
+            selectedClient={selectedClient}
+            selectedProduit={selectedProduit}
+            produits={produits}
+            produitDescription={produitDescription}
+            selectedType={selectedType}
+            handleExport={handleExport}
+            handlePrint={handlePrint}
+            handleSave={handleSave}
+          />
         )}
 
-
-        
-{activeTab === 'graphiques' && (
-        <div className="charts-section">
-          {/* Chart controls */}
-          <label htmlFor="parameter">Conformité de :</label>
-          <select
-            id="parameter"
-            value={selectedParameter}
-            onChange={e => setSelectedParameter(e.target.value)}
-          >
-            {parameters.map(param => (
-              <option key={param.id} value={param.id}>{param.label}</option>
-            ))}
-          </select>
-
-          <div className="chart-controls">
-            <div className="chart-input">
-              <p>Le Graphe :</p>
-            </div>
-            
- {/* Class selection - show for all parameters */}
-<div className="chart-input">
-  <label>Classe:</label>
-  <div className="radio-groups-container">
-    {Object.entries(classOptions).map(([type, classes]) => (
-      <div key={type} className="radio-group">
-        <div className="radio-options">
-          {classes.map((className) => (
-            <div key={className} className="radio-item">
-              <input
-                type="radio"
-                id={className}
-                name="cementClass"
-                value={className}
-                checked={selectedClass === className}
-                onChange={() => setSelectedClass(className)}
-                className="radio-input"
-              />
-              <label htmlFor={className} className="radio-label">
-                {className}
-              </label>
-            </div>
-          ))}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-
-            {/* Show statistics for all parameters */}
-            {chartStats && (
-              <div className="stats-display">
-                <div className="stats-column">
-                  <h5>Moyenne</h5>
-                  <div className="average-value">{chartStats.moyenne}</div>
-                  
-                  <h5>Minimum</h5>
-                  <div>{chartStats.min}</div>
-                  
-                  <h5>Maximum</h5>
-                  <div>{chartStats.max}</div>
-                  
-                  <h5>Nombre d'échantillons</h5>
-                  <div>{chartStats.count}</div>
-                </div>
-                
-                {/* Show class-based statistics only for resistance parameters */}
-                {chartStats.isResistance && (
-                  <div className="stats-column">
-                    <h5>Limite inférieure</h5>
-                    <div>{selectedClass} &lt;= {chartStats.limiteInf} MPa : {chartStats.countBelowInf} ({chartStats.percentBelowInf}%)</div>
-                    
-                    <h5>Limite supérieure</h5>
-                    <div>{selectedClass} &gt;= {chartStats.limiteSup} MPa : {chartStats.countAboveSup} ({chartStats.percentAboveSup}%)</div>
-                    
-                    <h5>Limite garantie</h5>
-                    <div>{selectedClass} &lt;= {chartStats.limiteGarantie} MPa : {chartStats.countBelowGarantie} ({chartStats.percentBelowGarantie}%)</div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Data actions */}
-          <div className="actions-bar">
-            <div className="file-actions">
-              <button className="action-btn export-btn" onClick={handleExport} disabled={tableData.length === 0}>
-                <i className="fas fa-file-export"></i> Exporter
-              </button>
-              <button className="action-btn print-btn" onClick={handlePrint} disabled={tableData.length === 0}>
-                <i className="fas fa-print"></i> Imprimer
-              </button>
-              <button 
-                className="action-btn save-btn" 
-                onClick={handleSave}
-                disabled={tableData.length === 0}
-              >
-                <i className="fas fa-save"></i> Sauvegarder
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-
+        {activeTab === 'graphiques' && (
+          <DonneesGraphiques
+            tableData={tableData} 
+            parameters={parameters}
+            selectedParameter={selectedParameter}
+            setSelectedParameter={setSelectedParameter}
+            classOptions={classOptions}
+            selectedClass={selectedClass}
+            setSelectedClass={setSelectedClass}
+            chartStats={chartStats}
+            handleExport={handleExport}
+            handlePrint={handlePrint}
+            handleSave={handleSave}
+          />
+        )}
       </div>
     </div>
   );

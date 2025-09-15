@@ -1,0 +1,115 @@
+/* components/DonneesStatistiques/DonneesStatistiques.css */
+
+/* Statistics Section */
+.stats-section {
+  padding: 15px;
+  width: 100%;
+  background: transparent;
+  margin-top: 2500px;
+}
+
+.stats-table {
+  width: 100%;
+  font-size: 12px;
+  
+}
+
+.stats-table th {
+  color: #333;
+  padding: 8px;
+  text-align: center;
+  font-weight: bold;
+  border: 1px solid #ddd;
+}
+
+.stats-table td {
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+
+.stats-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+/* Actions Bar for Statistics */
+.stats-section .actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 20px 0;
+  padding: 15px;
+  background: #e3f2fd;
+  border-radius: 6px;
+}
+
+.stats-section .file-actions, 
+.stats-section .data-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.stats-section .action-btn {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  background: white;
+  transition: all 0.2s;
+}
+
+.stats-section .action-btn:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.stats-section .action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.stats-section .export-btn { background: #2196f3; color: white; border-color: #2196f3; }
+.stats-section .print-btn { background: #757575; color: white; border-color: #757575; }
+.stats-section .save-btn { background: #ff9800; color: white; border-color: #ff9800; }
+
+/* No Data Message for Statistics */
+.stats-section .no-data {
+  text-align: center;
+  padding: 30px;
+  color: #777;
+  font-style: italic;
+  background: #f9f9f9;
+  border-radius: 6px;
+  margin: 15px 0;
+  border: 1px dashed #ddd;
+}
+
+/* Responsive Design for Statistics */
+@media (max-width: 768px) {
+  .stats-section .actions-bar {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .stats-section .file-actions, 
+  .stats-section .data-actions {
+    justify-content: center;
+  }
+  
+  .stats-table {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-table {
+    font-size: 10px;
+  }
+  
+  .stats-section .action-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
