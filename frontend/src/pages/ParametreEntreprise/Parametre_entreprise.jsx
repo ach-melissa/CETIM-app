@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Header from "../../header/Header";
+
 import './ParametreEntreprise.css';
 
 const ParametreEntreprise = () => {
@@ -141,7 +141,7 @@ const ParametreEntreprise = () => {
 
   return (
     <div className="parametre-entreprise-container">
-      <Header />
+
 
       <div className="parametre-entreprise-content">
         {/* Header Section */}

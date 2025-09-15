@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import "./TraitDonnes.css";
-import Header from "../../Header/Header";
+
 import DonneesTraitees from "../components/DonneesTraitees/DonneesTraitees";
 import DonneesStatistiques from "../components/DonneesStatistiques/DonneesStatistiques";
 import DonneesGraphiques from "../components/DonneesGraphiques/DonneesGraphiques";
@@ -114,8 +114,7 @@ const TraitDonnes = () => {
   // Load clients list
   useEffect(() => {
     setLoading(true);
-   fetch('http://localhost:5000/api/clients')
-
+    fetch('http://localhost:5000/api/clients')
       .then(res => {
         if (!res.ok) throw new Error('Erreur réseau');
         return res.json();
@@ -464,7 +463,7 @@ const TraitDonnes = () => {
 
   // Clear all data
   const handleClearAll = () => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer toutes les données? Cette action est irréversible.")) {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer toutes les données? Cette action is irréversible.")) {
       return;
     }
 
@@ -495,7 +494,7 @@ const TraitDonnes = () => {
 
   return (
     <div className="trait-donnees-container">
-      <Header />
+      
       
       <h1 className="trait-donnees-title">Traitement Données</h1>
       

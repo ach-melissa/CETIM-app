@@ -5,7 +5,7 @@ const bcrypt = require('bcrypt');
 //2 user objects eache with (email , password)
 const users = [
   { email: 'infomely@gmail.com', password: 'mrhamza' },
-  { email: 'infom@gmail.com', password: 'mrszakia' }
+  { email: 'info@gmail.com', password: 'mrszakia' }
 ];
 
 /* Get their email and password (hamza , zakia), Hash the password with bcrypt , Print the email and the hashed password */
