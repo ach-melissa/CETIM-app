@@ -1,31 +1,53 @@
 /* components/DonneesStatistiques/DonneesStatistiques.css */
 
-/* Statistics Section */
+/* Statistics Section - FIXED */
 .stats-section {
-  padding: 15px;
+  padding: 0; /* Changed from 15px to 0 */
   width: 100%;
-  background: transparent;
-  margin-top: 2500px;
+  margin-top: 0;
+  padding-top: 0;
+  height: 100%;
+  max-height: 150vh; /* Limit height and make scrollable */
+}
+
+/* Class sections */
+.class-section {
+  margin: 10px 0; /* Reduced margin */
+  padding: 5px; /* Reduced padding */
+}
+
+.class-section h4 {
+  background-color: #1976d2;
+  color: white;
+  padding: 8px;
+  margin: 10px 0 5px 0; /* Reduced margins */
+  text-align: center;
+  border-radius: 4px;
+  font-size: 14px; /* Slightly smaller font */
 }
 
 .stats-table {
   width: 100%;
-  font-size: 12px;
-  
+  font-size: 11px; /* Smaller font to fit more content */
+  border-collapse: collapse;
+  margin-bottom: 10px; /* Reduced margin */
 }
 
 .stats-table th {
   color: #333;
-  padding: 8px;
+  padding: 6px; /* Reduced padding */
   text-align: center;
   font-weight: bold;
   border: 1px solid #ddd;
+  background-color: #e8e8e8;
+  font-size: 11px; /* Consistent font size */
 }
 
 .stats-table td {
-  padding: 6px 8px;
+  padding: 4px 6px; /* Reduced padding */
   border: 1px solid #ddd;
   text-align: center;
+  font-size: 11px; /* Consistent font size */
 }
 
 .stats-table tr:nth-child(even) {
@@ -37,60 +59,55 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 20px 0;
-  padding: 15px;
+  margin: 15px 0; /* Reduced margin */
+  padding: 10px; /* Reduced padding */
   background: #e3f2fd;
   border-radius: 6px;
+  position: sticky; /* Make actions bar stick to bottom */
+  bottom: 0;
+  z-index: 100;
 }
 
+/* Rest of your CSS remains similar but with reduced values */
 .stats-section .file-actions, 
 .stats-section .data-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px; /* Reduced gap */
   align-items: center;
   flex-wrap: wrap;
 }
 
 .stats-section .action-btn {
-  padding: 8px 12px;
+  padding: 6px 10px; /* Reduced padding */
   border: 1px solid #ccc;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 13px;
-  background: white;
+  font-size: 12px; /* Smaller font */
+  background: rgb(24, 49, 87);
   transition: all 0.2s;
 }
-
-.stats-section .action-btn:hover:not(:disabled) {
-  background: #f0f0f0;
-}
-
-.stats-section .action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.stats-section .export-btn { background: #2196f3; color: white; border-color: #2196f3; }
-.stats-section .print-btn { background: #757575; color: white; border-color: #757575; }
-.stats-section .save-btn { background: #ff9800; color: white; border-color: #ff9800; }
 
 /* No Data Message for Statistics */
 .stats-section .no-data {
   text-align: center;
-  padding: 30px;
+  padding: 20px; /* Reduced padding */
   color: #777;
   font-style: italic;
   background: #f9f9f9;
   border-radius: 6px;
-  margin: 15px 0;
+  margin: 10px 0; /* Reduced margin */
   border: 1px dashed #ddd;
 }
 
 /* Responsive Design for Statistics */
 @media (max-width: 768px) {
+  .stats-section {
+    max-height: 70vh; /* Adjust for mobile */
+  }
+  
   .stats-section .actions-bar {
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
   
   .stats-section .file-actions, 
@@ -99,17 +116,33 @@
   }
   
   .stats-table {
-    font-size: 11px;
+    font-size: 10px;
+  }
+  
+  .stats-table th,
+  .stats-table td {
+    padding: 4px;
   }
 }
 
 @media (max-width: 480px) {
   .stats-table {
-    font-size: 10px;
+    font-size: 9px;
   }
   
   .stats-section .action-btn {
-    padding: 6px 10px;
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+  
+  .class-section h4 {
     font-size: 12px;
+    padding: 6px;
+  }
+  
+  /* Make tables horizontally scrollable on mobile */
+  .stats-table-container {
+    overflow-x: auto;
+    width: 100%;
   }
 }
