@@ -1,121 +1,114 @@
-/* TraitDonnes.css */
+/* Container aligned with sidebar */
 .trait-donnees-container {
+  margin-left: 250px; /* space for the sidebar */
   padding: 20px;
+  min-height: 100vh;
+  background: #f4f6f9;
+  transition: margin-left 0.3s ease;
 }
 
+/* Adjust for smaller screens when sidebar is hidden */
+@media (max-width: 768px) {
+  .trait-donnees-container {
+    margin-left: 0;
+    padding: 15px;
+  }
+}
+
+/* Title */
 .trait-donnees-title {
-  text-align: center;
-  color: #333;
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #13273b;
   margin-bottom: 20px;
-  font-size: 24px;
-  margin-top: 700px; /* Fixed from 700px */
+  text-align: left;
 }
 
-/* Alert Messages */
-.error-message {
-  background-color: #ffebee;
-  color: #c62828;
-  padding: 10px;
-  border-radius: 4px;
+/* Messages */
+.error-message,
+.success-message {
+  padding: 12px 16px;
+  border-radius: 6px;
   margin-bottom: 15px;
-  border: 1px solid #ffcdd2;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.error-message {
+  background-color: #ffe5e5;
+  border: 1px solid #ff4d4d;
+  color: #b30000;
 }
 
 .success-message {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-  padding: 10px;
-  border-radius: 4px;
-  margin-bottom: 15px;
-  border: 1px solid #c8e6c9;
+  background-color: #e6ffed;
+  border: 1px solid #28a745;
+  color: #155724;
+}
+
+/* Tabs container */
+.tabs-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
 /* Tabs */
-.tabs-container {
-  display: flex;
-  justify-content: center;
-
-  margin: 20px 0; /* reduce top margin */
-
-  margin-bottom: 20px;
-  border-bottom: 2px solid #ddd;
-  z-index: 10;
-  position: relative;
+.tab,
+.active-tab {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s ease;
 }
 
 .tab {
-  padding: 10px 20px;
-  background-color: #f9f9f9; /* light background for visibility */
-  border: 1px solid #ddd;
-  border-bottom: none; /* connect with active tab underline */
-  cursor: pointer;
-  font-size: 14px;
-  color: #333; /* darker color for readability */
-  border-radius: 4px 4px 0 0;
-  margin: 0 5px;
+  background: #ecf0f1;
+  color: #34495e;
 }
 
 .tab:hover {
-  color: #1976d2;
-  background-color: #e6f0ff;
+  background: #dfe6e9;
 }
 
 .active-tab {
-  color: #1976d2;
-  border-bottom: 3px solid #1976d2;
-  font-weight: bold;
-  background-color: #fff; /* highlight active tab */
+  background: #1b93e3;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
-
+/* Tab content */
 .tab-content {
-
-  border-radius: 6px;
+  background: #fff;
   padding: 20px;
-
-
-   margin-top: 20px;
-
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  min-height: 500px; /* Added fixed height for consistency */
+  border-radius: 8px;
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.08);
+  min-height: 400px;
+  overflow-x: auto;
+  transition: all 0.3s ease;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .trait-donnees-container {
-    padding: 10px;
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .trait-donnees-title {
+    font-size: 1.4rem;
+    text-align: center;
   }
-  
-  .tab {
-    padding: 8px 12px;
-    font-size: 13px;
+
+  .tabs-container {
+    justify-content: center;
   }
-  
+
+  .tab,
+  .active-tab {
+    padding: 8px 14px;
+    font-size: 0.9rem;
+  }
+
   .tab-content {
     padding: 15px;
-    min-height: 400px;
-  }
-}
-
-@media (max-width: 480px) {
-  .trait-donnees-title {
-    font-size: 20px;
-    margin-top: 10px;
-  }
-  
-  .tabs-container {
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .tab {
-    width: 100%;
-    text-align: center;
-    margin-bottom: 5px;
-  }
-  
-  .tab-content {
-    min-height: 300px;
-    padding: 10px;
   }
 }

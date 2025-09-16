@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
-import logo from "./logo-cetim.png";
+import logo from "./LogoCetim.png";
 import "./Header.css";
 
 function Header() {
@@ -26,9 +26,7 @@ function Header() {
     <>
       {/* Hamburger button */}
       <div className={`header-menu-btn ${isOpen ? "open" : ""}`} onClick={toggleMenu}>
-        <span></span>
-        <span></span>
-        <span></span>
+        
       </div>
 
       {/* Overlay to close menu when clicking outside */}

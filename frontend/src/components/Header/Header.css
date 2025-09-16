@@ -17,7 +17,7 @@
   display: block;
   height: 3px;
   width: 100%;
-  background-color: #2c3e50;
+  background-color: #13273b;
   border-radius: 3px;
   transition: all 0.3s ease;
 }
@@ -34,7 +34,7 @@
   transform: rotate(-45deg) translate(7px, -6px);
 }
 
-/* Overlay to close menu when clicking outside */
+/* Overlay (mobile only) */
 .header-overlay {
   position: fixed;
   top: 0;
@@ -53,16 +53,13 @@
   left: -250px;
   width: 250px;
   height: 100%;
-  background-color: #2c3e50;
+  background-color: #122130;
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
   transition: left 0.3s ease;
   z-index: 999;
   overflow-y: auto;
 }
 
-.header-sidebar.open {
-  left: 0;
-}
 
 .header-logo-container {
   padding: 1.5rem 1rem;
@@ -71,7 +68,9 @@
 }
 
 .header-logo {
-  width: 120px;
+  background-color: rgb(255, 255, 255);
+  width: 160px;
+  
 }
 
 .header-nav-list {
@@ -92,6 +91,7 @@
   display: block;
   padding: 1rem 1.5rem;
   color: #ecf0f1;
+  font-weight: 600;
   text-decoration: none;
   transition: all 0.3s ease;
   position: relative;
@@ -103,7 +103,7 @@
 }
 
 .header-nav-link.active {
-  background-color: #3498db;
+  background-color: #1b93e3;
   color: white;
 }
 
@@ -119,27 +119,16 @@
 
 /* Responsive design */
 @media (min-width: 768px) {
+  .header-overlay {
+    display: none; /* no overlay on desktop */
+  }
+
   .header-menu-btn {
     left: calc(250px + 20px);
+    display: flex; /* keep hamburger visible */
   }
-  
-  .header-sidebar {
-    left: 0;
-  }
-  
-  .header-sidebar:not(.open) {
-    left: -250px;
-  }
-  
-  .header-overlay {
-    display: none;
-  }
-  
-  .header-menu-btn {
-    display: none;
-  }
-  
-  /* Show menu by default on desktop */
+
+  /* Sidebar always visible by default on desktop */
   .header-sidebar {
     left: 0;
   }
