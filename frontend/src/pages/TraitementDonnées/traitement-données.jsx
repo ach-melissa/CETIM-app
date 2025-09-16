@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import "./TraitDonnes.css";
 
-import DonneesTraitees from "../components/DonneesTraitees/DonneesTraitees";
-import DonneesStatistiques from "../components/DonneesStatistiques/DonneesStatistiques";
-import DonneesGraphiques from "../components/DonneesGraphiques/DonneesGraphiques";
+import DonneesTraitees from "../../components/DonneesTraitees/DonneesTraitees";
+import DonneesStatistiques from "../../components/DonneesStatistiques/DonneesStatistiques";
+import DonneesGraphiques from "../../components/DonneesGraphiques/DonneesGraphiques";
 
 const TraitDonnes = () => {
   const [clients, setClients] = useState([]);

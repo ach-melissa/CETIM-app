@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "./parametre_norm.css";
-
+import Header from  "../../components/Header/Header"
 const API_BASE = "http://localhost:5000";
 const USE_MOCK_DATA = true;
 
@@ -216,7 +216,7 @@ const mockParameters = {
 
   return (
     <div className="parametreNormPage">
-   
+     <Header/>
       <main className="content">
         <h1>Paramètres Norme Ciment</h1>
 

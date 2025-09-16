@@ -33,7 +33,7 @@ const response = await fetch(`${API_BASE}/api/login`, {
 
       // ✅ React-based redirection:
 if (role === 'admin') navigate('/traitdonnes');
-else if (role === 'user') navigate('/dashboard');
+else if (role === 'user') navigate('/parnorm');
 else setErrorMessage('Unknown role.');
 
     } catch (err) {
