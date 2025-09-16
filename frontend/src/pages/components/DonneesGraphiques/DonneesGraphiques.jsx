@@ -9,9 +9,8 @@ const CementQualityReport = ({ cementParams, setCementParams, onBack }) => {
   const [so3, setSo3] = useState(cementParams.so3 || 0);
   const [chlorure, setChlorure] = useState(cementParams.chlorure || 0);
   const [calcaire, setCalcaire] = useState(cementParams.calcaire || 0);
-  const [selectedClass, setSelectedClass] = useState('42.5 N'); // Default class
+  const [selectedClass, setSelectedClass] = useState('42.5 N');
 
-  // Cement class options
   const cementClasses = [
     '32.5 N', '32.5 R', '32.5 L',
     '42.5 N', '42.5 R', '42.5 L', 
@@ -51,16 +50,13 @@ const CementQualityReport = ({ cementParams, setCementParams, onBack }) => {
   };
 
   const compliance = calculateCompliance();
-
-  // Calculate deviation percentages (0% as shown in the image)
   const deviationPercent = 0;
   const defaultPercent = 0;
 
   return (
     <div className="cement-report-container">
-            {/* Cement Class Selection Buttons */}
       <div className="cement-class-buttons">
-        <h3>classes :</h3>
+        <h3>Classes :</h3>
         <div className="class-button-group">
           {cementClasses.map(cementClass => (
             <button
@@ -81,7 +77,6 @@ const CementQualityReport = ({ cementParams, setCementParams, onBack }) => {
         <strong>GEM II/A-L (Ciment portland au calcaire)</strong><br />
         <strong>Période du 01/01/2020 au 31/12/2020</strong>
       </div>
-      
       
       <hr className="strong-hr" />
       
@@ -244,11 +239,571 @@ const CementQualityReport = ({ cementParams, setCementParams, onBack }) => {
         </div>
       </div>
 
-      {/* Back button */}
       <div className="back-button-container">
         <button onClick={onBack}>← Retour aux Graphiques</button>
       </div>
     </div>
+  );
+};
+
+const CementTablePage = ({ onBack }) => {
+  return (
+    <div className="cement-table-page">
+
+      
+      <div className="cement-table-container">
+        <h3>SOCIETE EXEMPLE (ESSAI)</h3>
+        <h4 >Période du 01/01/2020 au 31/12/2020</h4>
+        <h3> II/A-L (Ciment portland au calcaire)</h3>
+        
+        
+
+        <table>
+          <thead>
+            <tr>
+              <th>Classe</th>
+              <th>RC2J</th>
+              <th>RC7J</th>
+              <th>RC28J</th>
+              <th>Prise</th>
+              <th>Stabilité</th>
+              <th>Hydratation</th>
+              <th>P.Feu</th>
+              <th>R.Insoluble</th>
+              <th>P2O3</th>
+              <th>Chlorure</th>
+              <th>ajt(.......)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>32.5 L / .........</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Déviations %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Défaults %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Controle Statistique</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>32.5 N / ..........</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Déviations %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Défaults %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Controle Statistique</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>32.5 R / .........</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Déviations %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Défaults %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Controle Statistique</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>42.5 L / .........</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Déviations %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Défaults %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Controle Statistique</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td className="red">42.5 N / ............</td>
+              <td className="yellow"></td>
+              <td className="yellow"></td>
+              <td className="red"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Déviations %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Défaults %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Controle Statistique</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td className="red">42.5 R / .........</td>
+              <td className="yellow"></td>
+              <td className="yellow"></td>
+              <td className="red"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Déviations %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Défaults %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Controle Statistique</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>52.5 L / .........</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Déviations %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Défaults %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Controle Statistique</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>52.5 N / ..........</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Déviations %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Défaults %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Controle Statistique</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>52.5 R / .........</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Déviations %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Défaults %</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+            <tr>
+              <td>Controle Statistique</td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="grey"></td>
+              <td className="green"></td>
+              <td className="green"></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="legend">
+          <p>
+            <span className="green-box"></span> % Déviation/Défaut ≤ 5%
+          </p>
+          <p>
+            <span className="yellow-box"></span> % Déviation &gt; 5%
+          </p>
+          <p>
+            <span className="red-box"></span> % Défaut &gt; 5%
+          </p>
+          <p>
+            <span className="grey-box"></span> ND/NS Données non disponibles /
+            Insuffisantes
+          </p>
+        </div>
+      </div>
+          <div className="back-button-container">
+        <button onClick={onBack}>← Retour aux Graphiques</button>
+      </div>
+    </div>
+    
   );
 };
 
@@ -265,21 +820,24 @@ const DonneesGraphiques = ({
   handlePrint,
   handleSave
 }) => {
-  const [showConformity, setShowConformity] = useState(false);
+  const [currentView, setCurrentView] = useState('main'); // 'main', 'conformity', 'table'
   const [cementParams, setCementParams] = useState({});
 
   return (
     <div className="charts-section">
-      {!showConformity ? (
+      {currentView === 'main' && (
         <>
           <label htmlFor="parameter">Conformité de :</label>
-          <select id="parameter" value={selectedParameter} onChange={e => setSelectedParameter(e.target.value)}>
+          <select 
+            id="parameter" 
+            value={selectedParameter} 
+            onChange={e => setSelectedParameter(e.target.value)}
+          >
             {parameters.map(param => (
               <option key={param.id} value={param.id}>{param.label}</option>
             ))}
           </select>
 
-          {/* Class options */}
           <div className="radio-groups-container">
             {Object.entries(classOptions).map(([type, classes]) => (
               <div key={type} className="radio-group">
@@ -299,7 +857,6 @@ const DonneesGraphiques = ({
             ))}
           </div>
 
-          {/* Chart statistics */}
           {chartStats && (
             <div className="stats-display">
               {chartStats.limiteInf !== undefined && <div>Limite inférieure: {chartStats.countBelowInf} ({chartStats.percentBelowInf}%)</div>}
@@ -309,24 +866,29 @@ const DonneesGraphiques = ({
             </div>
           )}
 
-          {/* Action buttons */}
           <div className="actions-bar">
             <button onClick={handleExport} disabled={tableData.length === 0}>Exporter</button>
             <button onClick={handlePrint} disabled={tableData.length === 0}>Imprimer</button>
             <button onClick={handleSave} disabled={tableData.length === 0}>Sauvegarder</button>
-            <button onClick={() => setShowConformity(true)}>Contrôle Conformité</button>
+            <button onClick={() => setCurrentView('conformity')}>Contrôle Conformité</button>
+            <button onClick={() => setCurrentView('table')}>Afficher Tableau Conformité</button>
           </div>
         </>
-      ) : (
+      )}
+
+      {currentView === 'conformity' && (
         <CementQualityReport 
           cementParams={cementParams} 
           setCementParams={setCementParams} 
-          onBack={() => setShowConformity(false)} 
+          onBack={() => setCurrentView('main')} 
         />
+      )}
+
+      {currentView === 'table' && (
+        <CementTablePage onBack={() => setCurrentView('main')} />
       )}
     </div>
   );
 };
 
 export default DonneesGraphiques;
-

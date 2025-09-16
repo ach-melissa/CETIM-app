@@ -3,7 +3,7 @@
 /* Charts Section */
 .charts-section {
   padding: 15px;
-  
+  margin-top: 400px;
 }
 
 .chart-controls {
@@ -191,9 +191,8 @@
 
 .section-box {
   flex: 1;
-  border: 1px solid #ddd;
   padding: 15px;
-  border-radius: 5px;
+margin-bottom: -80px;
 
 }
 
@@ -222,6 +221,7 @@
 .conclusion-section {
   text-align: left;
   margin: 30px 0;
+  margin-top: 80px;
 }
 
 .conformity-box {
@@ -317,4 +317,104 @@
   color: white;
   border-color: #0056b3;
   font-weight: bold;
+}
+/* Container */
+.cement-table-page {
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background-color: #fff;
+}
+
+.cement-table-container h3 {
+  margin: 5px 0;
+  font-weight: bold;
+  color: #222;
+}
+
+.cement-table-container h4 {
+  margin: 5px 0 15px;
+  color: #555;
+  font-size: 14px;
+}
+
+/* Table */
+.cement-table-container table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+
+.cement-table-container th,
+.cement-table-container td {
+  border: 1px solid #999;
+  text-align: center;
+  padding: 6px 8px;
+}
+
+.cement-table-container th {
+  background-color: #f0f0f0;
+  font-weight: bold;
+}
+
+
+/* Legend */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 15px;
+  font-size: 13px;
+}
+
+.legend p {
+  margin: 5px 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.green-box,
+.yellow-box,
+.red-box,
+.grey-box {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  border: 1px solid #333;
+}
+
+.green-box {
+  background-color: #2e7d32;
+}
+
+.yellow-box {
+  background-color: #ffeb3b;
+}
+
+.red-box {
+  background-color: #c62828;
+}
+
+.grey-box {
+  background-color: #d6d6d6;
+}
+
+/* Back Button */
+.back-button-container {
+  margin-top: 20px;
+}
+
+.back-button-container button {
+  padding: 8px 16px;
+  border: none;
+  background-color: #1976d2;
+  color: white;
+  font-size: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.back-button-container button:hover {
+  background-color: #0d47a1;
 }
