@@ -6,6 +6,7 @@ import DonneesTraitees from "../components/DonneesTraitees/DonneesTraitees";
 import DonneesStatistiques from "../components/DonneesStatistiques/DonneesStatistiques";
 import DonneesGraphiques from "../components/DonneesGraphiques/DonneesGraphiques";
 
+
 const TraitDonnes = () => {
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
@@ -153,22 +154,22 @@ const TraitDonnes = () => {
   }, [selectedClient]);
 
   // Update description of selected product
-  useEffect(() => {
-    if (!selectedProduit) {
-      setProduitDescription('');
-      return;
-    }
+// Update description of selected product
+useEffect(() => {
+  if (!selectedProduit) {
+    setProduitDescription('');
+    return;
+  }
 
-    const produit = produits.find(p => p.id == selectedProduit);
-    if (produit) {
-      setProduitDescription(produit.description || 'Aucune description disponible');
-    }
-  }, [selectedProduit, produits]);
+  const produit = produits.find(p => p.id == selectedProduit);
+  if (produit) {
+    setProduitDescription(produit.description || 'Aucune description disponible');
+  }
+}, [selectedProduit, produits]);
 
   // Filter products based on selected type
-  const produitsFiltres = produits.filter(
-    (produit) => produit.typeId === Number(selectedType)
-  );
+const produitsFiltres = produits; // Show all products
+
 
   // Handle product selection
   const handleProduitChange = (e) => {
@@ -564,6 +565,7 @@ const TraitDonnes = () => {
             produits={produits}
             produitDescription={produitDescription}
             selectedType={selectedType}
+            chartStats={chartStats}
             handleExport={handleExport}
             handlePrint={handlePrint}
             handleSave={handleSave}

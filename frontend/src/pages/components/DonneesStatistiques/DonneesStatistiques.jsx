@@ -9,6 +9,7 @@ const DonneesStatistiques = ({
   produitDescription,
   selectedType,
   tableData,
+  chartStats,
   handleExport,
   handlePrint,
   handleSave
@@ -42,17 +43,17 @@ const DonneesStatistiques = ({
             <tbody>
               <tr>
                 <td>Nombre</td>
-                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                <td>{chartStats.count}</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
                 {selectedType === "1" ? <td></td> : <td></td>}
               </tr>
               <tr>
                 <td>Minimum</td>
-                <td></td><td></td><td></td><td>-</td><td>-</td><td>-</td><td></td><td></td><td></td><td></td>
+                <td>{chartStats.min}</td><td></td><td></td><td>-</td><td>-</td><td>-</td><td></td><td></td><td></td><td></td>
                 {selectedType === "1" ? <td></td> : <td></td>}
               </tr>
               <tr>
                 <td>Maximum</td>
-                <td></td><td></td><td></td><td>-</td><td>-</td><td>-</td><td></td><td></td><td></td><td></td>
+                <td>{chartStats.max}</td><td></td><td></td><td>-</td><td>-</td><td>-</td><td></td><td></td><td></td><td></td>
                 {selectedType === "1" ? <td></td> : <td></td>}
               </tr>
               <tr>
