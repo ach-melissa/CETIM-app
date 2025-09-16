@@ -34,34 +34,48 @@
 .tabs-container {
   display: flex;
   justify-content: center;
+
+  margin: 20px 0; /* reduce top margin */
+
   margin-bottom: 20px;
   border-bottom: 2px solid #ddd;
+  z-index: 10;
+  position: relative;
 }
 
 .tab {
   padding: 10px 20px;
-  background: none;
-  border: none;
+  background-color: #f9f9f9; /* light background for visibility */
+  border: 1px solid #ddd;
+  border-bottom: none; /* connect with active tab underline */
   cursor: pointer;
   font-size: 14px;
-  color: #666;
+  color: #333; /* darker color for readability */
+  border-radius: 4px 4px 0 0;
+  margin: 0 5px;
 }
 
 .tab:hover {
   color: #1976d2;
-  background-color: #f0f0f0;
+  background-color: #e6f0ff;
 }
 
 .active-tab {
   color: #1976d2;
   border-bottom: 3px solid #1976d2;
   font-weight: bold;
+  background-color: #fff; /* highlight active tab */
 }
 
+
 .tab-content {
-  background: white;
+
   border-radius: 6px;
   padding: 20px;
+
+
+   margin-top: 20px;
+
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   min-height: 500px; /* Added fixed height for consistency */
 }

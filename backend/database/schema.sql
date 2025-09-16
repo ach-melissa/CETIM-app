@@ -15,8 +15,8 @@ CREATE TABLE utilisateurs (
 );
 
 INSERT INTO utilisateurs (email, mot_de_passe, role) VALUES
-('infomely@gmail.com', '$2b$10$A46BsmRiNw.FjnYLYcuyMunzyYFbDfjc8hUR7uXVdfV0cfD/c6iN.', 'admin'),
-('info@gmail.com',  '$2b$10$9wR2Jc9ltr13s4ihJ5OR.e1hjY8dXPWnjkr2kJBa7G5uUFMWri5y2', 'user');
+('infomely@gmail.com', '$2b$10$jFaPwdHdM1w6NepomzLbkeql8IjD1UHKmQHoE09.R/WjRnyKf78AG', 'admin'),
+('info@gmail.com',  '$2b$10$xAaOR8vubWnUhB5OdZxOwetPn2Bd3PbspJn4kTb99pXz4xI4hl1du', 'user');
 
 -- =========================  
 -- 1. Families of Cement
