@@ -1,148 +1,209 @@
-/* components/DonneesStatistiques/DonneesStatistiques.css */
+/* DonneesStatistiques.css */
 
-/* Statistics Section - FIXED */
 .stats-section {
-  padding: 0; /* Changed from 15px to 0 */
-  width: 100%;
-  margin-top: 0;
-  padding-top: 0;
-  height: 100%;
-  max-height: 150vh; /* Limit height and make scrollable */
-}
-
-/* Class sections */
-.class-section {
-  margin: 10px 0; /* Reduced margin */
-  padding: 5px; /* Reduced padding */
-}
-
-.class-section h4 {
-  background-color: #1976d2;
-  color: white;
-  padding: 8px;
-  margin: 10px 0 5px 0; /* Reduced margins */
-  text-align: center;
-  border-radius: 4px;
-  font-size: 14px; /* Slightly smaller font */
+  padding: 15px;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  margin-top: 1500px;
 }
 
 .stats-table {
   width: 100%;
-  font-size: 11px; /* Smaller font to fit more content */
   border-collapse: collapse;
-  margin-bottom: 10px; /* Reduced margin */
+  margin-bottom: 20px;
+  table-layout: fixed; /* Ensures consistent column widths */
+  font-size: 11px;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 5px 4px;
+  text-align: center;
+  border: 1px solid #ccc;
+  min-width: 40px;
+  max-width: 60px;
+  word-wrap: break-word;
+  line-height: 1.2;
 }
 
 .stats-table th {
-  color: #333;
-  padding: 6px; /* Reduced padding */
-  text-align: center;
+  background-color: #f0f0f0;
   font-weight: bold;
-  border: 1px solid #ddd;
-  background-color: #e8e8e8;
-  font-size: 11px; /* Consistent font size */
+  font-size: 11px;
 }
 
-.stats-table td {
-  padding: 4px 6px; /* Reduced padding */
-  border: 1px solid #ddd;
-  text-align: center;
-  font-size: 11px; /* Consistent font size */
+.stats-table thead tr:first-child th {
+  background-color: #e0e8f0;
+  color: #2c3e50;
+  padding: 6px 4px;
 }
 
-.stats-table tr:nth-child(even) {
-  background-color: #f9f9f9;
+.stats-table tbody tr:nth-child(even) {
+  background-color: #f8f8f8;
 }
 
-/* Actions Bar for Statistics */
-.stats-section .actions-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 15px 0; /* Reduced margin */
-  padding: 10px; /* Reduced padding */
-  background: #e3f2fd;
-  border-radius: 6px;
-  position: sticky; /* Make actions bar stick to bottom */
-  bottom: 0;
-  z-index: 100;
+.stats-table tbody tr:hover {
+  background-color: #e8f0f8;
 }
 
-/* Rest of your CSS remains similar but with reduced values */
-.stats-section .file-actions, 
-.stats-section .data-actions {
-  display: flex;
-  gap: 8px; /* Reduced gap */
-  align-items: center;
-  flex-wrap: wrap;
+/* Class section styling */
+.class-section {
+  margin-bottom: 25px;
+  page-break-inside: avoid;
 }
 
-.stats-section .action-btn {
-  padding: 6px 10px; /* Reduced padding */
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px; /* Smaller font */
-  background: rgb(24, 49, 87);
-  transition: all 0.2s;
+.class-section h4 {
+  background-color: #2c3e50;
+  color: white;
+  padding: 6px 10px;
+  margin: 0 0 10px 0;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: bold;
 }
 
-/* No Data Message for Statistics */
-.stats-section .no-data {
-  text-align: center;
-  padding: 20px; /* Reduced padding */
-  color: #777;
-  font-style: italic;
-  background: #f9f9f9;
-  border-radius: 6px;
-  margin: 10px 0; /* Reduced margin */
-  border: 1px dashed #ddd;
+/* First column (parameter names) */
+.stats-table th:first-child,
+.stats-table td:first-child {
+  min-width: 120px;
+  max-width: 140px;
+  text-align: left;
+  font-weight: bold;
+  background-color: #e8f0f8;
+  padding-left: 8px;
 }
 
-/* Responsive Design for Statistics */
-@media (max-width: 768px) {
-  .stats-section {
-    max-height: 70vh; /* Adjust for mobile */
-  }
-  
-  .stats-section .actions-bar {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .stats-section .file-actions, 
-  .stats-section .data-actions {
-    justify-content: center;
-  }
-  
+/* Responsive design for smaller screens */
+@media (max-width: 1200px) {
   .stats-table {
     font-size: 10px;
   }
   
   .stats-table th,
   .stats-table td {
-    padding: 4px;
+    padding: 4px 3px;
+    min-width: 35px;
+    max-width: 50px;
+  }
+  
+  .stats-table th:first-child,
+  .stats-table td:first-child {
+    min-width: 100px;
+    max-width: 120px;
   }
 }
 
-@media (max-width: 480px) {
+/* Print styles */
+@media print {
   .stats-table {
+    page-break-inside: avoid;
     font-size: 9px;
   }
   
-  .stats-section .action-btn {
-    padding: 5px 8px;
-    font-size: 11px;
+  .stats-table th,
+  .stats-table td {
+    padding: 3px 2px;
   }
-  
-  .class-section h4 {
-    font-size: 12px;
-    padding: 6px;
-  }
-  
-  /* Make tables horizontally scrollable on mobile */
-  .stats-table-container {
-    overflow-x: auto;
-    width: 100%;
-  }
+}
+
+.no-data {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+  background-color: #f9f9f9;
+  border-radius: 5px;
+  margin: 15px 0;
+  font-size: 13px;
+}
+
+/* Actions bar styling */
+.actions-bar {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-radius: 5px;
+  font-size: 12px;
+}
+
+.file-actions, .data-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: normal;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color 0.2s;
+  font-size: 11px;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.export-btn {
+  background-color: #28a745;
+  color: white;
+}
+
+.export-btn:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.print-btn {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.print-btn:hover:not(:disabled) {
+  background-color: #138496;
+}
+
+.save-btn {
+  background-color: #007bff;
+  color: white;
+}
+
+.save-btn:hover:not(:disabled) {
+  background-color: #0069d9;
+}
+
+/* Compact numerical values */
+.stats-table td:not(:first-child) {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+}
+
+/* Zebra striping for better readability */
+.stats-table tbody tr:nth-child(odd) {
+  background-color: #fafafa;
+}
+
+.stats-table tbody tr:nth-child(even) {
+  background-color: #f0f0f0;
+}
+
+/* Ensure all tables have the same column widths */
+.stats-table {
+  width: auto; /* Let content determine width */
+  min-width: 100%; /* But ensure it fills container */
+}
+
+/* Make sure all columns in all tables have consistent widths */
+.stats-table col {
+  width: 50px; /* Fixed width for data columns */
+}
+
+.stats-table col:first-child {
+  width: 130px; /* Fixed width for first column */
 }
