@@ -324,14 +324,14 @@ app.get("/api/clients/:sigle", async (req, res) => {
 // Get all clients
 app.get("/api/clients", async (req, res) => {
   try {
-    const sql = `SELECT id, sigle, nom_raison_sociale, adresse FROM clients`;
-    const [results] = await promisePool.execute(sql);
-    res.status(200).json(results);
+    const clients = await db.query("SELECT * FROM clients");
+    res.json(clients);
   } catch (err) {
-    console.error("❌ Error fetching clients:", err);
-    res.status(500).json({ error: "Database error" });
+    console.error("Erreur backend /api/clients:", err);
+    res.status(500).json({ message: "Erreur serveur" });
   }
 });
+
 
 
 // Start server
