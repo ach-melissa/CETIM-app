@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from "react"; 
+import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import "./TraitDonnes.css";
-import Header from "../../components/Header/Header";
+import Header from "../../components/Header/Header"
 import DonneesTraitees from "../../components/DonneesTraitees/DonneesTraitees";
 import DonneesStatistiques from "../../components/DonneesStatistiques/DonneesStatistiques";
 import DonneesGraphiques from "../../components/DonneesGraphiques/DonneesGraphiques";
+
+import ControleConformite from "../../components/ControleConformite/ControleConformite";
+import TableConformite from "../../components/TableConformite/TableConformite";
 
 const TraitDonnes = () => {
   const [clients, setClients] = useState([]);
@@ -19,6 +22,7 @@ const TraitDonnes = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [activeTab, setActiveTab] = useState('donnees');
+  
   const [loading, setLoading] = useState(false);
   
   // States for charts
@@ -153,20 +157,22 @@ const TraitDonnes = () => {
   }, [selectedClient]);
 
   // Update description of selected product
-  useEffect(() => {
-    if (!selectedProduit) {
-      setProduitDescription('');
-      return;
-    }
+// Update description of selected product
+useEffect(() => {
+  if (!selectedProduit) {
+    setProduitDescription('');
+    return;
+  }
 
-    const produit = produits.find(p => p.id == selectedProduit);
-    if (produit) {
-      setProduitDescription(produit.description || 'Aucune description disponible');
-    }
-  }, [selectedProduit, produits]);
+  const produit = produits.find(p => p.id == selectedProduit);
+  if (produit) {
+    setProduitDescription(produit.description || 'Aucune description disponible');
+  }
+}, [selectedProduit, produits]);
 
   // Filter products based on selected type
-  const produitsFiltres = produits; // Show all products
+const produitsFiltres = produits; // Show all products
+
 
   // Handle product selection
   const handleProduitChange = (e) => {
@@ -206,19 +212,20 @@ const TraitDonnes = () => {
     }
 
     // Mock data for demonstration
-    const donneesFactices = [
-      { id: 1, num_ech: 'ECH001', date: '2023-01-15', rc2j: 15.2, rc7j: 28.5, rc28j: 42.3, prise: '2:15', stabilite: '0.5', hydratation: 250, pfeu: 2.1, r_insoluble: 0.8, so3: 3.2, chlorure: 0.05, c3a: 8.5, ajout_percent: 15, type_ajout: 'Laitier' },
-      { id: 2, num_ech: 'ECH002', date: '2023-01-16', rc2j: 16.8, rc7j: 30.1, rc28j: 45.2, prise: '2:10', stabilite: '0.4', hydratation: 255, pfeu: 2.0, r_insoluble: 0.7, so3: 3.1, chlorure: 0.04, c3a: 8.2, ajout_percent: 16, type_ajout: 'Laitier' },
-      { id: 3, num_ech: 'ECH003', date: '2023-01-17', rc2j: 14.5, rc7j: 27.8, rc28j: 40.9, prise: '2:20', stabilite: '0.6', hydratation: 248, pfeu: 2.2, r_insoluble: 0.9, so3: 3.3, chlorure: 0.06, c3a: 8.7, ajout_percent: 14, type_ajout: 'Laitier' },
-      { id: 4, num_ech: 'ECH004', date: '2023-01-18', rc2j: 17.1, rc7j: 31.0, rc28j: 46.5, prise: '2:05', stabilite: '0.5', hydratation: 260, pfeu: 1.9, r_insoluble: 0.6, so3: 3.0, chlorure: 0.03, c3a: 8.0, ajout_percent: 12, type_ajout: 'Pouzzolane' },
-      { id: 5, num_ech: 'ECH005', date: '2023-01-19', rc2j: 15.9, rc7j: 29.7, rc28j: 44.1, prise: '2:12', stabilite: '0.4', hydratation: 252, pfeu: 2.1, r_insoluble: 0.8, so3: 3.2, chlorure: 0.05, c3a: 8.4, ajout_percent: 13, type_ajout: 'Cendres volantes' },
-      { id: 6, num_ech: 'ECH006', date: '2023-01-20', rc2j: 18.0, rc7j: 32.4, rc28j: 48.3, prise: '2:08', stabilite: '0.5', hydratation: 265, pfeu: 2.0, r_insoluble: 0.7, so3: 3.1, chlorure: 0.04, c3a: 8.6, ajout_percent: 17, type_ajout: 'Laitier' },
-      { id: 7, num_ech: 'ECH007', date: '2023-01-21', rc2j: 14.9, rc7j: 28.2, rc28j: 41.7, prise: '2:18', stabilite: '0.6', hydratation: 247, pfeu: 2.3, r_insoluble: 0.9, so3: 3.4, chlorure: 0.06, c3a: 8.9, ajout_percent: 15, type_ajout: 'Pouzzolane' },
-      { id: 8, num_ech: 'ECH008', date: '2023-01-22', rc2j: 16.3, rc7j: 29.9, rc28j: 43.8, prise: '2:14', stabilite: '0.5', hydratation: 253, pfeu: 2.1, r_insoluble: 0.8, so3: 3.2, chlorure: 0.05, c3a: 8.3, ajout_percent: 14, type_ajout: 'Cendres volantes' },
-      { id: 9, num_ech: 'ECH009', date: '2023-01-23', rc2j: 17.5, rc7j: 31.6, rc28j: 47.0, prise: '2:09', stabilite: '0.4', hydratation: 258, pfeu: 1.9, r_insoluble: 0.7, so3: 3.1, chlorure: 0.04, c3a: 8.1, ajout_percent: 16, type_ajout: 'Laitier' },
-      { id: 10, num_ech: 'ECH010', date: '2023-01-24', rc2j: 15.5, rc7j: 28.9, rc28j: 42.9, prise: '2:16', stabilite: '0.5', hydratation: 251, pfeu: 2.2, r_insoluble: 0.8, so3: 3.3, chlorure: 0.05, c3a: 8.5, ajout_percent: 15, type_ajout: 'Pouzzolane' },
-    ];
+const donneesFactices = [
+  { id: 1, num_ech: 'ECH001', date: '2023-01-15', rc2j: 15.2, rc7j: 28.5, rc28j: 42.3, prise: '2:15', stabilite: '0.5', hydratation: 250, pfeu: 2.1, r_insoluble: 0.8, so3: 3.2, chlorure: 0.05, c3a: 8.5, ajout_percent: 15, type_ajout: 'Laitier' },
+  { id: 2, num_ech: 'ECH002', date: '2023-01-16', rc2j: 16.8, rc7j: 30.1, rc28j: 45.2, prise: '2:10', stabilite: '0.4', hydratation: 255, pfeu: 2.0, r_insoluble: 0.7, so3: 3.1, chlorure: 0.04, c3a: 8.2, ajout_percent: 16, type_ajout: 'Laitier' },
+  { id: 3, num_ech: 'ECH003', date: '2023-01-17', rc2j: 14.5, rc7j: 27.8, rc28j: 40.9, prise: '2:20', stabilite: '0.6', hydratation: 248, pfeu: 2.2, r_insoluble: 0.9, so3: 3.3, chlorure: 0.06, c3a: 8.7, ajout_percent: 14, type_ajout: 'Laitier' },
+  { id: 4, num_ech: 'ECH004', date: '2023-01-18', rc2j: 17.1, rc7j: 31.0, rc28j: 46.5, prise: '2:05', stabilite: '0.5', hydratation: 260, pfeu: 1.9, r_insoluble: 0.6, so3: 3.0, chlorure: 0.03, c3a: 8.0, ajout_percent: 12, type_ajout: 'Pouzzolane' },
+  { id: 5, num_ech: 'ECH005', date: '2023-01-19', rc2j: 15.9, rc7j: 29.7, rc28j: 44.1, prise: '2:12', stabilite: '0.4', hydratation: 252, pfeu: 2.1, r_insoluble: 0.8, so3: 3.2, chlorure: 0.05, c3a: 8.4, ajout_percent: 13, type_ajout: 'Cendres volantes' },
+  { id: 6, num_ech: 'ECH006', date: '2023-01-20', rc2j: 18.0, rc7j: 32.4, rc28j: 48.3, prise: '2:08', stabilite: '0.5', hydratation: 265, pfeu: 2.0, r_insoluble: 0.7, so3: 3.1, chlorure: 0.04, c3a: 8.6, ajout_percent: 17, type_ajout: 'Laitier' },
+  { id: 7, num_ech: 'ECH007', date: '2023-01-21', rc2j: 14.9, rc7j: 28.2, rc28j: 41.7, prise: '2:18', stabilite: '0.6', hydratation: 247, pfeu: 2.3, r_insoluble: 0.9, so3: 3.4, chlorure: 0.06, c3a: 8.9, ajout_percent: 15, type_ajout: 'Pouzzolane' },
+  { id: 8, num_ech: 'ECH008', date: '2023-01-22', rc2j: 16.3, rc7j: 29.9, rc28j: 43.8, prise: '2:14', stabilite: '0.5', hydratation: 253, pfeu: 2.1, r_insoluble: 0.8, so3: 3.2, chlorure: 0.05, c3a: 8.3, ajout_percent: 14, type_ajout: 'Cendres volantes' },
+  { id: 9, num_ech: 'ECH009', date: '2023-01-23', rc2j: 17.5, rc7j: 31.6, rc28j: 47.0, prise: '2:09', stabilite: '0.4', hydratation: 258, pfeu: 1.9, r_insoluble: 0.7, so3: 3.1, chlorure: 0.04, c3a: 8.1, ajout_percent: 16, type_ajout: 'Laitier' },
+  { id: 10, num_ech: 'ECH010', date: '2023-01-24', rc2j: 15.5, rc7j: 28.9, rc28j: 42.9, prise: '2:16', stabilite: '0.5', hydratation: 251, pfeu: 2.2, r_insoluble: 0.8, so3: 3.3, chlorure: 0.05, c3a: 8.5, ajout_percent: 15, type_ajout: 'Pouzzolane' },
+];
 
+    
     setTableData(donneesFactices);
   }, [selectedClient, selectedProduit, phase, tableData.length]);
 
@@ -521,6 +528,21 @@ const TraitDonnes = () => {
         >
           Données Statistiques
         </button>
+
+        <button 
+          className={activeTab === 'contConform' ? 'active-tab' : 'tab'}
+          onClick={() => setActiveTab('contConform')}
+        >
+          ControleConformite
+        </button>
+
+        <button 
+          className={activeTab === 'tabconform' ? 'active-tab' : 'tab'}
+          onClick={() => setActiveTab('tabconform')}
+        >
+          TableConformite   
+        </button>
+
         <button 
           className={activeTab === 'graphiques' ? 'active-tab' : 'tab'}
           onClick={() => setActiveTab('graphiques')}
@@ -575,6 +597,37 @@ const TraitDonnes = () => {
             handleSave={handleSave}
           />
         )}
+{activeTab === 'contConform' && (
+  <ControleConformite
+    tableData={tableData} 
+    clients={clients}
+    selectedClient={selectedClient}
+    selectedProduit={selectedProduit}
+    produits={produits}
+    produitDescription={produitDescription}
+    selectedType={selectedType}
+    handleExport={handleExport}
+    handlePrint={handlePrint}
+    handleSave={handleSave}
+    onBack={() => setActiveTab('graphiques')} 
+  />
+)}
+        {activeTab === 'tabconform' && (
+          <TableConformite
+            tableData={tableData} 
+            clients={clients}
+            selectedClient={selectedClient}
+            selectedProduit={selectedProduit}
+            produits={produits}
+            produitDescription={produitDescription}
+            selectedType={selectedType}
+            chartStats={chartStats}
+            handleExport={handleExport}
+            handlePrint={handlePrint}
+            handleSave={handleSave}
+            onBack={() => setActiveTab('graphiques')} 
+          />
+        )}
 
         {activeTab === 'graphiques' && (
           <DonneesGraphiques
@@ -595,5 +648,4 @@ const TraitDonnes = () => {
     </div>
   );
 };
-
 export default TraitDonnes;

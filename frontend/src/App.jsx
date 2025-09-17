@@ -7,6 +7,7 @@ import ParametreEntreprise from "./pages/ParametreEntreprise/Parametre_entrepris
 import TraitDonnes from "./pages/TraitementDonnées/traitement-données.jsx";
 import ParametreNorm from "./pages/ParametreNorm/parametre_norm.jsx";
 import Historique from "./pages/Historique/historique.jsx";
+import  './App.css';
 
 export default function App() {
   return (

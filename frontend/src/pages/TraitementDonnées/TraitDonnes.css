@@ -1,6 +1,6 @@
 /* Container aligned with sidebar */
 .trait-donnees-container {
-  margin-left: 250px; /* space for the sidebar */
+  margin-left: 250px;
   padding: 20px;
   min-height: 100vh;
   background: #f4f6f9;
