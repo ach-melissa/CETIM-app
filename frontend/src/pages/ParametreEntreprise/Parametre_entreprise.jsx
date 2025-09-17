@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-
+import Header from "../../components/Header/Header";
 import './ParametreEntreprise.css';
 
 const ParametreEntreprise = () => {
@@ -141,15 +141,16 @@ const ParametreEntreprise = () => {
 
   return (
     <div className="parametre-entreprise-container">
-
+      {/* Sidebar Header */}
+      <Header />
 
       <div className="parametre-entreprise-content">
-        {/* Header Section */}
+        {/* Page Header */}
         <div className="entreprise-header">
           <h1><i className="fas fa-cogs"></i> Paramètres Entreprise</h1>
         </div>
 
-        {/* General Information Section */}
+        {/* General Information */}
         <div className="form-section">
           <h2 className="card-title">Informations Générales</h2>
           <label className="form-label">Photo du client :</label>
@@ -162,10 +163,9 @@ const ParametreEntreprise = () => {
           </div>
         </div>
 
-        {/* Client Information Section */}
+        {/* Client Information */}
         <div className="info-card">
           <h2 className="card-title">Informations Client</h2>
-
           <div className="client-info-grid">
             <div className="form-section">
               <label className="form-label">Sigle :</label>
@@ -178,7 +178,6 @@ const ParametreEntreprise = () => {
                 </select>
               </div>
             </div>
-
             {selectedClient && (
               <>
                 <div className="form-section">
@@ -192,7 +191,6 @@ const ParametreEntreprise = () => {
               </>
             )}
           </div>
-
         </div>
 
         {/* Add Client Modal */}
@@ -200,25 +198,13 @@ const ParametreEntreprise = () => {
           <div className="modal">
             <div className="modal-content">
               <label>Sigle :</label>
-              <input
-                type="text"
-                value={newClient.sigle}
-                onChange={(e) => setNewClient({ ...newClient, sigle: e.target.value })}
-              />
+              <input type="text" value={newClient.sigle} onChange={(e) => setNewClient({ ...newClient, sigle: e.target.value })} />
 
               <label>Nom / Raison Sociale :</label>
-              <input
-                type="text"
-                value={newClient.nom_raison_sociale}
-                onChange={(e) => setNewClient({ ...newClient, nom_raison_sociale: e.target.value })}
-              />
+              <input type="text" value={newClient.nom_raison_sociale} onChange={(e) => setNewClient({ ...newClient, nom_raison_sociale: e.target.value })} />
 
               <label>Adresse :</label>
-              <input
-                type="text"
-                value={newClient.adresse}
-                onChange={(e) => setNewClient({ ...newClient, adresse: e.target.value })}
-              />
+              <input type="text" value={newClient.adresse} onChange={(e) => setNewClient({ ...newClient, adresse: e.target.value })} />
 
               <h3>Essais (Types de Ciment)</h3>
               {newClient.essais.map((essai, index) => (
@@ -253,12 +239,9 @@ const ParametreEntreprise = () => {
                       setNewClient({ ...newClient, essais: updated });
                     }}
                   />
-                  <button className="danger small" onClick={() => handleRemoveEssaiRow(index)}>
-                    ❌
-                  </button>
+                  <button className="danger small" onClick={() => handleRemoveEssaiRow(index)}>❌</button>
                 </div>
               ))}
-
               <button className="secondary-btn" onClick={handleAddEssaiRow}>+ Ajouter un essai</button>
               <div className="modal-actions">
                 <button className="primary-btn" onClick={handleSaveNewClient}>Enregistrer</button>
@@ -284,11 +267,10 @@ const ParametreEntreprise = () => {
           </div>
         )}
 
-        {/* Essais Table Section */}
+        {/* Essais Table */}
         {selectedClient ? (
           <div className="info-card">
             <h2 className="card-title">Tableau des Essais</h2>
-
             <div className="table-container">
               <table className="essais-table">
                 <thead>
@@ -307,7 +289,7 @@ const ParametreEntreprise = () => {
                       <td><input type="text" value={essai.methode} readOnly /></td>
                       <td>
                         <button className="header-btn" onClick={() => handleDeleteRow(index)}>
-                          <i className="fas fa-trash"></i>Supp
+                          <i className="fas fa-trash"></i> Supp
                         </button>
                       </td>
                     </tr>
@@ -315,7 +297,6 @@ const ParametreEntreprise = () => {
                 </tbody>
               </table>
             </div>
-
             <div className="button-group">
               <button className="primary-btn" onClick={handleAddRow}>
                 <i className="fas fa-plus"></i> Ajouter Ligne
@@ -337,20 +318,22 @@ const ParametreEntreprise = () => {
         )}
 
         {/* Action Buttons */}
-
         <div className="header-actions">
           <button className="action-btn print-btn" onClick={handlePrint}>
             <i className="fas fa-print"></i> Imprimer
           </button>
-            <button className="header-btn" onClick={() => setShowAddClient(true)}>
-              <i className="fas fa-user-plus"></i> Ajouter Client
-            </button>
-            <button className="header-btn danger" onClick={() => setShowDeleteClient(true)}>
-              <i className="fas fa-user-times"></i> Supprimer Client
-            </button>
-          <button className="primary-btn"><i className="fas fa-check-circle"></i> Enregistrer</button>
-          <button className="validate-btn" onClick={handleValidate}><i className="fas fa-check-double"></i> Valider</button>
-        
+          <button className="header-btn" onClick={() => setShowAddClient(true)}>
+            <i className="fas fa-user-plus"></i> Ajouter Client
+          </button>
+          <button className="header-btn danger" onClick={() => setShowDeleteClient(true)}>
+            <i className="fas fa-user-times"></i> Supprimer Client
+          </button>
+          <button className="primary-btn" onClick={handleSave}>
+            <i className="fas fa-check-circle"></i> Enregistrer
+          </button>
+          <button className="validate-btn" onClick={handleValidate}>
+            <i className="fas fa-check-double"></i> Valider
+          </button>
         </div>
       </div>
     </div>

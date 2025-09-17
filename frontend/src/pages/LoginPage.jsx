@@ -1,8 +1,7 @@
-// src/pages/LoginPage/LoginPage.jsx
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './login.css'; // optional styling
+import './login.css'; // improved styling
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -14,14 +13,13 @@ export default function LoginPage() {
     e.preventDefault();
 
     try {
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
-const response = await fetch(`${API_BASE}/api/login`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email, password }),
-});
-
+      const response = await fetch(`${API_BASE}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
       if (!response.ok) throw new Error('Login failed');
 
@@ -31,29 +29,41 @@ const response = await fetch(`${API_BASE}/api/login`, {
       localStorage.setItem('token', token);
       localStorage.setItem('role', role);
 
-      // ✅ React-based redirection:
-if (role === 'admin') navigate('/traitdonnes');
-else if (role === 'user') navigate('/dashboard');
-else setErrorMessage('Unknown role.');
-
+      if (role === 'admin') navigate('/traitdonnes');
+      else if (role === 'user') navigate('/parnorm');
+      else setErrorMessage('Unknown role.');
     } catch (err) {
       setErrorMessage('Email ou mot de passe incorrect.');
     }
   };
 
   return (
-    <div className="login-container">
-      <h2>Login Form</h2>
-      <form onSubmit={handleSubmit}>
-        <label>Email :</label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+    <div className="login-wrapper">
+  <div className="login-container">
+    <img src="/image/LogoCetim.png" alt="Logo" className="login-logo" />
+    <h2>Se connecter</h2>
+    <form onSubmit={handleSubmit}>
+      <label>Email :</label>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+      />
 
-        <label>Mot de passe :</label>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      <label>Mot de passe :</label>
+      <input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+      />
 
-        <button type="submit">Se connecter</button>
-        {errorMessage && <p className="error-message">{errorMessage}</p>}
-      </form>
-    </div>
+      <button type="submit">Se connecter</button>
+      {errorMessage && <p className="error-message">{errorMessage}</p>}
+    </form>
+  </div>
+</div>
+
   );
 }
