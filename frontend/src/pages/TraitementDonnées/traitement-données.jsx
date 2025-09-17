@@ -5,7 +5,8 @@ import "./TraitDonnes.css";
 import DonneesTraitees from "../components/DonneesTraitees/DonneesTraitees";
 import DonneesStatistiques from "../components/DonneesStatistiques/DonneesStatistiques";
 import DonneesGraphiques from "../components/DonneesGraphiques/DonneesGraphiques";
-
+import ControleConformite from "../components/ControleConformite/ControleConformite";
+import TableConformite from "../components/TableConformite/TableConformite";
 
 const TraitDonnes = () => {
   const [clients, setClients] = useState([]);
@@ -20,6 +21,7 @@ const TraitDonnes = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [activeTab, setActiveTab] = useState('donnees');
+  
   const [loading, setLoading] = useState(false);
   
   // States for charts
@@ -525,6 +527,21 @@ const donneesFactices = [
         >
           Données Statistiques
         </button>
+
+        <button 
+          className={activeTab === 'contConform' ? 'active-tab' : 'tab'}
+          onClick={() => setActiveTab('contConform')}
+        >
+          ControleConformite
+        </button>
+
+        <button 
+          className={activeTab === 'tabconform' ? 'active-tab' : 'tab'}
+          onClick={() => setActiveTab('tabconform')}
+        >
+          TableConformite   
+        </button>
+
         <button 
           className={activeTab === 'graphiques' ? 'active-tab' : 'tab'}
           onClick={() => setActiveTab('graphiques')}
@@ -577,6 +594,37 @@ const donneesFactices = [
             handleExport={handleExport}
             handlePrint={handlePrint}
             handleSave={handleSave}
+          />
+        )}
+{activeTab === 'contConform' && (
+  <ControleConformite
+    tableData={tableData} 
+    clients={clients}
+    selectedClient={selectedClient}
+    selectedProduit={selectedProduit}
+    produits={produits}
+    produitDescription={produitDescription}
+    selectedType={selectedType}
+    handleExport={handleExport}
+    handlePrint={handlePrint}
+    handleSave={handleSave}
+    onBack={() => setActiveTab('graphiques')} 
+  />
+)}
+        {activeTab === 'tabconform' && (
+          <TableConformite
+            tableData={tableData} 
+            clients={clients}
+            selectedClient={selectedClient}
+            selectedProduit={selectedProduit}
+            produits={produits}
+            produitDescription={produitDescription}
+            selectedType={selectedType}
+            chartStats={chartStats}
+            handleExport={handleExport}
+            handlePrint={handlePrint}
+            handleSave={handleSave}
+            onBack={() => setActiveTab('graphiques')} 
           />
         )}
 

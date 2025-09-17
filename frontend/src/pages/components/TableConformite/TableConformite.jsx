@@ -1,6 +1,5 @@
-import React from 'react';
-import './DonneesStatistiques.css';
-
+ import React, { useState, useMemo } from 'react';
+import './TableConformite.css';
 
   // Mock details
   const mockDetails = {
@@ -174,7 +173,8 @@ const getLimitsByClass = (classe, key) => {
   };
 };
 
-const DonneesStatistiques = ({
+
+const TableConformite = ({   
   clients,
   selectedClient,
   selectedProduit,
@@ -185,7 +185,8 @@ const DonneesStatistiques = ({
   handleExport,
   handlePrint,
   handleSave,
-}) => {
+  onBack }) => {
+
   // List of all parameters we want to analyze
   const parameters = [
     { key: "rc2j", label: "RC2J" },
@@ -206,157 +207,109 @@ const DonneesStatistiques = ({
     parameters.push({ key: "ajout_percent", label: "Ajout (%)" });
   }
 
-  // Calculate all stats for all parameters
-  const allStats = parameters.reduce((acc, param) => {
-    acc[param.key] = calculateStats(tableData, param.key);
-    return acc;
-  }, {});
-
-  // Define the rows (metrics)
-  const statRows = [
-    { key: "count", label: "Nombre" },
-    { key: "min", label: "Min" },
-    { key: "max", label: "Max" },
-    { key: "mean", label: "Moyenne" },
-    { key: "std", label: "Écart type" },
-  ];
-
-  // Function to render class section table
-  const renderClassSection = (classe) => {
-    return (
-      <div className="class-section" key={classe}>
-        <h4>CLASSE {classe}</h4>
-        <table className="stats-table">
-          <tbody>
-            <tr>
-              <td>Limite inférieure (LI)</td>
-              {parameters.map(param => {
-                const limits = getLimitsByClass(classe, param.key);
-                return <td key={param.key}>{limits.li || "-"}</td>;
-              })}
-            </tr>
-            <tr>
-              <td>N &lt; LI</td>
-              {parameters.map(param => {
-                const limits = getLimitsByClass(classe, param.key);
-                const evaluation = evaluateLimits(tableData, param.key, limits.li, limits.ls, limits.lg);
-                return <td key={param.key}>{evaluation.belowLI}</td>;
-              })}
-            </tr>
-            <tr>
-              <td>% &lt; LI</td>
-              {parameters.map(param => {
-                const limits = getLimitsByClass(classe, param.key);
-                const evaluation = evaluateLimits(tableData, param.key, limits.li, limits.ls, limits.lg);
-                return <td key={param.key}>{evaluation.percentLI}</td>;
-              })}
-            </tr>
-            <tr>
-              <td>Limite supérieure (LS)</td>
-              {parameters.map(param => {
-                const limits = getLimitsByClass(classe, param.key);
-                return <td key={param.key}>{limits.ls || "-"}</td>;
-              })}
-            </tr>
-            <tr>
-              <td>N &gt; LS</td>
-              {parameters.map(param => {
-                const limits = getLimitsByClass(classe, param.key);
-                const evaluation = evaluateLimits(tableData, param.key, limits.li, limits.ls, limits.lg);
-                return <td key={param.key}>{evaluation.aboveLS}</td>;
-              })}
-            </tr>
-            <tr>
-              <td>% &gt; LS</td>
-              {parameters.map(param => {
-                const limits = getLimitsByClass(classe, param.key);
-                const evaluation = evaluateLimits(tableData, param.key, limits.li, limits.ls, limits.lg);
-                return <td key={param.key}>{evaluation.percentLS}</td>;
-              })}
-            </tr>
-            <tr>
-              <td>Limite garantie (LG)</td>
-              {parameters.map(param => {
-                const limits = getLimitsByClass(classe, param.key);
-                return <td key={param.key}>{limits.lg || "-"}</td>;
-              })}
-            </tr>
-            <tr>
-              <td>N &lt; LG</td>
-              {parameters.map(param => {
-                const limits = getLimitsByClass(classe, param.key);
-                const evaluation = evaluateLimits(tableData, param.key, limits.li, limits.ls, limits.lg);
-                return <td key={param.key}>{evaluation.belowLG}</td>;
-              })}
-            </tr>
-            <tr>
-              <td>% &lt; LG</td>
-              {parameters.map(param => {
-                const limits = getLimitsByClass(classe, param.key);
-                const evaluation = evaluateLimits(tableData, param.key, limits.li, limits.ls, limits.lg);
-                return <td key={param.key}>{evaluation.percentLG}</td>;
-              })}
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
   // List of all classes to display
   const classes = ["32.5L", "32.5N", "32.5R", "42.5L", "42.5N", "42.5R", "52.5L", "52.5N", "52.5R"];
-  
 
-  
+  // Function to determine cell color based on deviation/defect percentage
+  const getCellColor = (deviationPercent, defectPercent) => {
+    if (deviationPercent === "-" || defectPercent === "-") return "grey";
+    if (parseFloat(defectPercent) > 5) return "red";
+    if (parseFloat(deviationPercent) > 5) return "yellow";
+    return "green";
+  };
+
   return (
-    <div className="stats-section">
-      <p><strong>{clients.find(c => c.id == selectedClient)?.nom_raison_sociale || 'Aucun'}</strong></p>    
-      <h2>Données Statistiques</h2>
-      <h3>{selectedProduit && ` ${produits.find(p => p.id == selectedProduit)?.nom}`} ({produitDescription})</h3>
-      
-      {tableData.length > 0 ? (
-        <div>
-          <table className="stats-table">
-            <thead>
-              <tr>
-                <th>Statistique</th>
-                {parameters.map((param) => (
-                  <th key={param.key}>{param.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {statRows.map((row) => (
-                <tr key={row.key}>
-                  <td>{row.label}</td>
-                  {parameters.map((param) => (
-                    <td key={param.key}>{allStats[param.key][row.key]}</td>
-                  ))}
-                </tr>
+    <div className="cement-table-page">
+      <div className="cement-table-container">
+        <p><strong>{clients.find(c => c.id == selectedClient)?.nom_raison_sociale || 'Aucun'}</strong></p>    
+        <h2>Données Statistiques</h2>
+        <h3>{selectedProduit && ` ${produits.find(p => p.id == selectedProduit)?.nom}`} ({produitDescription})</h3>
+       
+        <table>
+          <thead>
+            <tr>
+              <th>Paramètre</th>
+              {parameters.map(param => (
+                <th key={param.key}>{param.label}</th>
               ))}
-            </tbody>
-          </table>
+            </tr>
+          </thead>
+          <tbody>
+            {/* For each class, create multiple rows */}
+{classes.map(classe => (
+  <>
+    {/* Class name row */}
+    <tr key={`${classe}-name`}>
+      <td>{classe}</td>
+      {parameters.map(param => {
+        const limits = getLimitsByClass(classe, param.key);
+        const evaluation = evaluateLimits(tableData, param.key, limits.li, limits.ls, limits.lg);
+        const cellColor = getCellColor(evaluation.percentLS, evaluation.percentLG);
+        return <td key={param.key} className={cellColor}></td>;
+      })}
+    </tr>
+    
+    {/* Deviation percentage row */}
+    <tr key={`${classe}-deviation`}>
+      <td>Déviations %</td>
+      {parameters.map(param => {
+        const limits = getLimitsByClass(classe, param.key);
+        const evaluation = evaluateLimits(tableData, param.key, limits.li, limits.ls, limits.lg);
+        const cellColor = getCellColor(evaluation.percentLS, evaluation.percentLG);
+        return (
+          <td key={param.key} className={cellColor}>
+            {evaluation.percentLS !== "-" ? `${evaluation.percentLS}%` : "-"}
+          </td>
+        );
+      })}
+    </tr>
+    
+    {/* Defect percentage row */}
+    <tr key={`${classe}-defect`}>
+      <td>Défauts %</td>
+      {parameters.map(param => {
+        const limits = getLimitsByClass(classe, param.key);
+        const evaluation = evaluateLimits(tableData, param.key, limits.li, limits.ls, limits.lg);
+        const cellColor = getCellColor(evaluation.percentLS, evaluation.percentLG);
+        return (
+          <td key={param.key} className={cellColor}>
+            {evaluation.percentLG !== "-" ? `${evaluation.percentLG}%` : "-"}
+          </td>
+        );
+      })}
+    </tr>
+    
+    {/* Statistical control row */}
+    <tr key={`${classe}-control`}>
+      <td>Contrôle Statistique</td>
+      {parameters.map(param => {
+        const limits = getLimitsByClass(classe, param.key);
+        const evaluation = evaluateLimits(tableData, param.key, limits.li, limits.ls, limits.lg);
+        const cellColor = getCellColor(evaluation.percentLS, evaluation.percentLG);
+        return <td key={param.key} className={cellColor}></td>;
+      })}
+    </tr>
+  </>
+))}
+          </tbody>
+        </table>
 
-          {/* Class sections outside the table */}
-          {classes.map(classe => renderClassSection(classe))}
-
+        <div className="legend">
+          <p>
+            <span className="green-box"></span> % Déviation/Défaut ≤ 5%
+          </p>
+          <p>
+            <span className="yellow-box"></span> % Déviation &gt; 5%
+          </p>
+          <p>
+            <span className="red-box"></span> % Défaut &gt; 5%
+          </p>
+          <p>
+            <span className="grey-box"></span> ND/NS Données non disponibles /
+            Insuffisantes
+          </p>
         </div>
-      ) : (
-        <p className="no-data">
-          Veuillez d'abord sélectionner un client, un produit et une phase.
-        </p>
-      )}
-
-
-
-
-
-
-
-
-
-
-
+      </div>
 
       {/* Data actions */}
       <div className="actions-bar">
@@ -378,10 +331,13 @@ const DonneesStatistiques = ({
             <i className="fas fa-save"></i> Sauvegarder
           </button>
         </div>
+
+        <div className="back-button-container">
+            <button onClick={onBack}>← Retour aux Graphiques</button>
+        </div>
       </div>
-      
     </div>
   );
 };
 
-export default DonneesStatistiques;
+export default TableConformite;
