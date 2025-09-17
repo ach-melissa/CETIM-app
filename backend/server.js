@@ -22,6 +22,36 @@ const db = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0
 });
+   
+
+
+// --- API Clients et Types Ciment --- //
+
+app.get("/api/clients", (req, res) => {
+  const sql = `
+    SELECT 
+      c.id, 
+      c.sigle, 
+      c.nom_raison_sociale, 
+      c.adresse, 
+      c.famillecement, 
+      c.methodeessai,
+      GROUP_CONCAT(t.code SEPARATOR ', ') AS types_ciment
+    FROM clients c
+    LEFT JOIN client_types_ciment cc ON c.id = cc.client_id
+    LEFT JOIN types_ciment t ON cc.typecement_id = t.id
+    GROUP BY c.id
+  `;
+
+  db.query(sql, (err, result) => {
+    if (err) {
+      console.error("Erreur SQL:", err);
+      return res.status(500).json({ message: "Erreur serveur" });
+    }
+    res.json(result);
+  });
+});
+
 
 // Get promise-based connection
 const promisePool = db.promise();
@@ -320,17 +350,7 @@ app.get("/api/clients/:sigle", async (req, res) => {
     res.status(500).json({ error: "Database error" });
   }
 });
-// Get all clients
-// Get all clients
-app.get("/api/clients", async (req, res) => {
-  try {
-    const clients = await db.query("SELECT * FROM clients");
-    res.json(clients);
-  } catch (err) {
-    console.error("Erreur backend /api/clients:", err);
-    res.status(500).json({ message: "Erreur serveur" });
-  }
-});
+
 
 
 
