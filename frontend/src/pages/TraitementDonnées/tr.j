@@ -34,14 +34,6 @@ const TraitDonnes = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-
-  // Filtered data (only rows within period)
-const filteredTableData = tableData.filter((row) => {
-  if (!startDate || !endDate) return []; // nothing if no period
-  const d = new Date(row.date);
-  return d >= new Date(startDate) && d <= new Date(endDate);
-});
-
   // Mock types data
   const typeFactices = [
     { id: 1, nom: 'CEM I', description: 'Ciment Portland' },
@@ -687,7 +679,7 @@ const handlePrint = () => {
 
         {activeTab === 'graphiques' && (
           <DonneesGraphiques
-             tableData={filteredTableData}
+            tableData={tableData} 
             parameters={parameters}
             selectedParameter={selectedParameter}
             setSelectedParameter={setSelectedParameter}

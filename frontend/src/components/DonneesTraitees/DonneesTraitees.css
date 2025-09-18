@@ -206,3 +206,19 @@
     gap: 8px;
   }
 }
+
+.date-range {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.date-input {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.date-separator {
+  font-weight: bold;
+}

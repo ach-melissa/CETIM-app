@@ -1,6 +1,28 @@
 import React from 'react';
 import './DonneesTraitees.css';
 
+// Inside TraitDonnes.jsx
+const handleSauvegarder = () => {
+  if (!selectedClient || !selectedProduit || !selectedPhase || !selectedPeriode) {
+    alert("Veuillez sélectionner un client, un produit, une phase et une période.");
+    return;
+  }
+
+  const selection = {
+    client: selectedClient,
+    produit: selectedProduit,
+    phase: selectedPhase,
+    periode: selectedPeriode,
+  };
+
+  // Save in localStorage
+  localStorage.setItem("selection", JSON.stringify(selection));
+
+  alert("Sélection sauvegardée !");
+};
+
+
+
 const DonneesTraitees = ({
   tableData,
   clients,
@@ -25,7 +47,12 @@ const DonneesTraitees = ({
   handlePrint,
   handleSave,
   handleDelete,
-  handleClearAll
+  handleClearAll,
+  // New props for date period selection
+  startDate,
+  setStartDate,
+  endDate,
+  setEndDate
 }) => {
   return (
     <div>
@@ -51,29 +78,48 @@ const DonneesTraitees = ({
           )}
         </div>
 
- <div className="input-block">
-    {/* Direct Produit Dropdown */}
-    <label htmlFor="produit">Produit:</label>
-<select
-  id="produit"
-  value={selectedProduit}
-  onChange={handleProduitChange}
->
-  <option value="">-- Choisir produit --</option>
-  {produitsFiltres.map((produit) => (
-    <option key={produit.id} value={produit.id}>
-      {produit.nom}
-    </option>
-  ))}
-</select>
+        {/* Date Period Selection */}
+        <div className="input-block">
+          <label>Période de traitement:</label>
+          <div className="date-range">
+            <input
+              type="date"
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+              className="date-input"
+            />
+            <span className="date-separator">au</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+              className="date-input"
+            />
+          </div>
+        </div>
 
+        <div className="input-block">
+          {/* Direct Produit Dropdown */}
+          <label htmlFor="produit">Produit:</label>
+          <select
+            id="produit"
+            value={selectedProduit}
+            onChange={handleProduitChange}
+          >
+            <option value="">-- Choisir produit --</option>
+            {produitsFiltres.map((produit) => (
+              <option key={produit.id} value={produit.id}>
+                {produit.nom}
+              </option>
+            ))}
+          </select>
 
-    {produitDescription && (
-      <div className="produit-description">
-        <strong>Description:</strong> {produitDescription}
-      </div>
-    )}
-  </div>
+          {produitDescription && (
+            <div className="produit-description">
+              <strong>Description:</strong> {produitDescription}
+            </div>
+          )}
+        </div>
 
         <div className="input-block">
           <label>Phase de production:</label>
@@ -107,185 +153,186 @@ const DonneesTraitees = ({
       </div>
 
       {/* Data table */}
-      <h1></h1>
+            <p><strong>{clients.find(c => c.id == selectedClient)?.nom_raison_sociale || 'Aucun'}</strong></p>
       <h2>Données à traiter</h2>
-      <h2>Périod du ...... au ...........</h2>
+      <h2>Période du {startDate || '......'} au {endDate || '...........'}</h2>
       <h3> {selectedProduit && ` ${produitsFiltres.find(p => p.id == selectedProduit)?.nom}`} ({produitDescription})</h3>
       
-      {tableData.length > 0 ? (
-        <div className="table-container">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>
-                  <input
-                    type="checkbox"
-                    checked={selectedRows.length === tableData.length && tableData.length > 0}
-                    onChange={toggleSelectAll}
-                  />
-                </th>
-                <th>Ech</th>
-                <th>Date</th>
-                <th>RC2J</th>
-                <th>RC7J</th>
-                <th>RC28J</th>
-                <th>Prise</th>
-                <th>Stabilité</th>
-                <th>Hydratation</th>
-                <th>P. Feu</th>
-                <th>R. Insoluble</th>
-                <th>SO3</th>
-                <th>Chlorure</th>
-                {/* Show C3A column only for CEM I */}
-                {selectedType && selectedType === "1" && (
-                  <th>C3A</th>
-                )}
-                {/* Show additional columns only for CEM II, III, IV, V */}
-                {selectedType && selectedType !== "1" && (
-                  <th>Ajout(Type Ajout) %</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {tableData.map((row) => (
-                <tr key={row.id} className={selectedRows.includes(row.id) ? 'selected' : ''}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.includes(row.id)}
-                      onChange={() => toggleRowSelection(row.id)}
-                    />
-                  </td>
-                  <td>{row.num_ech}</td>
-                  <td>{row.date}</td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.rc2j || ''}
-                      onChange={(e) => handleEdit(row.id, 'rc2j', e.target.value)}
-                      className="editable-cell"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.rc7j || ''}
-                      onChange={(e) => handleEdit(row.id, 'rc7j', e.target.value)}
-                      className="editable-cell"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.rc28j || ''}
-                      onChange={(e) => handleEdit(row.id, 'rc28j', e.target.value)}
-                      className="editable-cell"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={row.prise || ''}
-                      onChange={(e) => handleEdit(row.id, 'prise', e.target.value)}
-                      className="editable-cell"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={row.stabilite || ''}
-                      onChange={(e) => handleEdit(row.id, 'stabilite', e.target.value)}
-                      className="editable-cell"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={row.hydratation || ''}
-                      onChange={(e) => handleEdit(row.id, 'hydratation', e.target.value)}
-                      className="editable-cell"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.pfeu || ''}
-                      onChange={(e) => handleEdit(row.id, 'pfeu', e.target.value)}
-                      className="editable-cell"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.r_insoluble || ''}
-                      onChange={(e) => handleEdit(row.id, 'r_insoluble', e.target.value)}
-                      className="editable-cell"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.so3 || ''}
-                      onChange={(e) => handleEdit(row.id, 'so3', e.target.value)}
-                      className="editable-cell"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.chlorure || ''}
-                      onChange={(e) => handleEdit(row.id, 'chlorure', e.target.value)}
-                      className="editable-cell"
-                    />
-                  </td>
-                  {/* Show C3A column only for CEM I */}
-                  {selectedType && selectedType === "1" && (
-                    <td>
-                      <input
-                        type="number"
-                        value={row.c3a || ''}
-                        onChange={(e) => handleEdit(row.id, 'c3a', e.target.value)}
-                        className="editable-cell"
-                      />
-                    </td>
-                  )}
-                  {/* Show additional columns only for CEM II, III, IV, V */}
-                  {selectedType && selectedType !== "1" && (
-                    <td>
-                      <input
-                        type="number"
-                        value={row.ajout_percent || ''}
-                        onChange={(e) => handleEdit(row.id, 'ajout_percent', e.target.value)}
-                        className="editable-cell"
-                      />
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="no-data">
-          {selectedClient && selectedProduit && phase ? 
-            "Aucune donnée disponible pour ces critères." : 
-            "Veuillez sélectionner un client, un produit et une phase pour afficher les données."}
-        </p>
-      )}
+{tableData.length > 0 ? (
+  <div className="table-container">
+    <table className="table">
+      <thead>
+        <tr>
+          <th>
+            <input
+              type="checkbox"
+              checked={selectedRows.length === tableData.length && tableData.length > 0}
+              onChange={toggleSelectAll}
+            />
+          </th>
+          <th>Ech</th>
+          <th>Date</th>
+          <th>RC2J</th>
+          <th>RC7J</th>
+          <th>RC28J</th>
+          <th>Prise</th>
+          <th>Stabilité</th>
+          <th>Hydratation</th>
+          <th>P. Feu</th>
+          <th>R. Insoluble</th>
+          <th>SO3</th>
+          <th>Chlorure</th>
+
+          {/* Show C3A column only for CEM I */}
+          {selectedType === 1 && <th>C3A</th>}
+
+          {/* Show Ajout % column only for CEM II, III, IV, V */}
+          {selectedType && selectedType !== 1 && <th>Ajout (Type Ajout) %</th>}
+        </tr>
+      </thead>
+      <tbody>
+        {tableData.map((row) => (
+          <tr key={row.id} className={selectedRows.includes(row.id) ? 'selected' : ''}>
+            <td>
+              <input
+                type="checkbox"
+                checked={selectedRows.includes(row.id)}
+                onChange={() => toggleRowSelection(row.id)}
+              />
+            </td>
+            <td>{row.num_ech}</td>
+            <td>{row.date}</td>
+            <td>
+              <input
+                type="number"
+                value={row.rc2j || ''}
+                onChange={(e) => handleEdit(row.id, 'rc2j', e.target.value)}
+                className="editable-cell"
+              />
+            </td>
+            <td>
+              <input
+                type="number"
+                value={row.rc7j || ''}
+                onChange={(e) => handleEdit(row.id, 'rc7j', e.target.value)}
+                className="editable-cell"
+              />
+            </td>
+            <td>
+              <input
+                type="number"
+                value={row.rc28j || ''}
+                onChange={(e) => handleEdit(row.id, 'rc28j', e.target.value)}
+                className="editable-cell"
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                value={row.prise || ''}
+                onChange={(e) => handleEdit(row.id, 'prise', e.target.value)}
+                className="editable-cell"
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                value={row.stabilite || ''}
+                onChange={(e) => handleEdit(row.id, 'stabilite', e.target.value)}
+                className="editable-cell"
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                value={row.hydratation || ''}
+                onChange={(e) => handleEdit(row.id, 'hydratation', e.target.value)}
+                className="editable-cell"
+              />
+            </td>
+            <td>
+              <input
+                type="number"
+                value={row.pfeu || ''}
+                onChange={(e) => handleEdit(row.id, 'pfeu', e.target.value)}
+                className="editable-cell"
+              />
+            </td>
+            <td>
+              <input
+                type="number"
+                value={row.r_insoluble || ''}
+                onChange={(e) => handleEdit(row.id, 'r_insoluble', e.target.value)}
+                className="editable-cell"
+              />
+            </td>
+            <td>
+              <input
+                type="number"
+                value={row.so3 || ''}
+                onChange={(e) => handleEdit(row.id, 'so3', e.target.value)}
+                className="editable-cell"
+              />
+            </td>
+            <td>
+              <input
+                type="number"
+                value={row.chlorure || ''}
+                onChange={(e) => handleEdit(row.id, 'chlorure', e.target.value)}
+                className="editable-cell"
+              />
+            </td>
+
+            {/* Show C3A input only for CEM I */}
+{selectedType === 1 && (
+  <td>
+    <input
+      type="number"
+      value={row.c3a || ''}
+      onChange={(e) => handleEdit(row.id, 'c3a', e.target.value)}
+      className="editable-cell"
+    />
+  </td>
+)}
+
+            {/* Show Ajout % input only for CEM II, III, IV, V */}
+{selectedType && selectedType !== 1 && (
+  <td>
+    <input
+      type="number"
+      value={row.ajout_percent || ''}
+      onChange={(e) => handleEdit(row.id, 'ajout_percent', e.target.value)}
+      className="editable-cell"
+    />
+  </td>
+)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+) : (
+  <p className="no-data">
+    {selectedClient && selectedProduit && phase
+      ? "Aucune donnée disponible pour ces critères."
+      : "Veuillez sélectionner un client, un produit et une phase pour afficher les données."}
+  </p>
+)}
+
 
       {/* Data actions */}
       <div className="actions-bar">
         <div className="file-actions">
-          <label htmlFor="file-import" className="action-btn import-btn">
-            <i className="fas fa-file-import"></i> Importer Excel
-          </label>
-          <input
-            id="file-import"
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleFileImport}
-            style={{ display: 'none' }}
-          />
+      <input
+        type="file"
+        id="file-import"
+        accept=".xlsx,.xls"
+        onChange={handleFileImport}
+        style={{ display: 'none' }}
+      />
+      <label htmlFor="file-import" className="action-btn import-btn">
+        <i className="fas fa-file-import"></i> Importer Excel
+      </label>
 
           <button className="action-btn export-btn" onClick={handleExport} disabled={tableData.length === 0}>
             <i className="fas fa-file-export"></i> Exporter
