@@ -143,10 +143,10 @@ const getLimitsByClass = (classe, key) => {
     "stabilite": "stabilite",
     "hydratation": "chaleur_hydratation",
     "so3": "SO3",
-    "c3a": "C3A",
     "pfeu": "pert_au_feu",
     "r_insoluble": "residu_insoluble",
     "chlorure": "teneur_chlour",
+    "c3a": "C3A",
     "ajout_percent": "" // No specific limits for this parameter
   };
 
@@ -185,7 +185,10 @@ const TableConformite = ({
   handleExport,
   handlePrint,
   handleSave,
-  onBack }) => {
+  startDate,
+  endDate,
+  onBack
+ }) => {
 
   // List of all parameters we want to analyze
   const parameters = [
@@ -201,11 +204,12 @@ const TableConformite = ({
     { key: "chlorure", label: "Chlorure" },
   ];
 
-  if (selectedType === "1") {
-    parameters.push({ key: "c3a", label: "C3A" });
-  } else {
-    parameters.push({ key: "ajout_percent", label: "Ajout (%)" });
-  }
+if (Number(selectedType) === 1) {
+  parameters.push({ key: "c3a", label: "C3A" });
+} else if (selectedType) {
+  parameters.push({ key: "ajout_percent", label: "Ajout (%)" });
+}
+
 
   // List of all classes to display
   const classes = ["32.5L", "32.5N", "32.5R", "42.5L", "42.5N", "42.5R", "52.5L", "52.5N", "52.5R"];
@@ -223,6 +227,7 @@ const TableConformite = ({
       <div className="cement-table-container">
         <p><strong>{clients.find(c => c.id == selectedClient)?.nom_raison_sociale || 'Aucun'}</strong></p>    
         <h2>Données Statistiques</h2>
+        <h2>Période du {startDate || '......'} au {endDate || '...........'}</h2>
         <h3>{selectedProduit && ` ${produits.find(p => p.id == selectedProduit)?.nom}`} ({produitDescription})</h3>
        
         <table>

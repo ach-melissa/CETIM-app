@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
+
 import "./TraitDonnes.css";
 import Header from "../../components/Header/Header"
 import DonneesTraitees from "../../components/DonneesTraitees/DonneesTraitees";
@@ -29,6 +30,14 @@ const TraitDonnes = () => {
   const [selectedParameter, setSelectedParameter] = useState('rc28j');
   const [selectedClass, setSelectedClass] = useState('42.5N');
   const [chartStats, setChartStats] = useState(null);
+
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+
+const [filteredRows, setFilteredRows] = useState([]);
+
+
 
   // Mock types data
   const typeFactices = [
@@ -175,13 +184,18 @@ const produitsFiltres = produits; // Show all products
 
 
   // Handle product selection
-  const handleProduitChange = (e) => {
-    const produitId = Number(e.target.value);
-    setSelectedProduit(produitId);
+// Handle product selection
+const handleProduitChange = (e) => {
+  const produitId = Number(e.target.value);
+  setSelectedProduit(produitId);
 
-    const produit = produits.find((p) => p.id === produitId);
-    setProduitDescription(produit ? produit.description : "");
-  };
+  const produit = produits.find((p) => p.id === produitId);
+  setProduitDescription(produit ? produit.description : "");
+
+  // Save type automatically based on selected product
+  setSelectedType(produit ? produit.typeId : null);
+};
+
 
   // Load table data when all criteria are selected
   useEffect(() => {
@@ -315,104 +329,116 @@ const donneesFactices = [
     setChartStats(stats);
   }, [tableData, selectedParameter, selectedClass]);
 
-  // Excel file import handler
-  const handleFileImport = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+const handleFileImport = (e) => {
+  const file = e.target.files[0];
+  const reader = new FileReader();
 
-    // Check if a client is selected
-    if (!selectedClient) {
-      setError("Veuillez d'abord sélectionner un client.");
-      return;
-    }
+  reader.onload = (evt) => {
+    const bstr = evt.target.result;
+    const wb = XLSX.read(bstr, { type: "binary" });
+    const wsname = wb.SheetNames[0];
+    const ws = wb.Sheets[wsname];
+    const importedData = XLSX.utils.sheet_to_json(ws);
 
-    const allowedExtensions = ['.xls', '.xlsx'];
-    const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-    
-    if (!allowedExtensions.includes(fileExtension)) {
-      setError('❌ Seuls les fichiers Excel (.xls, .xlsx) sont autorisés.');
-      return;
-    }
+    setTableData(prev => {
+      // Filter out rows that already exist in prev
+      const uniqueNewRows = importedData.filter(newRow => {
+        return !prev.some(existingRow =>
+          existingRow.num_ech === newRow.num_ech &&
+          existingRow.date === newRow.date
+        );
+      });
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+      return [...prev, ...uniqueNewRows];
+    });
 
-        // Process the Excel data and add it to the table
-        processExcelData(jsonData);
-        
-        setSuccess('Fichier Excel importé avec succès! Les données ont été ajoutées au tableau.');
-        setTimeout(() => setSuccess(''), 5000);
-      } catch (error) {
-        console.error('Erreur lors du traitement du fichier Excel:', error);
-        setError('Erreur lors du traitement du fichier Excel. Veuillez vérifier le format.');
-      }
-    };
-    reader.readAsArrayBuffer(file);
+    alert("Fichier Excel importé avec succès ! Les doublons ont été ignorés.");
   };
+
+  reader.readAsBinaryString(file);
+};
+
+
 
   // Process Excel data and add to table
   const processExcelData = (excelData) => {
     if (!excelData || excelData.length < 2) {
-      setError('Le fichier Excel ne contient pas de données valides.');
+      setError("Le fichier Excel ne contient pas de données valides.");
       return;
     }
 
-    // Extract headers (first row)
-    const headers = excelData[0].map(header => header.toLowerCase().replace(/\s+/g, '_'));
-    
-    // Process data rows
+    const headers = excelData[0].map((header) =>
+      header ? header.toString().toLowerCase().replace(/\s+/g, "_") : ""
+    );
+
     const newData = [];
     for (let i = 1; i < excelData.length; i++) {
       const row = excelData[i];
-      if (row.length === 0) continue; // Skip empty rows
-      
-      const newRow = { id: Date.now() + i }; // Generate unique ID
-      
-      // Map Excel columns to our data structure
+      if (!row || row.length === 0) continue;
+
+      const newRow = {};
+      let hasData = false;
+
       headers.forEach((header, index) => {
-        if (index < row.length) {
-          // Convert header names to match our table structure
+        if (index < row.length && row[index] !== null && row[index] !== undefined) {
           let mappedHeader = header;
-          if (header.includes('num') || header.includes('éch') || header.includes('ech')) mappedHeader = 'num_ech';
-          if (header.includes('date')) mappedHeader = 'date';
-          if (header.includes('rc2j') || header.includes('2j')) mappedHeader = 'rc2j';
-          if (header.includes('rc7j') || header.includes('7j')) mappedHeader = 'rc7j';
-          if (header.includes('rc28j') || header.includes('28j')) mappedHeader = 'rc28j';
-          if (header.includes('prise')) mappedHeader = 'prise';
-          if (header.includes('stabilit') || header.includes('stab')) mappedHeader = 'stabilite';
-          if (header.includes('hydratation')) mappedHeader = 'hydratation';
-          if (header.includes('feu') || header.includes('p.feu')) mappedHeader = 'pfeu';
-          if (header.includes('insoluble')) mappedHeader = 'r_insoluble';
-          if (header.includes('so3')) mappedHeader = 'so3';
-          if (header.includes('chlorure')) mappedHeader = 'chlorure';
-          if (header.includes('c3a')) mappedHeader = 'c3a';
-          if (header.includes('ajout') && header.includes('%')) mappedHeader = 'ajout_percent';
-          if (header.includes('type') && header.includes('ajout')) mappedHeader = 'type_ajout';
           
+          // Improved header mapping with more variations
+          if (header.match(/num|éch|ech|échantillon|sample/)) mappedHeader = "num_ech";
+          else if (header.match(/date/)) mappedHeader = "date";
+          else if (header.match(/rc2j|2j|résistance.*2j|resistance.*2j/)) mappedHeader = "rc2j";
+          else if (header.match(/rc7j|7j|résistance.*7j|resistance.*7j/)) mappedHeader = "rc7j";
+          else if (header.match(/rc28j|28j|résistance.*28j|resistance.*28j/)) mappedHeader = "rc28j";
+          else if (header.match(/prise|début.*prise|beginning/)) mappedHeader = "prise";
+          else if (header.match(/stabilit|stab/)) mappedHeader = "stabilite";
+          else if (header.match(/hydratation|chaleur/)) mappedHeader = "hydratation";
+          else if (header.match(/feu|p.feu|pertes.*feu/)) mappedHeader = "pfeu";
+          else if (header.match(/insoluble|residu/)) mappedHeader = "r_insoluble";
+          else if (header.match(/so3|sulfate/)) mappedHeader = "so3";
+          else if (header.match(/chlorure|chloride/)) mappedHeader = "chlorure";
+          else if (header.match(/c3a/)) mappedHeader = "c3a";
+          else if (header.match(/ajout.*%|additive.*%|addition.*%/)) mappedHeader = "ajout_percent";
+          else if (header.match(/type.*ajout|additive.*type|addition.*type/)) mappedHeader = "type_ajout";
+
           // Convert numeric values
-          if (['rc2j', 'rc7j', 'rc28j', 'pfeu', 'r_insoluble', 'so3', 'chlorure', 'c3a', 'ajout_percent'].includes(mappedHeader)) {
-            newRow[mappedHeader] = parseFloat(row[index]) || 0;
+          if (["rc2j", "rc7j", "rc28j", "pfeu", "r_insoluble", "so3", "chlorure", "c3a", "ajout_percent"].includes(mappedHeader)) {
+            const numValue = parseFloat(row[index]);
+            newRow[mappedHeader] = isNaN(numValue) ? 0 : numValue;
           } else {
-            newRow[mappedHeader] = row[index];
+            // Handle date conversion
+            if (mappedHeader === "date" && typeof row[index] === 'number') {
+              // Excel dates are stored as numbers (days since 1900-01-01)
+              const excelDate = row[index];
+              const date = new Date((excelDate - 25569) * 86400 * 1000);
+              newRow[mappedHeader] = date.toISOString().split('T')[0];
+            } else {
+              newRow[mappedHeader] = row[index] !== null ? row[index].toString() : "";
+            }
           }
+          
+          hasData = true;
         }
       });
-      
-      // Ensure required fields have values
-      if (!newRow.num_ech) newRow.num_ech = `IMP-${Date.now() + i}`;
-      if (!newRow.date) newRow.date = new Date().toISOString().split('T')[0];
-      
-      newData.push(newRow);
+
+      if (hasData) {
+        // Generate a unique ID
+        const id = `imp_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Ensure required fields have values
+        if (!newRow.num_ech) newRow.num_ech = `IMP-${i}`;
+        if (!newRow.date) newRow.date = new Date().toISOString().split('T')[0];
+        
+        newData.push({ id, ...newRow });
+      }
     }
-    
-    // Add the new data to the existing table
-    setTableData(prevData => [...prevData, ...newData]);
+
+    if (newData.length > 0) {
+      setTableData((prevData) => [...prevData, ...newData]);
+    } else {
+      setError("Aucune donnée valide n'a été trouvée dans le fichier.");
+    }
   };
+
 
   // Export data handler
   const handleExport = () => {
@@ -434,9 +460,11 @@ const donneesFactices = [
   };
 
   // Print data handler
-  const handlePrint = () => {
-    window.print();
-  };
+// Print data handler
+const handlePrint = () => {
+  window.print();
+};
+
 
   // Edit a data row
   const handleEdit = (id, field, value) => {
@@ -555,7 +583,8 @@ const donneesFactices = [
       <div className="tab-content">
         {activeTab === 'donnees' && (
           <DonneesTraitees
-            tableData={tableData} 
+  tableData={tableData}
+  setTableData={setTableData}
             clients={clients}
             selectedClient={selectedClient}
             setSelectedClient={setSelectedClient}
@@ -573,17 +602,22 @@ const donneesFactices = [
             toggleRowSelection={toggleRowSelection}
             toggleSelectAll={toggleSelectAll}
             handleEdit={handleEdit}
-            handleFileImport={handleFileImport}
+             handleFileImport={handleFileImport} 
             handleExport={handleExport}
             handlePrint={handlePrint}
             handleSave={handleSave}
             handleDelete={handleDelete}
             handleClearAll={handleClearAll}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
           />
         )}
 
         {activeTab === 'statistiques' && (
           <DonneesStatistiques
+          data={filteredRows}
             tableData={tableData} 
             clients={clients}
             selectedClient={selectedClient}
@@ -595,10 +629,15 @@ const donneesFactices = [
             handleExport={handleExport}
             handlePrint={handlePrint}
             handleSave={handleSave}
+                       startDate={startDate}
+        setStartDate={setStartDate}
+        endDate={endDate}
+        setEndDate={setEndDate}
           />
         )}
 {activeTab === 'contConform' && (
   <ControleConformite
+  data={filteredRows}
     tableData={tableData} 
     clients={clients}
     selectedClient={selectedClient}
@@ -609,11 +648,14 @@ const donneesFactices = [
     handleExport={handleExport}
     handlePrint={handlePrint}
     handleSave={handleSave}
+    startDate={startDate}
+    endDate={endDate}
     onBack={() => setActiveTab('graphiques')} 
   />
 )}
         {activeTab === 'tabconform' && (
           <TableConformite
+          data={filteredRows}
             tableData={tableData} 
             clients={clients}
             selectedClient={selectedClient}
@@ -625,13 +667,17 @@ const donneesFactices = [
             handleExport={handleExport}
             handlePrint={handlePrint}
             handleSave={handleSave}
+            startDate={startDate}
+            endDate={endDate}
             onBack={() => setActiveTab('graphiques')} 
+ 
           />
         )}
 
         {activeTab === 'graphiques' && (
           <DonneesGraphiques
-            tableData={tableData} 
+          data={filteredRows}
+             tableData={filteredTableData}
             parameters={parameters}
             selectedParameter={selectedParameter}
             setSelectedParameter={setSelectedParameter}

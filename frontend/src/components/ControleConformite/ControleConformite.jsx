@@ -147,7 +147,7 @@ const getLimitsByClass = (classe, key) => {
     "pfeu": "pert_au_feu",
     "r_insoluble": "residu_insoluble",
     "chlorure": "teneur_chlour",
-    "ajout_percent": "" // No specific limits for this parameter
+    "ajout_percent": "ajout_percent" 
   };
 
   const mockKey = keyMapping[key];
@@ -176,10 +176,10 @@ const getLimitsByClass = (classe, key) => {
 const ControleConformite = ({
   clients,
   selectedClient,
+  selectedType,
   selectedProduit,
   produits,
   produitDescription,
-  selectedType,
   tableData,
   handleExport,
   handlePrint,
@@ -200,11 +200,14 @@ const ControleConformite = ({
     { key: "chlorure", label: "Chlorure" },
   ];
 
-  if (selectedType === "1") {
-    parameters.push({ key: "c3a", label: "C3A" });
-  } else {
-    parameters.push({ key: "ajout_percent", label: "Ajout (%)" });
-  }
+  
+if (selectedType === "1") {
+  parameters.push({ key: "c3a", label: "C3A" });
+} else if (selectedType) {
+  parameters.push({ key: "ajout_percent", label: "Ajout (%)" });
+}
+
+
 
   // Calculate all stats for all parameters
   const allStats = parameters.reduce((acc, param) => {
@@ -270,13 +273,30 @@ const ControleConformite = ({
             : "Aucune déviation"}</span>
           <span>Déviation={classCompliance.prise.stats.percentLI}%</span>
         </div>
-        <div className="parameter-item">
-          <span>Ajout(e) (Calcaire)</span>
-          <span>{classCompliance.ajout_percent.stats.percentLI !== "-" 
-            ? `${classCompliance.ajout_percent.stats.percentLI}% < ${classCompliance.ajout_percent.limits.li}` 
-            : "Aucune déviation"}</span>
-          <span>Déviation={classCompliance.ajout_percent.stats.percentLI}%</span>
-        </div>
+{selectedType === "1" ? (
+  // 👉 Show C3A for CEM I
+  <div className="parameter-item">
+    <span>C3A</span>
+    <span>
+      {classCompliance.c3a?.stats?.percentLI !== "-" 
+        ? `${classCompliance.c3a.stats.percentLI}% < ${classCompliance.c3a.limits.li}` 
+        : "Aucune déviation"}
+    </span>
+    <span>Déviation={classCompliance.c3a?.stats?.percentLI}%</span>
+  </div>
+) : selectedType ? (
+  // 👉 Show Ajout for other CEM types
+  <div className="parameter-item">
+    <span>Ajout(Calcaire)</span>
+    <span>
+      {classCompliance.ajout_percent?.stats?.percentLI !== "-" 
+        ? `${classCompliance.ajout_percent.stats.percentLI}% < ${classCompliance.ajout_percent.limits.li}` 
+        : "Aucune déviation"}
+    </span>
+    <span>Déviation={classCompliance.ajout_percent?.stats?.percentLI}%</span>
+  </div>
+) : null}
+
       </div>
     </div>
   </div>
@@ -313,13 +333,30 @@ const ControleConformite = ({
             : "Aucune déviation"}</span>
           <span>Déviation={classCompliance.chlorure.stats.percentLS}%</span>
         </div>
-        <div className="parameter-item">
-          <span>Ajout(e) (Calcaire)</span>
-          <span>{classCompliance.ajout_percent.stats.percentLS !== "-" 
-            ? `${classCompliance.ajout_percent.stats.percentLS}% > ${classCompliance.ajout_percent.limits.ls}` 
-            : "Aucune déviation"}</span>
-          <span>Déviation={classCompliance.ajout_percent.stats.percentLS}%</span>
-        </div>
+{selectedType === "1" ? (
+  // 👉 Show C3A for CEM I
+  <div className="parameter-item">
+    <span>C3A</span>
+    <span>
+      {classCompliance.c3a?.stats?.percentLI !== "-" 
+        ? `${classCompliance.c3a.stats.percentLI}% < ${classCompliance.c3a.limits.li}` 
+        : "Aucune déviation"}
+    </span>
+    <span>Déviation={classCompliance.c3a?.stats?.percentLI}%</span>
+  </div>
+) : selectedType ? (
+  // 👉 Show Ajout for other CEM types
+  <div className="parameter-item">
+    <span>Ajout(Calcaire)</span>
+    <span>
+      {classCompliance.ajout_percent?.stats?.percentLI !== "-" 
+        ? `${classCompliance.ajout_percent.stats.percentLI}% < ${classCompliance.ajout_percent.limits.li}` 
+        : "Aucune déviation"}
+    </span>
+    <span>Déviation={classCompliance.ajout_percent?.stats?.percentLI}%</span>
+  </div>
+) : null}
+
       </div>
     </div>
   </div>

@@ -19,15 +19,9 @@
   margin-top: 0px;
 }
 
-.report-header h2 {
-  margin: 10px 0;
-  font-size: 18px;
-  font-weight: bold;
-  text-transform: uppercase;
-  margin-top: 50px;
-}
 
-.report-header h3 {
+
+.report-header h2 {
   margin: 8px 0;
   font-size: 16px;
   font-weight: normal;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from "react";
 import './DonneesStatistiques.css';
 
 
@@ -185,7 +185,17 @@ const DonneesStatistiques = ({
   handleExport,
   handlePrint,
   handleSave,
+    startDate,
+  endDate,
 }) => {
+
+  const [rows, setRows] = useState([]);
+
+  useEffect(() => {
+    // Load filtered rows from localStorage
+    const savedRows = JSON.parse(localStorage.getItem("selectedRows") || "[]");
+    setRows(savedRows);
+  }, []);
   // List of all parameters we want to analyze
   const parameters = [
     { key: "rc2j", label: "RC2J" },
@@ -200,11 +210,11 @@ const DonneesStatistiques = ({
     { key: "chlorure", label: "Chlorure" },
   ];
 
-  if (selectedType === "1") {
-    parameters.push({ key: "c3a", label: "C3A" });
-  } else {
-    parameters.push({ key: "ajout_percent", label: "Ajout (%)" });
-  }
+if (Number(selectedType) === 1) {
+  parameters.push({ key: "c3a", label: "C3A" });
+} else if (selectedType) {
+  parameters.push({ key: "ajout_percent", label: "Ajout (%)" });
+}
 
   // Calculate all stats for all parameters
   const allStats = parameters.reduce((acc, param) => {
@@ -312,9 +322,12 @@ const DonneesStatistiques = ({
     <div className="stats-section">
       <p><strong>{clients.find(c => c.id == selectedClient)?.nom_raison_sociale || 'Aucun'}</strong></p>    
       <h2>Données Statistiques</h2>
+      <h2>Période du {startDate || '......'} au {endDate || '...........'}</h2>
       <h3>{selectedProduit && ` ${produits.find(p => p.id == selectedProduit)?.nom}`} ({produitDescription})</h3>
       
-      {tableData.length > 0 ? (
+
+
+      {rows.length === 0 ? (
         <div>
           <table className="stats-table">
             <thead>
@@ -346,17 +359,6 @@ const DonneesStatistiques = ({
           Veuillez d'abord sélectionner un client, un produit et une phase.
         </p>
       )}
-
-
-
-
-
-
-
-
-
-
-
 
       {/* Data actions */}
       <div className="actions-bar">

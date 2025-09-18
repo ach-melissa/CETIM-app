@@ -409,7 +409,7 @@ app.get('/api/resultats', async (req, res) => {
 });
 
 
-// --- Client info API --- //
+
 app.get("/api/clients/:sigle", async (req, res) => {
   const sigle = req.params.sigle;
 
@@ -441,7 +441,6 @@ app.get("/api/clients/:sigle", async (req, res) => {
 });
 
 
-// --- Start server --- //
 app.listen(PORT, () => {
   console.log(`✅ API running on http://localhost:${PORT}`);
 });
