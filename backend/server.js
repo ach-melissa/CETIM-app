@@ -290,47 +290,6 @@ app.get('/api/resultats', async (req, res) => {
 
 
 
-// Client info API
-app.get("/api/clients/:sigle", async (req, res) => {
-  const sigle = req.params.sigle;
-
-  try {
-   const sql = `
-  SELECT c.id, c.sigle, c.nom_resaux_sociale, c.adresse,
-         p.type_ciment, p.classe_resistance, p.court_terme,
-         p.min_rc_2j, p.min_rc_7j, p.min_rc_28j,
-         p.min_debut_prise, p.max_stabilite, p.max_chaleur_hydratation,
-         p.max_perte_au_feu, p.max_residu_insoluble, p.max_so3,
-         p.max_chlorure, p.max_c3a, p.exigence_pouzzolanicite,
-         p.is_lh, p.is_sr
-  FROM clients c
-  LEFT JOIN parametres_ciment p ON c.parametres_id = p.id
-  WHERE c.sigle = ?
-`;
-
-    const [result] = await promisePool.execute(sql, [sigle]);
-    
-    if (result.length === 0) {
-      return res.status(404).json({ error: "Client not found" });
-    }
-    
-    res.json(result[0]);
-  } catch (err) {
-    console.error("❌ Error fetching client info:", err);
-    res.status(500).json({ error: "Database error" });
-  }
-});
-// Get all clients
-// Get all clients
-app.get("/api/clients", async (req, res) => {
-  try {
-    const clients = await db.query("SELECT * FROM clients");
-    res.json(clients);
-  } catch (err) {
-    console.error("Erreur backend /api/clients:", err);
-    res.status(500).json({ message: "Erreur serveur" });
-  }
-});
 
 
 
