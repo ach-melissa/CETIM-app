@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 
 import "./TraitDonnes.css";
-
+import Header from "../../components/Header/Header"
 import DonneesTraitees from "../../components/DonneesTraitees/DonneesTraitees";
 import DonneesStatistiques from "../../components/DonneesStatistiques/DonneesStatistiques";
 import DonneesGraphiques from "../../components/DonneesGraphiques/DonneesGraphiques";
@@ -549,7 +549,7 @@ const handlePrint = () => {
 
   return (
     <div className="trait-donnees-container">
-      
+      <Header/>
       
       <h1 className="trait-donnees-title">Traitement Données</h1>
       

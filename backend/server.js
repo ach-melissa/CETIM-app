@@ -22,6 +22,36 @@ const db = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0
 });
+   
+
+
+// --- API Clients et Types Ciment --- //
+
+app.get("/api/clients", (req, res) => {
+  const sql = `
+    SELECT 
+      c.id, 
+      c.sigle, 
+      c.nom_raison_sociale, 
+      c.adresse, 
+      c.famillecement, 
+      c.methodeessai,
+      GROUP_CONCAT(t.code SEPARATOR ', ') AS types_ciment
+    FROM clients c
+    LEFT JOIN client_types_ciment cc ON c.id = cc.client_id
+    LEFT JOIN types_ciment t ON cc.typecement_id = t.id
+    GROUP BY c.id
+  `;
+
+  db.query(sql, (err, result) => {
+    if (err) {
+      console.error("Erreur SQL:", err);
+      return res.status(500).json({ message: "Erreur serveur" });
+    }
+    res.json(result);
+  });
+});
+
 
 // Get promise-based connection
 const promisePool = db.promise();
@@ -288,6 +318,39 @@ app.get('/api/resultats', async (req, res) => {
   }
 });
 
+
+
+
+// Client info API
+app.get("/api/clients/:sigle", async (req, res) => {
+  const sigle = req.params.sigle;
+
+  try {
+   const sql = `
+  SELECT c.id, c.sigle, c.nom_resaux_sociale, c.adresse,
+         p.type_ciment, p.classe_resistance, p.court_terme,
+         p.min_rc_2j, p.min_rc_7j, p.min_rc_28j,
+         p.min_debut_prise, p.max_stabilite, p.max_chaleur_hydratation,
+         p.max_perte_au_feu, p.max_residu_insoluble, p.max_so3,
+         p.max_chlorure, p.max_c3a, p.exigence_pouzzolanicite,
+         p.is_lh, p.is_sr
+  FROM clients c
+  LEFT JOIN parametres_ciment p ON c.parametres_id = p.id
+  WHERE c.sigle = ?
+`;
+
+    const [result] = await promisePool.execute(sql, [sigle]);
+    
+    if (result.length === 0) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+    
+    res.json(result[0]);
+  } catch (err) {
+    console.error("❌ Error fetching client info:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
 
 
 
