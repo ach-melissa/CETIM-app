@@ -150,9 +150,22 @@
 }
 
 /* Checkboxes */
+/* Make input fields smaller and centered */
+.table input[type="number"],
+.table input[type="text"] {
+  width: 40px;  /* adjust as needed */
+  padding: 2px 4px;
+  font-size: 0.9em;
+  text-align: center;
+
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Checkbox styling */
 .table input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+  transform: scale(1.2);
+  cursor: pointer;
 }
 
 /* No Data Message */
