@@ -124,31 +124,50 @@ const ParametreEntreprise = () => {
     }
   };
 
-  const handleDeleteClient = async () => {
-    if (!selectedClientId) {
-      alert("Veuillez sélectionner un client à supprimer");
-      return;
-    }
-    if (!window.confirm("⚠️ Voulez-vous vraiment supprimer ce client ?")) return;
+ const handleDeleteClient = async () => {
+  if (!selectedClientId) {
+    alert("Veuillez sélectionner un client à supprimer");
+    return;
+  }
+  if (!window.confirm("⚠️ Voulez-vous vraiment supprimer ce client ?")) return;
 
-    try {
-      const res = await fetch(`http://localhost:5000/api/clients/${selectedClientId}`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
+  try {
+    const res = await fetch(`http://localhost:5000/api/clients/${selectedClientId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+    });
 
-      if (res.ok) {
-        setClientsData((prev) => prev.filter((c) => c.id !== parseInt(selectedClientId)));
-        setSelectedClientId("");
-        setValidationMessage(data.message);
-        setTimeout(() => setValidationMessage(""), 5000);
-      } else {
-        alert(data.message || "Erreur lors de la suppression");
+    // Try to parse JSON only if server returned JSON-like content.
+    // But first handle ok vs not ok to avoid parsing errors on empty responses.
+    if (res.ok) {
+      // success: parse message if present
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        // No JSON body — fallback message
+        data = { message: "Client supprimé" };
       }
-    } catch (err) {
-      console.error("❌ Erreur suppression client:", err);
+
+      setClientsData((prev) => prev.filter((c) => c.id !== parseInt(selectedClientId, 10)));
+      setSelectedClientId("");
+      setValidationMessage(data.message || "✅ Client supprimé avec succès");
+      setTimeout(() => setValidationMessage(""), 5000);
+    } else {
+      // failed: try to show server message
+      let errData;
+      try {
+        errData = await res.json();
+      } catch (e) {
+        errData = { message: "Erreur lors de la suppression" };
+      }
+      alert(errData.message || "Erreur lors de la suppression du client");
     }
-  };
+  } catch (err) {
+    console.error("❌ Erreur suppression client:", err);
+    alert("Erreur réseau lors de la suppression du client");
+  }
+};
 
   const toggleCementType = (typeId, isNewClient = true) => {
     const clientState = isNewClient ? newClient : editClient;

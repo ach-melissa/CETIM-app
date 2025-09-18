@@ -95,7 +95,80 @@ app.get("/api/types_ciment", (req, res) => {
     res.json(result);
   });
 });
+// --- Add new client --- //
+app.post("/api/clients", async (req, res) => {
+  const { sigle, nom_raison_sociale, adresse, types_ciment } = req.body;
 
+  if (!sigle || !nom_raison_sociale) {
+    return res.status(400).json({ message: "Sigle et nom/raison sociale sont requis" });
+  }
+
+  try {
+    // Start a transaction
+    const connection = await promisePool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // Insert the new client
+      const sqlInsert = "INSERT INTO clients (sigle, nom_raison_sociale, adresse) VALUES (?, ?, ?)";
+      const [result] = await connection.execute(sqlInsert, [sigle, nom_raison_sociale, adresse]);
+      const clientId = result.insertId;
+
+      // Insert cement type associations if any
+      if (Array.isArray(types_ciment) && types_ciment.length > 0) {
+        const sqlAssoc = "INSERT INTO client_types_ciment (client_id, typecement_id) VALUES ?";
+        const values = types_ciment.map((typeId) => [clientId, typeId]);
+        await connection.query(sqlAssoc, [values]);
+      }
+
+      // Commit transaction
+      await connection.commit();
+      
+      // Get the complete client data with types
+      const [clientRows] = await connection.execute(`
+        SELECT c.id, c.sigle, c.nom_raison_sociale, c.adresse,
+               t.id AS typecement_id, t.code, t.description
+        FROM clients c
+        LEFT JOIN client_types_ciment ct ON c.id = ct.client_id
+        LEFT JOIN types_ciment t ON ct.typecement_id = t.id
+        WHERE c.id = ?
+      `, [clientId]);
+
+      // Format the response
+      const client = {
+        id: clientId,
+        sigle: sigle,
+        nom_raison_sociale: nom_raison_sociale,
+        adresse: adresse,
+        types_ciment: []
+      };
+
+      clientRows.forEach(row => {
+        if (row.typecement_id) {
+          client.types_ciment.push({
+            id: row.typecement_id,
+            code: row.code,
+            description: row.description
+          });
+        }
+      });
+
+      res.status(201).json(client);
+
+    } catch (error) {
+      // Rollback transaction on error
+      await connection.rollback();
+      throw error;
+    } finally {
+      // Release connection
+      connection.release();
+    }
+
+  } catch (err) {
+    console.error("❌ Erreur ajout client:", err);
+    res.status(500).json({ message: "Erreur serveur lors de l'ajout du client" });
+  }
+});
 // Add new cement type
 app.post("/api/types_ciment", (req, res) => {
   const { code, description } = req.body;
@@ -155,6 +228,7 @@ app.delete("/api/types_ciment/:id", (req, res) => {
   });
 });
 
+
 // --- Fin API Types Ciment --- //
 
 
@@ -208,6 +282,43 @@ app.put("/api/clients/:id", (req, res) => {
       }
     });
   });
+});
+// --- Delete a client ---
+app.delete("/api/clients/:id", async (req, res) => {
+  const clientId = req.params.id;
+
+  try {
+    const connection = await promisePool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // Remove associations first
+      const sqlDeleteAssoc = "DELETE FROM client_types_ciment WHERE client_id = ?";
+      await connection.execute(sqlDeleteAssoc, [clientId]);
+
+      // Delete the client
+      const sqlDeleteClient = "DELETE FROM clients WHERE id = ?";
+      const [result] = await connection.execute(sqlDeleteClient, [clientId]);
+
+      if (result.affectedRows === 0) {
+        await connection.rollback();
+        connection.release();
+        return res.status(404).json({ message: "Client non trouvé" });
+      }
+
+      await connection.commit();
+      connection.release();
+      return res.json({ message: "✅ Client supprimé avec succès" });
+    } catch (error) {
+      await connection.rollback();
+      connection.release();
+      console.error("❌ Erreur suppression client (transaction):", error);
+      return res.status(500).json({ message: "Erreur serveur lors de la suppression du client" });
+    }
+  } catch (err) {
+    console.error("❌ Erreur suppression client:", err);
+    return res.status(500).json({ message: "Erreur serveur" });
+  }
 });
 
 
