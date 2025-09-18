@@ -22,36 +22,6 @@ const db = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0
 });
-   
-
-
-// --- API Clients et Types Ciment --- //
-
-app.get("/api/clients", (req, res) => {
-  const sql = `
-    SELECT 
-      c.id, 
-      c.sigle, 
-      c.nom_raison_sociale, 
-      c.adresse, 
-      c.famillecement, 
-      c.methodeessai,
-      GROUP_CONCAT(t.code SEPARATOR ', ') AS types_ciment
-    FROM clients c
-    LEFT JOIN client_types_ciment cc ON c.id = cc.client_id
-    LEFT JOIN types_ciment t ON cc.typecement_id = t.id
-    GROUP BY c.id
-  `;
-
-  db.query(sql, (err, result) => {
-    if (err) {
-      console.error("Erreur SQL:", err);
-      return res.status(500).json({ message: "Erreur serveur" });
-    }
-    res.json(result);
-  });
-});
-
 
 // Get promise-based connection
 const promisePool = db.promise();
@@ -67,9 +37,181 @@ promisePool.getConnection()
   });
 
 
+// --- API Clients --- //
+// Get all clients with types_ciment as array of objects
+app.get("/api/clients", async (req, res) => {
+  try {
+    const [rows] = await promisePool.query(`
+      SELECT c.id, c.sigle, c.nom_raison_sociale, c.adresse, c.famillecement, c.methodeessai,
+             t.id AS typecement_id, t.code, t.description
+      FROM clients c
+      LEFT JOIN client_types_ciment ct ON c.id = ct.client_id
+      LEFT JOIN types_ciment t ON ct.typecement_id = t.id
+      ORDER BY c.id
+    `);
+
+    const clients = rows.reduce((acc, row) => {
+      let client = acc.find(c => c.id === row.id);
+      if (!client) {
+        client = {
+          id: row.id,
+          sigle: row.sigle,
+          nom_raison_sociale: row.nom_raison_sociale,
+          adresse: row.adresse,
+          famillecement: row.famillecement,
+          methodeessai: row.methodeessai,
+          types_ciment: []
+        };
+        acc.push(client);
+      }
+      if (row.typecement_id) {
+        client.types_ciment.push({
+          id: row.typecement_id,
+          code: row.code,
+          description: row.description
+        });
+      }
+      return acc;
+    }, []);
+
+    res.json(clients);
+  } catch (err) {
+    console.error("❌ Erreur SQL:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 
-// Login route
+// --- API Types Ciment --- //
+
+// Get all cement types
+app.get("/api/types_ciment", (req, res) => {
+  const sql = "SELECT id, code, description FROM types_ciment ORDER BY code";
+  db.query(sql, (err, result) => {
+    if (err) {
+      console.error("❌ Erreur SQL:", err);
+      return res.status(500).json({ message: "Erreur serveur" });
+    }
+    res.json(result);
+  });
+});
+
+// Add new cement type
+app.post("/api/types_ciment", (req, res) => {
+  const { code, description } = req.body;
+
+  if (!code || !description) {
+    return res.status(400).json({ message: "Code et description sont requis" });
+  }
+
+  const sql = "INSERT INTO types_ciment (code, description) VALUES (?, ?)";
+  db.query(sql, [code, description], (err, result) => {
+    if (err) {
+      console.error("❌ Erreur insertion type ciment:", err);
+      return res.status(500).json({ message: "Erreur serveur" });
+    }
+
+    res.json({ 
+      id: result.insertId, 
+      code, 
+      description,
+      message: "✅ Type de ciment ajouté avec succès" 
+    });
+  });
+});
+
+// Delete cement type
+app.delete("/api/types_ciment/:id", (req, res) => {
+  const typeId = req.params.id;
+
+  // First check if this type is used by any client
+  const sqlCheck = "SELECT COUNT(*) as count FROM client_types_ciment WHERE typecement_id = ?";
+  db.query(sqlCheck, [typeId], (err, result) => {
+    if (err) {
+      console.error("❌ Erreur vérification utilisation:", err);
+      return res.status(500).json({ message: "Erreur serveur" });
+    }
+
+    if (result[0].count > 0) {
+      return res.status(400).json({ 
+        message: "❌ Impossible de supprimer: ce type est utilisé par un ou plusieurs clients" 
+      });
+    }
+
+    // If not used, proceed with deletion
+    const sqlDelete = "DELETE FROM types_ciment WHERE id = ?";
+    db.query(sqlDelete, [typeId], (err2, result2) => {
+      if (err2) {
+        console.error("❌ Erreur suppression type ciment:", err2);
+        return res.status(500).json({ message: "Erreur serveur" });
+      }
+
+      if (result2.affectedRows === 0) {
+        return res.status(404).json({ message: "Type de ciment non trouvé" });
+      }
+
+      res.json({ message: "✅ Type de ciment supprimé avec succès" });
+    });
+  });
+});
+
+// --- Fin API Types Ciment --- //
+
+
+// --- Modifier un client --- //
+app.put("/api/clients/:id", (req, res) => {
+  const clientId = req.params.id;
+  const { sigle, nom_raison_sociale, adresse, types_ciment } = req.body;
+
+  const sqlUpdate = `
+    UPDATE clients 
+    SET sigle = ?, nom_raison_sociale = ?, adresse = ? 
+    WHERE id = ?`;
+  db.query(sqlUpdate, [sigle, nom_raison_sociale, adresse, clientId], (err, result) => {
+    if (err) {
+      console.error("❌ Erreur update client:", err);
+      return res.status(500).json({ message: "Erreur serveur" });
+    }
+
+    // Supprimer les anciens types de ciment liés
+    const sqlDeleteAssoc = "DELETE FROM client_types_ciment WHERE client_id = ?";
+    db.query(sqlDeleteAssoc, [clientId], (err2) => {
+      if (err2) {
+        console.error("❌ Erreur suppression associations:", err2);
+        return res.status(500).json({ message: "Erreur serveur" });
+      }
+
+      // Réinsérer les nouveaux types (ids)
+      if (Array.isArray(types_ciment) && types_ciment.length > 0) {
+        const sqlAssoc = "INSERT INTO client_types_ciment (client_id, typecement_id) VALUES ?";
+        const values = types_ciment.map((typeId) => [clientId, typeId]);
+
+        db.query(sqlAssoc, [values], (err3) => {
+          if (err3) {
+            console.error("❌ Erreur ajout associations:", err3);
+            return res.status(500).json({ message: "Erreur serveur" });
+          }
+
+          // Return success (optionally return updated client object)
+          const sqlGet = `SELECT id, code, description FROM types_ciment WHERE id IN (?)`;
+          db.query(sqlGet, [types_ciment], (err4, rows) => {
+            if (err4) {
+              console.error("❌ Erreur récupération types:", err4);
+              return res.status(500).json({ message: "Erreur serveur" });
+            }
+            res.json({ message: "✅ Client modifié avec succès", types_ciment: rows });
+          });
+        });
+      } else {
+        // No types — respond success
+        res.json({ message: "✅ Client modifié avec succès (sans types de ciment)", types_ciment: [] });
+      }
+    });
+  });
+});
+
+
+// --- Login --- //
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -101,170 +243,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Get parameters for a specific category
-app.get('/api/proprietes/category/:categoryId', async (req, res) => {
-  try {
-    const { categoryId } = req.params;
-    // Query your database for parameters in this category
-    const [rows] = await req.connection.execute(
-      'SELECT * FROM parameters WHERE category_id = ?', 
-      [categoryId]
-    );
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get parameter details for custom categories
-app.get('/api/proprietes/details/:categoryId/:paramId', async (req, res) => {
-  try {
-    const { categoryId, paramId } = req.params;
-    // Query your database for parameter details
-    const [rows] = await req.connection.execute(
-      'SELECT * FROM parameter_details WHERE category_id = ? AND parameter_id = ?', 
-      [categoryId, paramId]
-    );
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get all mechanical properties with cement type information
-// Get all mechanical properties
-app.get('/api/proprietes/mecaniques', async (req, res) => {
-  try {
-    const [rows] = await req.connection.execute(`
-      SELECT 
-        id,
-        nom,
-        unite
-      FROM proprietes_mecaniques
-      ORDER BY nom
-    `);
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get mechanical properties details for a specific parameter
-app.get('/api/proprietes/mecaniques/details/:paramId', async (req, res) => {
-  try {
-    const { paramId } = req.params;
-    
-    // Determine which column to select based on parameter ID
-    let resistanceColumn = 'resistance_28j_min';
-    if (paramId === 'resistance_2j') resistanceColumn = 'resistance_2j_min';
-    if (paramId === 'resistance_7j') resistanceColumn = 'resistance_7j_min';
-    
-    const [rows] = await req.connection.execute(`
-      SELECT 
-        fc.code AS famille_code,
-        tc.code AS type_code,
-        cr.classe,
-        pm.${resistanceColumn} AS resistance_min,
-        pm.resistance_28j_sup AS resistance_max,
-        pm.garantie_28j AS garantie
-      FROM proprietes_mecaniques pm
-      JOIN classes_resistance cr ON pm.classe_resistance_id = cr.id
-      JOIN types_ciment_classes tcc ON cr.id = tcc.classe_resistance_id
-      JOIN types_ciment tc ON tcc.type_ciment_id = tc.id
-      JOIN familles_ciment fc ON tc.famille_id = fc.id
-      WHERE pm.${resistanceColumn} IS NOT NULL
-      ORDER BY fc.code, tc.code, cr.classe
-    `);
-    
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Similar endpoints for physical and chemical properties...
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Results API (using promise version)
+// --- Results API --- //
 app.post('/api/resultats', async (req, res) => {
   const data = req.body;
 
@@ -319,24 +298,23 @@ app.get('/api/resultats', async (req, res) => {
 });
 
 
-
-// Client info API
+// --- Client info API --- //
 app.get("/api/clients/:sigle", async (req, res) => {
   const sigle = req.params.sigle;
 
   try {
-   const sql = `
-  SELECT c.id, c.sigle, c.nom_resaux_sociale, c.adresse,
-         p.type_ciment, p.classe_resistance, p.court_terme,
-         p.min_rc_2j, p.min_rc_7j, p.min_rc_28j,
-         p.min_debut_prise, p.max_stabilite, p.max_chaleur_hydratation,
-         p.max_perte_au_feu, p.max_residu_insoluble, p.max_so3,
-         p.max_chlorure, p.max_c3a, p.exigence_pouzzolanicite,
-         p.is_lh, p.is_sr
-  FROM clients c
-  LEFT JOIN parametres_ciment p ON c.parametres_id = p.id
-  WHERE c.sigle = ?
-`;
+    const sql = `
+      SELECT c.id, c.sigle, c.nom_raison_sociale, c.adresse,
+             p.type_ciment, p.classe_resistance, p.court_terme,
+             p.min_rc_2j, p.min_rc_7j, p.min_rc_28j,
+             p.min_debut_prise, p.max_stabilite, p.max_chaleur_hydratation,
+             p.max_perte_au_feu, p.max_residu_insoluble, p.max_so3,
+             p.max_chlorure, p.max_c3a, p.exigence_pouzzolanicite,
+             p.is_lh, p.is_sr
+      FROM clients c
+      LEFT JOIN parametres_ciment p ON c.parametres_id = p.id
+      WHERE c.sigle = ?
+    `;
 
     const [result] = await promisePool.execute(sql, [sigle]);
     
@@ -352,9 +330,7 @@ app.get("/api/clients/:sigle", async (req, res) => {
 });
 
 
-
-
-// Start server
+// --- Start server --- //
 app.listen(PORT, () => {
   console.log(`✅ API running on http://localhost:${PORT}`);
 });

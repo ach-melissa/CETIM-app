@@ -133,3 +133,23 @@
     left: 0;
   }
 }
+.header-nav-item-quitter {
+  margin-top: auto; /* Pushes it to the bottom */
+  border-top: 1px solid #e0e0e0;
+  padding-top: 15px;
+}
+
+.header-nav-link-quitter {
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  color: #e74c3c !important; /* Red color for logout */
+  font-weight: 600;
+}
+
+.header-nav-link-quitter:hover {
+  background-color: rgba(231, 76, 60, 0.1) !important;
+  color: #c0392b !important;
+}

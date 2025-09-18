@@ -1,305 +1,389 @@
-// Parametre_entreprise.jsx
 import React, { useState, useEffect } from "react";
 import Header from "../../components/Header/Header";
 import "./ParametreEntreprise.css";
 
 const ParametreEntreprise = () => {
   // States
-  const [photo, setPhoto] = useState(null);
   const [selectedClientId, setSelectedClientId] = useState("");
   const [validationMessage, setValidationMessage] = useState("");
   const [clientsData, setClientsData] = useState([]);
+  const [typesCiment, setTypesCiment] = useState([]);
   const [showAddClient, setShowAddClient] = useState(false);
-  const [showDeleteClient, setShowDeleteClient] = useState(false);
+  const [showEditClient, setShowEditClient] = useState(false);
+
   const [newClient, setNewClient] = useState({
     sigle: "",
     nom_raison_sociale: "",
     adresse: "",
-    essais: [{ type_ciment: "", produit_ciment: "", methode: "" }],
+    types_ciment: [],
   });
 
-  // Load clients from backend
+  const [editClient, setEditClient] = useState({
+    id: "",
+    sigle: "",
+    nom_raison_sociale: "",
+    adresse: "",
+    types_ciment: [],
+  });
+
+  // Charger clients + types ciment
   useEffect(() => {
-    fetch("http://localhost:5000/api/clients")
-      .then((res) => res.json())
-      .then((data) => {
-        console.log("📥 Données reçues du backend:", data);
-        setClientsData(Array.isArray(data) ? data : []); // sécurité
-      })
-      .catch((err) => {
-        console.error("❌ Erreur fetch clients:", err);
-        setClientsData([]); // éviter le crash
-      });
+    fetchClients();
+    fetchCementTypes();
   }, []);
 
-  // Handlers
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (e) => setPhoto(e.target.result);
-      reader.readAsDataURL(e.target.files[0]);
-    }
+  const fetchClients = () => {
+    fetch("http://localhost:5000/api/clients")
+      .then((res) => res.json())
+      .then((data) => setClientsData(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        console.error("❌ Erreur fetch clients:", err);
+        setClientsData([]);
+      });
   };
 
+  const fetchCementTypes = () => {
+    fetch("http://localhost:5000/api/types_ciment")
+      .then((res) => res.json())
+      .then((data) => setTypesCiment(data))
+      .catch((err) => console.error("❌ Erreur fetch types:", err));
+  };
+
+  // Handlers
   const handleClientChange = (e) => {
     setSelectedClientId(e.target.value);
     setValidationMessage("");
   };
 
-  const handleValidate = () => {
+  const handleSaveNewClient = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newClient),
+      });
+      const savedClient = await res.json();
+      setClientsData([...clientsData, savedClient]);
+      setNewClient({
+        sigle: "",
+        nom_raison_sociale: "",
+        adresse: "",
+        types_ciment: [],
+      });
+      setShowAddClient(false);
+    } catch (err) {
+      console.error("❌ Erreur ajout client:", err);
+    }
+  };
+
+  const openEditClient = () => {
     if (!selectedClientId) {
-      setValidationMessage("Veuillez sélectionner un client avant de valider.");
+      alert("Veuillez sélectionner un client à modifier");
       return;
     }
     const client = clientsData.find((c) => c.id === parseInt(selectedClientId));
-    setValidationMessage(`✅ Paramètres validés pour ${client.nom_raison_sociale}`);
-    setTimeout(() => setValidationMessage(""), 5000);
+    if (client) {
+      setEditClient({
+        id: client.id,
+        sigle: client.sigle,
+        nom_raison_sociale: client.nom_raison_sociale,
+        adresse: client.adresse,
+        types_ciment: client.types_ciment.map((tc) => tc.id), // IDs only
+      });
+      setShowEditClient(true);
+    }
   };
 
-  const handlePrint = () => window.print();
-  const handleSave = () => alert("Paramètres sauvegardés avec succès!");
-  const handleHelp = () =>
-    alert("Aide: Cette page vous permet de configurer les paramètres de votre entreprise.");
+  const handleUpdateClient = async () => {
+    if (!window.confirm("⚠️ Voulez-vous vraiment mettre à jour ce client ?")) return;
 
-  // Essais add/remove in "newClient"
-  const handleAddEssaiRow = () => {
-    setNewClient({
-      ...newClient,
-      essais: [...newClient.essais, { type_ciment: "", produit_ciment: "", methode: "" }],
+    try {
+      const payload = {
+        ...editClient,
+        types_ciment: editClient.types_ciment, // always IDs
+      };
+
+      const res = await fetch(`http://localhost:5000/api/clients/${editClient.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setValidationMessage("✅ Client modifié avec succès");
+        fetchClients();
+        setShowEditClient(false);
+        setTimeout(() => setValidationMessage(""), 5000);
+      } else {
+        const errorData = await res.json();
+        setValidationMessage(`❌ Erreur: ${errorData.message}`);
+      }
+    } catch (err) {
+      console.error("❌ Erreur modification client:", err);
+      setValidationMessage("❌ Erreur lors de la modification du client");
+    }
+  };
+
+  const handleDeleteClient = async () => {
+    if (!selectedClientId) {
+      alert("Veuillez sélectionner un client à supprimer");
+      return;
+    }
+    if (!window.confirm("⚠️ Voulez-vous vraiment supprimer ce client ?")) return;
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/clients/${selectedClientId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setClientsData((prev) => prev.filter((c) => c.id !== parseInt(selectedClientId)));
+        setSelectedClientId("");
+        setValidationMessage(data.message);
+        setTimeout(() => setValidationMessage(""), 5000);
+      } else {
+        alert(data.message || "Erreur lors de la suppression");
+      }
+    } catch (err) {
+      console.error("❌ Erreur suppression client:", err);
+    }
+  };
+
+  const toggleCementType = (typeId, isNewClient = true) => {
+    const clientState = isNewClient ? newClient : editClient;
+    const setClientState = isNewClient ? setNewClient : setEditClient;
+
+    let updatedTypes = [...clientState.types_ciment];
+    if (updatedTypes.includes(typeId)) {
+      updatedTypes = updatedTypes.filter((id) => id !== typeId);
+    } else {
+      updatedTypes.push(typeId);
+    }
+
+    setClientState({
+      ...clientState,
+      types_ciment: updatedTypes,
     });
-  };
-
-  const handleRemoveEssaiRow = (index) => {
-    const updatedEssais = newClient.essais.filter((_, i) => i !== index);
-    setNewClient({ ...newClient, essais: updatedEssais });
-  };
-
-  // Adding a new client (local only for now)
-  const handleSaveNewClient = () => {
-    const newId = clientsData.length + 1;
-    setClientsData([...clientsData, { id: newId, ...newClient }]);
-    setNewClient({
-      sigle: "",
-      nom_raison_sociale: "",
-      adresse: "",
-      essais: [{ type_ciment: "", produit_ciment: "", methode: "" }],
-    });
-    setShowAddClient(false);
-  };
-
-  // Deleting a client (local only for now)
-  const handleDeleteClient = (id) => {
-    if (!id) return;
-    const updated = clientsData.filter((c) => c.id !== parseInt(id));
-    setClientsData(updated);
-    if (selectedClientId === id) setSelectedClientId("");
-    setShowDeleteClient(false);
   };
 
   const selectedClient = selectedClientId
     ? clientsData.find((c) => c.id === parseInt(selectedClientId))
     : null;
 
+  useEffect(() => {
+    if (selectedClientId) {
+      console.log("Selected Client:", selectedClient);
+      console.log("Cement Types:", selectedClient?.types_ciment);
+      console.log("All Cement Types:", typesCiment);
+    }
+  }, [selectedClientId, selectedClient, typesCiment]);
+
   return (
     <div className="parametre-entreprise-container">
       <Header />
-
       <div className="parametre-entreprise-content">
-        <div className="entreprise-header">
+        <div className="paramh">
           <h1>
             <i className="fas fa-cogs"></i> Paramètres Entreprise
           </h1>
         </div>
+           <hr/>
+        {validationMessage && <p className="validation-msg">{validationMessage}</p>}
 
-        
-
+        {/* Action buttons - MOVED ABOVE CLIENT INFO */}
+        <div className="action-buttons">
+          <button className="primary-btn" onClick={() => setShowAddClient(true)}>➕ Ajouter Nouveau Client</button>
+          <button className="secondary-btn" onClick={openEditClient}> ⚙️ Modifier Client</button>
+          <button className="danger-btn" onClick={handleDeleteClient}>🗑️ Supprimer Client</button>
+        </div>
+            <hr/>
         {/* Informations client */}
         <div className="info-card">
           <h2 className="card-title">Informations Client</h2>
           <div className="client-info-grid">
             <div className="form-section">
               <label className="form-label">Sigle :</label>
-              <div className="select-container">
-                <select
-                  value={selectedClientId}
-                  onChange={handleClientChange}
-                  className="client-select"
-                >
-                  <option value="">-- Sélectionner --</option>
-                  {clientsData.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.sigle}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            {selectedClient && (
-              <>
-                <div className="form-section">
-                  <label className="form-label">Nom / Raison sociale :</label>
-                  <input
-                    className="form-input"
-                    type="text"
-                    value={selectedClient.nom_raison_sociale}
-                    readOnly
-                  />
-                </div>
-                <div className="form-section">
-                  <label className="form-label">Adresse :</label>
-                  <input
-                    className="form-input"
-                    type="text"
-                    value={selectedClient.adresse}
-                    readOnly
-                  />
-                </div>
-                <div className="form-section">
-                  <label className="form-label">Type Ciment :</label>
-                  <input
-  className="form-input"
-  type="text"
-  value={selectedClient.types_ciment || "Non défini"}
-  readOnly
-/>
-
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Modal: Ajouter un client */}
-        {showAddClient && (
-          <div className="modal">
-            <div className="modal-content">
-              <h3>Ajouter un client</h3>
-              <label>Sigle :</label>
-              <input
-                type="text"
-                value={newClient.sigle}
-                onChange={(e) => setNewClient({ ...newClient, sigle: e.target.value })}
-              />
-              <label>Nom / Raison Sociale :</label>
-              <input
-                type="text"
-                value={newClient.nom_raison_sociale}
-                onChange={(e) =>
-                  setNewClient({ ...newClient, nom_raison_sociale: e.target.value })
-                }
-              />
-              <label>Adresse :</label>
-              <input
-                type="text"
-                value={newClient.adresse}
-                onChange={(e) => setNewClient({ ...newClient, adresse: e.target.value })}
-              />
-
-              <h3>Essais</h3>
-              {newClient.essais.map((essai, index) => (
-                <div key={index} className="essai-row">
-                  <input
-                    type="text"
-                    placeholder="Type ciment"
-                    value={essai.type_ciment}
-                    onChange={(e) => {
-                      const updated = [...newClient.essais];
-                      updated[index].type_ciment = e.target.value;
-                      setNewClient({ ...newClient, essais: updated });
-                    }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Produit ciment"
-                    value={essai.produit_ciment}
-                    onChange={(e) => {
-                      const updated = [...newClient.essais];
-                      updated[index].produit_ciment = e.target.value;
-                      setNewClient({ ...newClient, essais: updated });
-                    }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Méthode"
-                    value={essai.methode}
-                    onChange={(e) => {
-                      const updated = [...newClient.essais];
-                      updated[index].methode = e.target.value;
-                      setNewClient({ ...newClient, essais: updated });
-                    }}
-                  />
-                  <button className="danger small" onClick={() => handleRemoveEssaiRow(index)}>
-                    ❌
-                  </button>
-                </div>
-              ))}
-              <button className="secondary-btn" onClick={handleAddEssaiRow}>
-                + Ajouter un essai
-              </button>
-              <div className="modal-actions">
-                <button className="primary-btn" onClick={handleSaveNewClient}>
-                  Enregistrer
-                </button>
-                <button className="secondary-btn" onClick={() => setShowAddClient(false)}>
-                  Annuler
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Modal: Supprimer un client */}
-        {showDeleteClient && (
-          <div className="modal">
-            <div className="modal-content">
-              <h2>Supprimer un Client</h2>
-              <select onChange={(e) => handleDeleteClient(e.target.value)}>
-                <option value="">Sélectionnez un client</option>
-                {clientsData.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.sigle} - {c.nom_raison_sociale}
+              <select
+                value={selectedClientId}
+                onChange={handleClientChange}
+                className="client-select"
+              >
+                <option value="">-- Sélectionner --</option>
+                {clientsData.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.sigle} 
                   </option>
                 ))}
               </select>
-              <button className="secondary-btn" onClick={() => setShowDeleteClient(false)}>
-                Fermer
-              </button>
+            </div>
+
+            <div className="form-section">
+              <label className="form-label">Nom / Raison sociale :</label>
+              <input
+                className="form-input"
+                type="text"
+                value={selectedClient ? selectedClient.nom_raison_sociale : "---"}
+                readOnly
+              />
+            </div>
+            <div className="form-section">
+              <label className="form-label">Adresse :</label>
+              <input
+                className="form-input"
+                type="text"
+                value={selectedClient ? selectedClient.adresse : "---"}
+                readOnly
+              />
+            </div>
+           
+            <div className="form-section">
+              <label className="form-label">Types Ciment :</label>
+              <div className="cement-types-list">
+                {selectedClient && selectedClient.types_ciment && selectedClient.types_ciment.length > 0 ? (
+                  selectedClient.types_ciment.map((tc) => {
+                    const typeId = typeof tc === 'object' ? tc.id : tc;
+                    const typeObj = typesCiment.find(t => t.id === typeId);
+                    
+                    return typeObj ? (
+                      <span key={typeId} className="cement-tag">
+                        {typeObj.code} - {typeObj.description}
+                      </span>
+                    ) : null;
+                  })
+                ) : (
+                  <span className="no-cement">---</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Modal: Ajouter Client */}
+        {showAddClient && (
+          <div className="modal">
+            <div className="modal-content">
+              <button className="close-btn" onClick={() => setShowAddClient(false)}>✖</button>
+              <h3>Ajouter un client</h3>
+              <div className="form-group">
+                <label>Sigle :</label>
+                <input
+                  type="text"
+                  value={newClient.sigle}
+                  onChange={(e) => setNewClient({ ...newClient, sigle: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Nom / Raison Sociale :</label>
+                <input
+                  type="text"
+                  value={newClient.nom_raison_sociale}
+                  onChange={(e) => setNewClient({ ...newClient, nom_raison_sociale: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Adresse :</label>
+                <input
+                  type="text"
+                  value={newClient.adresse}
+                  onChange={(e) => setNewClient({ ...newClient, adresse: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <h3>Types de Ciment</h3>
+                <div className="cement-selection">
+                  {typesCiment.map((tc) => (
+                    <div key={tc.id} className="cement-item">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={newClient.types_ciment.includes(tc.id)}
+                          onChange={() => toggleCementType(tc.id, true)}
+                        />
+                        <strong>{tc.code}</strong> - {tc.description}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button className="primary-btn" onClick={handleSaveNewClient}>Enregistrer</button>
+                <button className="secondary-btn" onClick={() => setShowAddClient(false)}>Annuler</button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Validation Message */}
-        {validationMessage && (
-          <div
-            className={`validation-message ${
-              validationMessage.includes("✅") ? "success" : "error"
-            }`}
-          >
-            {validationMessage}
+        {/* Modal: Modifier Client */}
+        {showEditClient && (
+          <div className="modal">
+            <div className="modal-content">
+              <button className="close-btn" onClick={() => setShowEditClient(false)}>✖</button>
+              <h3>Modifier le client</h3>
+              <div className="form-group">
+                <label>Sigle :</label>
+                <input
+                  type="text"
+                  value={editClient.sigle}
+                  onChange={(e) => setEditClient({ ...editClient, sigle: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Nom / Raison Sociale :</label>
+                <input
+                  type="text"
+                  value={editClient.nom_raison_sociale}
+                  onChange={(e) => setEditClient({ ...editClient, nom_raison_sociale: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Adresse :</label>
+                <input
+                  type="text"
+                  value={editClient.adresse}
+                  onChange={(e) => setEditClient({ ...editClient, adresse: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <h3>Types de Ciment</h3>
+                <h5>Ciment Courant:</h5>
+                <div className="cement-selected">
+                  {editClient.types_ciment.length > 0 ? (
+                    editClient.types_ciment.map((id) => {
+                      const obj = typesCiment.find((t) => t.id === id);
+                      return (
+                        <span key={id} className="cement-tag">
+                          {obj?.code} - {obj?.description}
+                        </span>
+                      );
+                    })
+                  ) : (
+                    <span className="no-cement">Aucun sélectionné</span>
+                  )}
+                </div>
+                <div className="cement-selection">
+                  {typesCiment.map((tc) => (
+                    <div key={tc.id} className="cement-item">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={editClient.types_ciment.includes(tc.id)}
+                          onChange={() => toggleCementType(tc.id, false)}
+                        />
+                        <strong>{tc.code}</strong> - {tc.description}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                
+              </div>
+              <div className="modal-actions">
+                <button className="primary-btn" onClick={handleUpdateClient}>Mettre à jour</button>
+                <button className="secondary-btn" onClick={() => setShowEditClient(false)}>Annuler</button>
+              </div>
+            </div>
           </div>
         )}
-
-        {/* Action buttons */}
-        <div className="header-actions">
-          <button className="action-btn print-btn" onClick={handlePrint}>
-            <i className="fas fa-print"></i> Imprimer
-          </button>
-          <button className="header-btn" onClick={() => setShowAddClient(true)}>
-            <i className="fas fa-user-plus"></i> Ajouter Client
-          </button>
-          <button className="header-btn danger" onClick={() => setShowDeleteClient(true)}>
-            <i className="fas fa-user-times"></i> Supprimer Client
-          </button>
-          <button className="primary-btn" onClick={handleSave}>
-            <i className="fas fa-check-circle"></i> Enregistrer
-          </button>
-          <button className="validate-btn" onClick={handleValidate}>
-            <i className="fas fa-check-double"></i> Valider
-          </button>
-          <button className="secondary-btn" onClick={handleHelp}>
-            <i className="fas fa-question-circle"></i> Aide
-          </button>
-        </div>
       </div>
     </div>
   );

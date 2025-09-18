@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import logo from "./LogoCetim.png";
 import "./Header.css";
 
 function Header() {
   const [isOpen, setIsOpen] = useState(true);
   const [isFirstVisit, setIsFirstVisit] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Check if it's the user's first visit to the page
@@ -20,6 +21,20 @@ function Header() {
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
+  };
+
+  const handleLogout = () => {
+    // Clear any user session data if needed
+    localStorage.removeItem("token");
+    localStorage.removeItem("userData");
+    
+    // Redirect to login page
+    navigate("/login");
+    
+    // Close the menu if not first visit
+    if (!isFirstVisit) {
+      toggleMenu();
+    }
   };
 
   return (
@@ -74,6 +89,16 @@ function Header() {
             >
               <span>Historique</span>
             </NavLink>
+          </li>
+          
+          {/* Quitter/Logout link */}
+          <li className="header-nav-item header-nav-item-quitter">
+            <button 
+              className="header-nav-link header-nav-link-quitter"
+              onClick={handleLogout}
+            >
+              <span>Quitter</span>
+            </button>
           </li>
         </ul>
       </nav>
