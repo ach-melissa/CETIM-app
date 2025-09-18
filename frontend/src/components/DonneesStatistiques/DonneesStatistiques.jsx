@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from "react";
 import './DonneesStatistiques.css';
 
 
@@ -188,6 +188,14 @@ const DonneesStatistiques = ({
     startDate,
   endDate,
 }) => {
+
+  const [rows, setRows] = useState([]);
+
+  useEffect(() => {
+    // Load filtered rows from localStorage
+    const savedRows = JSON.parse(localStorage.getItem("selectedRows") || "[]");
+    setRows(savedRows);
+  }, []);
   // List of all parameters we want to analyze
   const parameters = [
     { key: "rc2j", label: "RC2J" },
@@ -317,7 +325,9 @@ if (Number(selectedType) === 1) {
       <h2>Période du {startDate || '......'} au {endDate || '...........'}</h2>
       <h3>{selectedProduit && ` ${produits.find(p => p.id == selectedProduit)?.nom}`} ({produitDescription})</h3>
       
-      {tableData.length > 0 ? (
+
+
+      {rows.length === 0 ? (
         <div>
           <table className="stats-table">
             <thead>

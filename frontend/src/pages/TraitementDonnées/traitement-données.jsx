@@ -35,12 +35,9 @@ const TraitDonnes = () => {
   const [endDate, setEndDate] = useState('');
 
 
-  // Filtered data (only rows within period)
-const filteredTableData = tableData.filter((row) => {
-  if (!startDate || !endDate) return []; // nothing if no period
-  const d = new Date(row.date);
-  return d >= new Date(startDate) && d <= new Date(endDate);
-});
+const [filteredRows, setFilteredRows] = useState([]);
+
+
 
   // Mock types data
   const typeFactices = [
@@ -332,48 +329,36 @@ const donneesFactices = [
     setChartStats(stats);
   }, [tableData, selectedParameter, selectedClass]);
 
-  const handleFileImport = (e) => {
-    console.log("handleFileImport called");
-    const file = e.target.files[0];
-    if (!file) return;
+const handleFileImport = (e) => {
+  const file = e.target.files[0];
+  const reader = new FileReader();
 
-    if (!selectedClient) {
-      setError("Veuillez d'abord sélectionner un client.");
-      return;
-    }
+  reader.onload = (evt) => {
+    const bstr = evt.target.result;
+    const wb = XLSX.read(bstr, { type: "binary" });
+    const wsname = wb.SheetNames[0];
+    const ws = wb.Sheets[wsname];
+    const importedData = XLSX.utils.sheet_to_json(ws);
 
-    const allowedExtensions = [".xls", ".xlsx"];
-    const fileExtension = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+    setTableData(prev => {
+      // Filter out rows that already exist in prev
+      const uniqueNewRows = importedData.filter(newRow => {
+        return !prev.some(existingRow =>
+          existingRow.num_ech === newRow.num_ech &&
+          existingRow.date === newRow.date
+        );
+      });
 
-    if (!allowedExtensions.includes(fileExtension)) {
-      setError("❌ Seuls les fichiers Excel (.xls, .xlsx) sont autorisés.");
-      return;
-    }
+      return [...prev, ...uniqueNewRows];
+    });
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-
-        processExcelData(jsonData);
-        setSuccess("Fichier Excel importé avec succès! Les données ont été ajoutées au tableau.");
-        setTimeout(() => setSuccess(""), 5000);
-        
-        // Reset the file input to allow importing the same file again
-        e.target.value = '';
-      } catch (error) {
-        console.error("Erreur lors du traitement du fichier Excel:", error);
-        setError("Erreur lors du traitement du fichier Excel. Veuillez vérifier le format.");
-      }
-    };
-    reader.onerror = () => {
-      setError("Erreur lors de la lecture du fichier.");
-    };
-    reader.readAsArrayBuffer(file);
+    alert("Fichier Excel importé avec succès ! Les doublons ont été ignorés.");
   };
+
+  reader.readAsBinaryString(file);
+};
+
+
 
   // Process Excel data and add to table
   const processExcelData = (excelData) => {
@@ -598,7 +583,8 @@ const handlePrint = () => {
       <div className="tab-content">
         {activeTab === 'donnees' && (
           <DonneesTraitees
-            tableData={tableData} 
+  tableData={tableData}
+  setTableData={setTableData}
             clients={clients}
             selectedClient={selectedClient}
             setSelectedClient={setSelectedClient}
@@ -631,6 +617,7 @@ const handlePrint = () => {
 
         {activeTab === 'statistiques' && (
           <DonneesStatistiques
+          data={filteredRows}
             tableData={tableData} 
             clients={clients}
             selectedClient={selectedClient}
@@ -650,6 +637,7 @@ const handlePrint = () => {
         )}
 {activeTab === 'contConform' && (
   <ControleConformite
+  data={filteredRows}
     tableData={tableData} 
     clients={clients}
     selectedClient={selectedClient}
@@ -667,6 +655,7 @@ const handlePrint = () => {
 )}
         {activeTab === 'tabconform' && (
           <TableConformite
+          data={filteredRows}
             tableData={tableData} 
             clients={clients}
             selectedClient={selectedClient}
@@ -687,6 +676,7 @@ const handlePrint = () => {
 
         {activeTab === 'graphiques' && (
           <DonneesGraphiques
+          data={filteredRows}
              tableData={filteredTableData}
             parameters={parameters}
             selectedParameter={selectedParameter}
