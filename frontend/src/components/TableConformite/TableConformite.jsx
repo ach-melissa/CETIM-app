@@ -175,19 +175,16 @@ const getLimitsByClass = (classe, key) => {
 
 
 const TableConformite = ({   
-  clients,
-  selectedClient,
-  selectedProduit,
-  produits,
-  produitDescription,
-  selectedType,
-  tableData,
-  handleExport,
-  handlePrint,
-  handleSave,
-  startDate,
-  endDate,
-  onBack
+      clientId, 
+      produitId, 
+      phase, 
+      selectedType, 
+      onTableDataChange, 
+      initialStart, 
+      initialEnd, 
+      produitDescription,
+      clients = [], 
+      produits = [] 
  }) => {
 
   // List of all parameters we want to analyze
@@ -225,11 +222,18 @@ if (Number(selectedType) === 1) {
   return (
     <div className="cement-table-page">
       <div className="cement-table-container">
-        <p><strong>{clients.find(c => c.id == selectedClient)?.nom_raison_sociale || 'Aucun'}</strong></p>    
-        <h2>Données Statistiques</h2>
-        <h2>Période du {startDate || '......'} au {endDate || '...........'}</h2>
-        <h3>{selectedProduit && ` ${produits.find(p => p.id == selectedProduit)?.nom}`} ({produitDescription})</h3>
-       
+<div style={{ marginBottom: "1rem" }}>
+  <p>
+    <strong>
+      {clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}
+    </strong>
+  </p>
+  <h2>Période du {start || "......"} au {end || "..........."} </h2>
+{produitId && (
+  <h3>{produitDescription}</h3>
+)}
+
+</div>
         <table>
           <thead>
             <tr>

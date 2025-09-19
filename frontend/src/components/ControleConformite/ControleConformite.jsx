@@ -174,17 +174,18 @@ const getLimitsByClass = (classe, key) => {
 };
 
 const ControleConformite = ({
-  clients,
-  selectedClient,
-  selectedType,
-  selectedProduit,
-  produits,
-  produitDescription,
-  tableData,
-  handleExport,
-  handlePrint,
-  handleSave,
-  onBack
+
+        clientId, 
+      produitId, 
+  
+      selectedType, 
+      onTableDataChange, 
+      initialStart, 
+      initialEnd, 
+      produitDescription,
+      clients = [], 
+      produits = [] ,
+
 }) => {
   // List of all parameters we want to analyze
   const parameters = [
@@ -239,11 +240,19 @@ if (selectedType === "1") {
     return (
       <div className="class-section" key={classe}>
               <div className="report-header">
-        <p><strong>{clients.find(c => c.id == selectedClient)?.nom_raison_sociale || 'Aucun'}</strong></p>    
-        <h2>Contrôle de conformité / classe de résistance</h2>
-        <h3>{selectedProduit && ` ${produits.find(p => p.id == selectedProduit)?.nom}`} ({produitDescription})</h3>
-        <h3>Période du .../.../... au  ../../...</h3>
-       
+<div style={{ marginBottom: "1rem" }}>
+  <p>
+    <strong>
+      {clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}
+    </strong>
+  </p>
+  <h2>Contrôle de conformité / classe de résistance</h2>
+  <h2>Période du {start || "......"} au {end || "..........."} </h2>
+{produitId && (
+  <h3>{produitDescription}</h3>
+)}
+
+</div>
     <hr className="strong-hr" />
   <h3>CLASSE {classe}</h3>
   

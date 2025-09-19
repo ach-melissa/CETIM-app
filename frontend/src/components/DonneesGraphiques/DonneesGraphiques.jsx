@@ -1,49 +1,44 @@
-import React, { useState, useMemo } from 'react';
+// src/components/DonneesGraphiques/DonneesGraphiques.jsx
+import React, { useState } from 'react';
 import './DonneesGraphiques.css';
 
-
-
-
-
-
 const DonneesGraphiques = ({
-  parameters,
+  parameters = [],           // default to empty array
   selectedParameter,
-  setSelectedParameter,
-  classOptions,
+  setSelectedParameter = () => {},
+  classOptions = {},        // default to empty object
   selectedClass,
-  setSelectedClass,
-  chartStats,
-  tableData,
-  handleExport,
-  handlePrint,
-  handleSave
+  setSelectedClass = () => {},
+  chartStats = {},          // default to empty object
+  tableData = [],           // default to empty array
+  handleExport = () => {},
+  handlePrint = () => {},
+  handleSave = () => {},
 }) => {
   const [currentView, setCurrentView] = useState('main'); // 'main', 'conformity', 'table'
-  const [cementParams, setCementParams] = useState({});
-const [activeTab, setActiveTab] = useState('graphiques');
-
+  const [activeTab, setActiveTab] = useState('graphiques');
 
   return (
     <div className="charts-section">
-      
       {currentView === 'main' && (
         <>
           <label htmlFor="parameter">Conformité de :</label>
           <select 
             id="parameter" 
-            value={selectedParameter} 
+            value={selectedParameter || ''} 
             onChange={e => setSelectedParameter(e.target.value)}
           >
-            {parameters.map(param => (
-              <option key={param.id} value={param.id}>{param.label}</option>
+            {(parameters || []).map((param) => (
+              <option key={param.id || param.key} value={param.id || param.key}>
+                {param.label}
+              </option>
             ))}
           </select>
 
           <div className="radio-groups-container">
-            {Object.entries(classOptions).map(([type, classes]) => (
+            {Object.entries(classOptions || {}).map(([type, classes]) => (
               <div key={type} className="radio-group">
-                {classes.map((className) => (
+                {(classes || []).map((className) => (
                   <label key={className}>
                     <input
                       type="radio"
@@ -61,21 +56,32 @@ const [activeTab, setActiveTab] = useState('graphiques');
 
           {chartStats && (
             <div className="stats-display">
-              {chartStats.limiteInf !== undefined && <div>Limite inférieure: {chartStats.countBelowInf} ({chartStats.percentBelowInf}%)</div>}
-              {chartStats.limiteSup !== undefined && <div>Limite supérieure: {chartStats.countAboveSup} ({chartStats.percentAboveSup}%)</div>}
-              {chartStats.limiteGarantie !== undefined && <div>Limite garantie: {chartStats.countBelowGarantie} ({chartStats.percentBelowGarantie}%)</div>}
-              <div>Moyenne: {chartStats.moyenne}</div>
+              {chartStats.limiteInf !== undefined && (
+                <div>
+                  Limite inférieure: {chartStats.countBelowInf || 0} ({chartStats.percentBelowInf || 0}%)
+                </div>
+              )}
+              {chartStats.limiteSup !== undefined && (
+                <div>
+                  Limite supérieure: {chartStats.countAboveSup || 0} ({chartStats.percentAboveSup || 0}%)
+                </div>
+              )}
+              {chartStats.limiteGarantie !== undefined && (
+                <div>
+                  Limite garantie: {chartStats.countBelowGarantie || 0} ({chartStats.percentBelowGarantie || 0}%)
+                </div>
+              )}
+              <div>Moyenne: {chartStats.moyenne || '-'}</div>
             </div>
           )}
 
           <div className="actions-bar">
-            <button onClick={handleExport} disabled={tableData.length === 0}>Exporter</button>
-            <button onClick={handlePrint} disabled={tableData.length === 0}>Imprimer</button>
-            <button onClick={handleSave} disabled={tableData.length === 0}>Sauvegarder</button> 
+            <button onClick={handleExport} disabled={(tableData || []).length === 0}>Exporter</button>
+            <button onClick={handlePrint} disabled={(tableData || []).length === 0}>Imprimer</button>
+            <button onClick={handleSave} disabled={(tableData || []).length === 0}>Sauvegarder</button>
           </div>
         </>
       )}
-      
     </div>
   );
 };
