@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react"; 
 import { NavLink, useNavigate } from "react-router-dom";
 import logo from "./LogoCetim.png";
 import "./Header.css";
@@ -24,13 +24,13 @@ function Header() {
   };
 
   const handleLogout = () => {
-    // Clear any user session data if needed
+    // Clear any user session data
     localStorage.removeItem("token");
     localStorage.removeItem("userData");
-    
-    // Redirect to login page
-    navigate("/login");
-    
+
+    // Redirect to login page (root "/")
+    navigate("/");
+
     // Close the menu if not first visit
     if (!isFirstVisit) {
       toggleMenu();
@@ -40,11 +40,12 @@ function Header() {
   return (
     <>
       {/* Hamburger button */}
-      <div className={`header-menu-btn ${isOpen ? "open" : ""}`} onClick={toggleMenu}>
-        
-      </div>
+      <div
+        className={`header-menu-btn ${isOpen ? "open" : ""}`}
+        onClick={toggleMenu}
+      ></div>
 
-      {/* Overlay to close menu when clicking outside */}
+      {/* Overlay */}
       {isOpen && <div className="header-overlay" onClick={toggleMenu}></div>}
 
       {/* Sidebar */}
@@ -90,8 +91,8 @@ function Header() {
               <span>Historique</span>
             </NavLink>
           </li>
-          
-          {/* Quitter/Logout link */}
+
+          {/* Quitter */}
           <li className="header-nav-item header-nav-item-quitter">
             <button 
               className="header-nav-link header-nav-link-quitter"

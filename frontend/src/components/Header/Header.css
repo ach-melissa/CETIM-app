@@ -133,23 +133,24 @@
     left: 0;
   }
 }
-.header-nav-item-quitter {
-  margin-top: auto; /* Pushes it to the bottom */
-  border-top: 1px solid #e0e0e0;
-  padding-top: 15px;
-}
-
+/* Quitter button styled like links */
 .header-nav-link-quitter {
-  background: none;
-  border: none;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  color: #e74c3c !important; /* Red color for logout */
+  all: unset; /* reset default button styles */
+  display: block;
+ 
+  padding: 1rem 1.5rem;
+  color: #ecf0f1;
   font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
 }
 
 .header-nav-link-quitter:hover {
-  background-color: rgba(231, 76, 60, 0.1) !important;
-  color: #c0392b !important;
+  background-color: #34495e;
+  padding-left: 2rem;
+}
+
+.header-nav-item-quitter {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }

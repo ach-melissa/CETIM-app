@@ -91,6 +91,137 @@
   transition: all 0.3s ease;
 }
 
+/* Container */
+.trait-donnees-container {
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  color: #333;
+}
+
+/* Title */
+.trait-donnees-title {
+  font-size: 1.8rem;
+  margin-bottom: 20px;
+  text-align: center;
+  color: #2c3e50;
+}
+
+/* Error & Success messages */
+.error-message {
+  background: #ffe0e0;
+  color: #c0392b;
+  padding: 10px;
+  border: 1px solid #c0392b;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.success-message {
+  background: #e0ffe6;
+  color: #27ae60;
+  padding: 10px;
+  border: 1px solid #27ae60;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+/* Selectors (client, produit, phase, dates) */
+.selectors {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.selectors label {
+  font-weight: bold;
+  font-size: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  color: #34495e;
+}
+
+.selectors select,
+.selectors input[type="date"] {
+  margin-top: 4px;
+  padding: 6px 10px;
+  border: 1px solid #bdc3c7;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  min-width: 180px;
+  transition: border 0.2s;
+}
+
+.selectors select:focus,
+.selectors input[type="date"]:focus {
+  border-color: #3498db;
+  outline: none;
+}
+
+/* Tabs */
+.tabs-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tab,
+.active-tab {
+  padding: 8px 15px;
+  border: 1px solid #bdc3c7;
+  background: #f7f7f7;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  background: #eaeaea;
+}
+
+.active-tab {
+  background: #3498db;
+  color: white;
+  border-color: #3498db;
+}
+
+/* Tables */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+  border: 1px solid #ddd;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.table th {
+  background-color: #f0f4f8;
+  color: #2c3e50;
+  font-weight: bold;
+}
+
+.table tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.table tr:hover {
+  background-color: #f1f9ff;
+}
+
+/* Checkbox column */
+.table input[type="checkbox"] {
+  transform: scale(1.2);
+  cursor: pointer;
+}
+
 /* Responsive adjustments */
 @media (max-width: 600px) {
   .trait-donnees-title {
