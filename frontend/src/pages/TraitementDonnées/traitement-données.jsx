@@ -30,9 +30,13 @@ const TraitDonnes = () => {
 
   const [loading, setLoading] = useState(false);
 
-  const tableRef = useRef();
+const [selectedParameter, setSelectedParameter] = useState("resistance");
+const [selectedClass, setSelectedClass] = useState("");
 
-  // ================================
+  const tableRef = useRef();
+const [filteredTableData, setFilteredTableData] = useState([]);
+ 
+// ================================
   // Load clients
   // ================================
   useEffect(() => {
@@ -221,6 +225,35 @@ const TraitDonnes = () => {
     }
   };
 
+
+  const handleTableDataChange = (data, s, e) => {
+  setTableData(data);
+  setStartDate(s);
+  setEndDate(e);
+};
+  // Example data (replace with real state you already have)
+  const parameters = [
+    { id: "resistance", label: "Résistance (MPa)" },
+  ];
+
+  const classOptions = {
+    "CEM I": ["32.5 L", "32.5 N", "32.5 R"],
+    "CEM II": ["42.5 L", "42.5 N","42.5 R"],
+    "CEM III": ["52.5 L", "52.5 N","52.5 R"]
+  };
+
+  const chartStats = {
+    limiteInf: 27,
+    limiteSup: 36,
+    limiteGarantie: 25,
+    moyenne: 32.75,
+    countBelowInf: 1,
+    percentBelowInf: 25,
+    countAboveSup: 1,
+    percentAboveSup: 25,
+    countBelowGarantie: 0,
+    percentBelowGarantie: 0,
+  };
   // ================================
   // RENDER
   // ================================
@@ -257,15 +290,17 @@ const TraitDonnes = () => {
               </option>
             ))}
           </select>
+                      <div className="produit-description">
+              <strong>Description:</strong> {produitDescription}
+            </div>
         </label>
 
         <label>
           Phase:
           <select value={phase} onChange={(e) => setPhase(e.target.value)}>
             <option value="">-- Choisir phase --</option>
-            <option value="fabrication">Fabrication</option>
-            <option value="livraison">Livraison</option>
-            <option value="autre">Autre</option>
+            <option value="fabrication"> Nouveau type produit </option>
+            <option value="livraison">Situation courante</option>
           </select>
         </label>
       </div>
@@ -314,35 +349,87 @@ const TraitDonnes = () => {
             phase={phase}
             initialStart={startDate}
             initialEnd={endDate}
+            produitDescription={produitDescription}
+            clients={clients}
+            produits={produits}
+            onTableDataChange={handleTableDataChange}
+
+            setFilteredTableData={setFilteredTableData}
+          />
+        )}
+
+
+        {activeTab === 'statistiques' && (
+          <DonneesStatistiques
+            ref={tableRef}
+            clientId={selectedClient}
+            produitId={selectedProduit}
+            initialStart={startDate}
+            initialEnd={endDate}
+            produitDescription={produitDescription}
+            clients={clients}
+            produits={produits}
             onTableDataChange={(data, s, e) => {
               setTableData(data);
               setStartDate(s);
               setEndDate(e);
             }}
+
           />
         )}
+       {activeTab === 'graphiques' && (
+  <DonneesGraphiques
+    parameters={parameters}
+    selectedParameter={selectedParameter}
+    setSelectedParameter={setSelectedParameter}
+    classOptions={classOptions}
+    selectedClass={selectedClass}
+    setSelectedClass={setSelectedClass}
+    chartStats={chartStats}
+    tableData={tableData}
+    handleExport={handleExport}
+    handlePrint={handlePrint}
+    handleSave={handleSave}
+  />
+)}
 
-        {activeTab === "statistiques" && (
-          <DonneesStatistiques
-            tableData={tableData}
-            clients={clients}
-            selectedClient={selectedClient}
-            selectedProduit={selectedProduit}
-            produits={produits}
+
+{activeTab === 'contConform' && (
+  <ControleConformite
+            ref={tableRef}
+            clientId={selectedClient}
+            produitId={selectedProduit}
+            initialStart={startDate}
+            initialEnd={endDate}
             produitDescription={produitDescription}
-            handleExport={handleExport}
-            handlePrint={handlePrint}
-            handleSave={handleSave}
-            startDate={startDate}
-            endDate={endDate}
+            clients={clients}
+            produits={produits}
+            onTableDataChange={(data, s, e) => {
+              setTableData(data);
+              setStartDate(s);
+              setEndDate(e);
+            }}
+  />
+)}
+        {activeTab === 'tabconform' && (
+          <TableConformite
+            ref={tableRef}
+            clientId={selectedClient}
+            produitId={selectedProduit}
+            initialStart={startDate}
+            initialEnd={endDate}
+            produitDescription={produitDescription}
+            clients={clients}
+            produits={produits}
+            onTableDataChange={(data, s, e) => {
+              setTableData(data);
+              setStartDate(s);
+              setEndDate(e);
+            }}
+ 
           />
         )}
 
-        {activeTab === "graphiques" && (
-          <DonneesGraphiques tableData={tableData} selectedProduit={selectedProduit} />
-        )}
-        {activeTab === "contConform" && <ControleConformite data={tableData} />}
-        {activeTab === "tabconform" && <TableConformite data={tableData} />}
       </div>
     </div>
   );

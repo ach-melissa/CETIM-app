@@ -1,0 +1,57 @@
+.historique-container {
+  padding: 20px;
+  max-width: 1000px;
+  margin-left: 250px;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.search-bar {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.history-table th,
+.history-table td {
+  padding: 10px;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+  width: 400px;
+}
+
+.history-table th {
+  background-color: #f4f6f9;
+  font-weight: bold;
+  color: #34495e;
+}
+
+.conforme {
+  color: rgb(0, 53, 128);
+  font-weight: bold;
+  background-color: #e3f1ff;
+}
+
+.non-conforme {
+    background-color: #ededed;
+  color: rgb(0, 0, 0);
+  font-weight: bold;
+}
+
+.history-table tr:hover {
+  background-color: #f9f9f9;
+}
