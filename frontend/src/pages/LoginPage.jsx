@@ -15,11 +15,12 @@ export default function LoginPage() {
     try {
       const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
-      const response = await fetch(`${API_BASE}/api/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+     const response = await fetch("http://localhost:5000/api/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email, password }),
+});
+
 
       if (!response.ok) throw new Error('Login failed');
 
