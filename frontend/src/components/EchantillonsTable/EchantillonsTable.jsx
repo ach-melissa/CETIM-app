@@ -145,6 +145,8 @@ const EchantillonsTable = forwardRef(
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
+
+        
         const formattedRows = jsonData.map((row, index) => ({
           id: Date.now() + index,
           num_ech: row.num_ech || row["Ech"] || "",
@@ -243,6 +245,18 @@ const EchantillonsTable = forwardRef(
       printWindow.document.close();
       printWindow.print();
     };
+
+const handleSave = async () => {
+  try {
+    const res = await axios.post("http://localhost:5000/api/echantillons/save", { rows });
+    alert(`✅ Sauvegardé ${res.data.updated} lignes`);
+  } catch (err) {
+    console.error("Erreur lors de la sauvegarde:", err.response?.data || err.message);
+    alert("❌ Erreur lors de la sauvegarde. Voir console.");
+  }
+};
+
+
 
     return (
       <div>
@@ -409,13 +423,17 @@ const EchantillonsTable = forwardRef(
           </table>
         </div>
 
-        <div style={{ marginBottom: 10 }}>
-          <input type="file" accept=".xlsx,.xls" onChange={handleImportExcel} />
-          <button onClick={exportToExcel}>Export Excel</button>
-          <button onClick={exportToCSV}>Export CSV</button>
-          <button onClick={exportToPDF}>Export PDF</button>
-          <button onClick={handlePrint}>Imprimer</button>
-        </div>
+<div style={{ marginBottom: 10 }}>
+  <input type="file" accept=".xlsx,.xls" onChange={handleImportExcel} />
+<button onClick={handleSave} disabled={rows.length === 0}>Sauvegarder</button>
+
+  <button onClick={exportToExcel}>Export Excel</button>
+  <button onClick={exportToCSV}>Export CSV</button>
+  <button onClick={exportToPDF}>Export PDF</button>
+  <button onClick={handlePrint}>Imprimer</button>
+</div>
+
+
       </div>
     );
   }

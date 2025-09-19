@@ -1,36 +1,7 @@
-
 // src/components/DonneesStatistiques/DonneesStatistiques.jsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import "./DonneesStatistiques.css";
-// Dans DonneesStatistiques.jsx
 import { useData } from "../../context/DataContext";
-
-// ============================================================
-// Mock data: Limits and guarantees per cement class/type
-// ============================================================
-const mockDetails = {
-  // Mécanique
-  resistance_2j: [
-    { famille_code: "CEM I", type_code: "CEM I", classe: "42.5 R", resistance_min: "20.0", resistance_max: null, garantie: "18.0" },
-    { famille_code: "CEM I", type_code: "CEM I", classe: "52.5 N", resistance_min: "20.0", resistance_max: null, garantie: "18.0" },
-    { famille_code: "CEM I", type_code: "CEM I-SR", classe: "42.5 N", resistance_min: "10.0", resistance_max: null, garantie: "8.0" },
-    { famille_code: "CEM II", type_code: "CEM II/A-S", classe: "42.5 R", resistance_min: "20.0", resistance_max: null, garantie: "18.0" },
-    { famille_code: "CEM II", type_code: "CEM II/B-S", classe: "32.5 R", resistance_min: "10.0", resistance_max: null, garantie: "8.0" },
-  ],
-  resistance_7j: [],
-  resistance_28j: [],
-  temps_debut_prise: [],
-  stabilite: [],
-  hydratation: [],
-  SO3: [],
-  C3A: [],
-  pert_au_feu: [],
-  residu_insoluble: [],
-  teneur_chlour: [],
-  ajout_percent: [],
-};
-
-
 
 // ============================================================
 // Utility functions
@@ -64,48 +35,65 @@ const evaluateLimits = (data, key, li, ls, lg) => {
   };
 };
 
-const getLimitsByClass = (classe, key) => {
-  const keyMapping = {
-    rc2j: "resistance_2j",
-    rc7j: "resistance_7j",
-    rc28j: "resistance_28j",
-    prise: "prise",
-    stabilite: "stabilite",
-    hydratation: "hydratation",
-    so3: "so3",
-    c3a: "c3a",
-    pfeu: "pfeu",
-    r_insoluble: "r_insoluble",
-    chlorure: "chlorure",
-    ajout_percent: "ajout_percent",
-  };
-
-  const mockKey = keyMapping[key];
-  if (!mockKey || !mockDetails[mockKey]) return { li: "-", ls: "-", lg: "-" };
-  let found = mockDetails[mockKey].find((item) => item.classe === classe);
-  if (!found) found = mockDetails[mockKey].find((item) => item.classe === "Tous");
-  if (!found && mockDetails[mockKey].length > 0) found = mockDetails[mockKey][0];
-  return { li: found?.resistance_min ?? "-", ls: found?.resistance_max ?? "-", lg: found?.garantie ?? "-" };
-};
-
 // ============================================================
 // DonneesStatistiques Component
 // ============================================================
 const DonneesStatistiques = ({ clientId, produitId, start, end, selectedType, produitDescription, clients = [] }) => {
+  const { filteredTableData, filterPeriod } = useData();
+  const [mockDetails, setMockDetails] = useState({});
+  const [loading, setLoading] = useState(true);
 
- 
-    const { filteredTableData, filterPeriod } = useData();
- const dataToUse = filteredTableData || [];
-  // Debug: affichez ce qui est dans le contexte
+  // Charger les données depuis le fichier JSON
+  useEffect(() => {
+    const fetchMockDetails = async () => {
+      try {
+        const response = await fetch('/Data/parnorm.json');
+        if (!response.ok) throw new Error('Erreur lors du chargement des données');
+        const data = await response.json();
+        setMockDetails(data);
+      } catch (error) {
+        console.error('Erreur de chargement des données:', error);
+        setMockDetails({});
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMockDetails();
+  }, []);
 
+  const getLimitsByClass = (classe, key) => {
+    const keyMapping = {
+      rc2j: "resistance_2j",
+      rc7j: "resistance_7j",
+      rc28j: "resistance_28j",
+      prise: "temps_debut_prise",
+      stabilite: "stabilite",
+      hydratation: "chaleur_hydratation",
+      so3: "SO3",
+      c3a: "C3A",
+      pfeu: "pert_au_feu",
+      r_insoluble: "residu_insoluble",
+      chlorure: "teneur_chlour",
+      ajout_percent: "",
+    };
 
-  if (!filteredTableData || filteredTableData.length === 0) {
-    return <p>Veuillez d'abord filtrer des échantillons.</p>;
-  }
-    console.log("Données filtrées:", filteredTableData);
-  console.log("Période:", filterPeriod);
-console.log("📥 Données reçues du contexte:", filteredTableData.length, "éléments");
+    const mockKey = keyMapping[key];
+    if (!mockKey || !mockDetails[mockKey]) return { li: "-", ls: "-", lg: "-" };
+    
+    let found = mockDetails[mockKey].find((item) => item.classe === classe);
+    if (!found) found = mockDetails[mockKey].find((item) => item.classe === "Tous");
+    if (!found && mockDetails[mockKey].length > 0) found = mockDetails[mockKey][0];
+    
+    return { 
+      li: found?.limit_inf ?? "-", 
+      ls: found?.limit_max ?? "-", 
+      lg: found?.garantie ?? "-" 
+    };
+  };
 
+  const dataToUse = filteredTableData || [];
+
+  if (loading) return <p className="no-data">Chargement des données de référence...</p>;
   if (!dataToUse.length) return <p className="no-data">Veuillez d'abord filtrer des échantillons.</p>;
 
   const parameters = [
@@ -221,8 +209,8 @@ console.log("📥 Données reçues du contexte:", filteredTableData.length, "él
           <strong>{clients.find((c) => c.id === clientId)?.nom_raison_sociale || "Aucun client"}</strong>
         </p>
         <h2>Données Statistiques</h2>
-      <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-      <p>Nombre d'échantillons: {filteredTableData.length}</p>
+        <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
+        <p>Nombre d'échantillons: {filteredTableData.length}</p>
       </div>
 
       <table className="stats-table">
@@ -268,3 +256,4 @@ console.log("📥 Données reçues du contexte:", filteredTableData.length, "él
 };
 
 export default DonneesStatistiques;
+
