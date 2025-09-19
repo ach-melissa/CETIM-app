@@ -324,6 +324,7 @@ app.delete("/api/clients/:id", async (req, res) => {
 
 // --- Login --- //
 app.post('/api/login', async (req, res) => {
+   console.log('🔔 /api/login called', req.method, req.headers['content-type']);
   const { email, password } = req.body;
 
   try {
