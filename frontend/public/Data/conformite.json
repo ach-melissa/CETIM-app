@@ -1,0 +1,161 @@
+{
+      "controles_conformite": [
+    {
+      "parametre": "Résistance  à 2 jours",
+      "type_controle": "mesure",
+      "methode_reference": "EN 196-1",
+      "categorie": "mécanique",
+      "ciment_soumis": "Tous",
+      "frequence_courante": "2/semaine",
+      "frequence_admission": "4/semaine"
+    },
+    {
+      "parametre": "Résistance  à 7 jours",
+      "type_controle": "mesure",
+      "methode_reference": "EN 196-1",
+      "categorie": "mécanique",
+      "ciment_soumis": "Tous",
+      "frequence_courante": "2/semaine",
+      "frequence_admission": "4/semaine"
+    },
+    {
+      "parametre": "Résistance à 28 jours",
+      "type_controle": "mesure",
+      "methode_reference": "EN 196-1",
+      "categorie": "mécanique",
+      "ciment_soumis": "Tous",
+      "frequence_courante": "2/semaine",
+      "frequence_admission": "4/semaine"
+    },
+    {
+      "parametre": "Temps debut de prise",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-3",
+      "categorie": "physique",
+      "ciment_soumis": "Tous",
+      "frequence_courante": "2/semaine",
+      "frequence_admission": "4/semaine"
+    },
+    {
+      "parametre": "Stabilité (expansion)",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-3",
+      "categorie": "physique",
+      "ciment_soumis": "Tous",
+      "frequence_courante": "1/semaine",
+      "frequence_admission": "4/semaine"
+    },
+    {
+      "parametre": "Perte au feu",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-2",
+      "categorie": "chimique",
+      "ciment_soumis": "CEM I, CEM III",
+      "frequence_courante": "2/mois",
+      "frequence_admission": "1/semaine"
+    },
+    {
+      "parametre": "Résidu insoluble",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-2",
+      "categorie": "chimique",
+      "ciment_soumis": "CEM I, CEM III",
+      "frequence_courante": "2/mois",
+      "frequence_admission": "1/semaine"
+    },
+    {
+      "parametre": "Teneur en sulfate",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-2",
+      "categorie": "chimique",
+      "ciment_soumis": "Tous",
+      "frequence_courante": "2/semaine",
+      "frequence_admission": "4/semaine"
+    },
+    {
+      "parametre": "Teneur en chlorure",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-2",
+      "categorie": "chimique",
+      "ciment_soumis": "Tous",
+      "frequence_courante": "2/mois",
+      "frequence_admission": "1/semaine"
+    },
+    {
+      "parametre": "C3A dans le clinker",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-2 (calc)",
+      "categorie": "chimique",
+      "ciment_soumis": "CEM I-SR 0, CEM I-SR 3, CEM I-SR 5, CEM II/A-SR, CEM IV/B-SR",
+      "frequence_courante": "2/mois",
+      "frequence_admission": "1/semaine"
+    },
+    {
+      "parametre": "C3A dans le clinker",
+      "type_controle": null,
+      "methode_reference": "EN 196-2 (calc)",
+      "categorie": "chimique",
+      "ciment_soumis": "CEM II/A-SR, CEM IV/B-SR",
+      "frequence_courante": null,
+      "frequence_admission": null
+    },
+    {
+      "parametre": "Pouzzolanicité",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-5",
+      "categorie": "chimique",
+      "ciment_soumis": "CEM IV",
+      "frequence_courante": "2/mois",
+      "frequence_admission": "1/semaine"
+    },
+    {
+      "parametre": "Chaleur d’hydratation",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-8 ou EN 196-9",
+      "categorie": "physique",
+      "ciment_soumis": "Ciments courants à faible chaleur d’hydratation",
+      "frequence_courante": "1/mois",
+      "frequence_admission": "1/semaine"
+    }
+  ],
+
+  "valeurs_statistiques": [
+    { "categorie": "mecanique", "sous_type": "limite_inferieure", "percentile_pk": 5.00, "prob_acceptation_cr": 5.00 },
+    { "categorie": "mecanique", "sous_type": "limite_superieure", "percentile_pk": 10.00, "prob_acceptation_cr": 5.00 },
+    { "categorie": "physique", "sous_type": null, "percentile_pk": 10.00, "prob_acceptation_cr": 5.00 },
+    { "categorie": "chimique", "sous_type": null, "percentile_pk": 10.00, "prob_acceptation_cr": 5.00 }
+  ],
+
+  "coefficients_k": [
+    { "n_min": 20, "n_max": 21, "n_range": "20 à 21", "k_pk5": 2.40, "k_pk10": 1.93 },
+    { "n_min": 22, "n_max": 23, "n_range": "22 à 23", "k_pk5": 2.35, "k_pk10": 1.89 },
+    { "n_min": 24, "n_max": 25, "n_range": "24 à 25", "k_pk5": 2.31, "k_pk10": 1.85 },
+    { "n_min": 26, "n_max": 27, "n_range": "26 à 27", "k_pk5": 2.27, "k_pk10": 1.82 },
+    { "n_min": 28, "n_max": 29, "n_range": "28 à 29", "k_pk5": 2.24, "k_pk10": 1.80 },
+    { "n_min": 30, "n_max": 34, "n_range": "30 à 34", "k_pk5": 2.22, "k_pk10": 1.78 },
+    { "n_min": 35, "n_max": 39, "n_range": "35 à 39", "k_pk5": 2.17, "k_pk10": 1.73 },
+    { "n_min": 40, "n_max": 44, "n_range": "40 à 44", "k_pk5": 2.13, "k_pk10": 1.70 },
+    { "n_min": 45, "n_max": 49, "n_range": "45 à 49", "k_pk5": 2.09, "k_pk10": 1.67 },
+    { "n_min": 50, "n_max": 59, "n_range": "50 à 59", "k_pk5": 2.07, "k_pk10": 1.65 },
+    { "n_min": 60, "n_max": 69, "n_range": "60 à 69", "k_pk5": 2.02, "k_pk10": 1.61 },
+    { "n_min": 70, "n_max": 79, "n_range": "70 à 79", "k_pk5": 1.99, "k_pk10": 1.58 },
+    { "n_min": 80, "n_max": 89, "n_range": "80 à 89", "k_pk5": 1.97, "k_pk10": 1.56 },
+    { "n_min": 90, "n_max": 99, "n_range": "90 à 99", "k_pk5": 1.94, "k_pk10": 1.54 },
+    { "n_min": 100, "n_max": 149, "n_range": "100 à 149", "k_pk5": 1.93, "k_pk10": 1.53 },
+    { "n_min": 150, "n_max": 199, "n_range": "150 à 199", "k_pk5": 1.87, "k_pk10": 1.48 },
+    { "n_min": 200, "n_max": 299, "n_range": "200 à 299", "k_pk5": 1.84, "k_pk10": 1.45 },
+    { "n_min": 300, "n_max": 399, "n_range": "300 à 399", "k_pk5": 1.80, "k_pk10": 1.42 },
+    { "n_min": 401, "n_max": 1000000, "n_range": "> 400", "k_pk5": 1.78, "k_pk10": 1.40 }
+  ],
+
+  "conditions_statistiques": [
+    { "n_min": 20, "n_max": 39, "pk_percentile": 10, "ca_probabilite": 0 },
+    { "n_min": 40, "n_max": 54, "pk_percentile": 10, "ca_probabilite": 1 },
+    { "n_min": 40, "n_max": 54, "pk_percentile": 10, "ca_probabilite": 2 },
+    { "n_min": 40, "n_max": 54, "pk_percentile": 10, "ca_probabilite": 3 },
+    { "n_min": 40, "n_max": 54, "pk_percentile": 10, "ca_probabilite": 4 },
+    { "n_min": 40, "n_max": 54, "pk_percentile": 10, "ca_probabilite": 5 },
+    { "n_min": 40, "n_max": 54, "pk_percentile": 10, "ca_probabilite": 6 },
+    { "n_min": 40, "n_max": 54, "pk_percentile": 10, "ca_probabilite": 7 }
+  ]
+}

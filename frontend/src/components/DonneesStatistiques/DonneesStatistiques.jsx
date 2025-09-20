@@ -205,12 +205,14 @@ const DonneesStatistiques = ({ clientId, produitId, start, end, selectedType, pr
   return (
     <div className="stats-section">
       <div style={{ marginBottom: "1rem" }}>
-        <p>
-          <strong>{clients.find((c) => c.id === clientId)?.nom_raison_sociale || "Aucun client"}</strong>
-        </p>
+          <p>
+            <strong>
+              {clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}
+            </strong>
+          </p>
         <h2>Données Statistiques</h2>
         <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-        <p>Nombre d'échantillons: {filteredTableData.length}</p>
+        
       </div>
 
       <table className="stats-table">
