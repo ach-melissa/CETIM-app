@@ -38,7 +38,7 @@ const evaluateLimits = (data, key, li, ls, lg) => {
 // ============================================================
 // DonneesStatistiques Component
 // ============================================================
-const DonneesStatistiques = ({ clientId, produitId, start, end, selectedType, produitDescription, clients = [] }) => {
+const DonneesStatistiques = ({ clientId, produitId, start, end, selectedType, produitDescription, clients = []  }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
   const [loading, setLoading] = useState(true);
@@ -211,6 +211,7 @@ const DonneesStatistiques = ({ clientId, produitId, start, end, selectedType, pr
             </strong>
           </p>
         <h2>Données Statistiques</h2>
+         <p><strong>{produitDescription}</strong></p>
         <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
         
       </div>

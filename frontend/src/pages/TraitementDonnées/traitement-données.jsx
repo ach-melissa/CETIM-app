@@ -435,17 +435,14 @@ const TraitDonnes = () => {
         
         {activeTab === 'graphiques' && (
           <DonneesGraphiques
-            parameters={parameters}
-            selectedParameter={selectedParameter}
-            setSelectedParameter={setSelectedParameter}
-            classOptions={classOptions}
-            selectedClass={selectedClass}
-            setSelectedClass={setSelectedClass}
-            chartStats={chartStats}
-            tableData={tableData}
-            handleExport={handleExport}
-            handlePrint={handlePrint}
-            handleSave={handleSave}
+            ref={tableRef}
+            clientId={selectedClient}
+            produitId={selectedProduit}
+            initialStart={startDate}
+            initialEnd={endDate}
+            produitDescription={produitDescription}
+            clients={clients}
+            produits={produits}
           />
         )}
 

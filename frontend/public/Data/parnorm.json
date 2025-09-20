@@ -613,7 +613,7 @@
     { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "32.5 N", "limit_inf": "32.5", "limit_max": "52.5", "garantie": "30.0" },
     { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "32.5 R", "limit_inf": "32.5", "limit_max": "52.5", "garantie": "30.0" },
     { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "32.5 L", "limit_inf": "32.5", "limit_max": "52.5", "garantie": "30.0" },
-    { "famille_code": "Cemi I", "type_code": "CEM I-SR 3", "classe": "42.5 N", "limit_inf": "42.5", "limit_max": "62.5", "garantie": "40.0" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "42.5 N", "limit_inf": "42.5", "limit_max": "62.5", "garantie": "40.0" },
     { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "42.5 R", "limit_inf": "42.5", "limit_max": "62.5", "garantie": "40.0" },
     { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "42.5 L", "limit_inf": "42.5", "limit_max": "62.5", "garantie": "40.0" },
     { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "52.5 N", "limit_inf": "52.5", "limit_max": null, "garantie": "50.0" },
