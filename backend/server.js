@@ -324,7 +324,6 @@ app.delete("/api/clients/:id", async (req, res) => {
 
 // --- Login --- //
 app.post('/api/login', async (req, res) => {
-   console.log('🔔 /api/login called', req.method, req.headers['content-type']);
   const { email, password } = req.body;
 
   try {
@@ -474,6 +473,7 @@ app.get('/api/echantillons', async (req, res) => {
     res.status(500).json({ error: 'DB error' });
   }
 });
+
 // --- API Produits par client --- //
 app.get("/api/produits/:clientId", async (req, res) => {
   try {

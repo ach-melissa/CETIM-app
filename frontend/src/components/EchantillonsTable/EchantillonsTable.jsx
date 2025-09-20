@@ -6,29 +6,31 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { useData } from "../../context/DataContext";
 
-
-const EchantillonsTable = forwardRef( 
+const EchantillonsTable = forwardRef(
   (
-    { 
-      clientId, 
-      produitId, 
-      phase, 
-      selectedType, 
+    {
+      clientId,
+      produitId,
+      phase,
+      selectedType,
       onTableDataChange,
-      initialStart, 
-      initialEnd, 
+      initialStart,
+      initialEnd,
       produitDescription,
-      clients = [], 
-      produits = [] 
+      clients = [],
+      produits = [],
+      hasData,
+      selectedSituation,
     },
     ref
   ) => {
     const [start, setStart] = useState(initialStart || "");
     const [end, setEnd] = useState(initialEnd || "");
     const [rows, setRows] = useState([]);
+    const [filteredRows, setFilteredRows] = useState([]); // ✅ NEW state
     const [selected, setSelected] = useState(new Set());
     const [loading, setLoading] = useState(false);
-    
+
     const { updateFilteredData } = useData();
 
     const fetchRows = async () => {
@@ -38,27 +40,23 @@ const EchantillonsTable = forwardRef(
         const params = { client_id: clientId };
         if (produitId) params.produit_id = produitId;
         if (phase) params.phase = phase;
-        if (start){
-          const startDate = new Date(start);
-          startDate.setDate(startDate.getDate() + 1); // include last day
-          params.start = startDate.toISOString().split("T")[0];
-        } 
+        if (start) {
+          params.start = new Date(start).toISOString().split("T")[0];
+        }
         if (end) {
           const endDate = new Date(end);
-          endDate.setDate(endDate.getDate() + 1); // include last day
+          endDate.setDate(endDate.getDate() + 1); // inclusive
           params.end = endDate.toISOString().split("T")[0];
         }
 
         const resp = await axios.get("http://localhost:5000/api/echantillons", { params });
         setRows(resp.data || []);
         setSelected(new Set());
-        
-        // Mettre à jour le contexte et le parent
+
         updateFilteredData(resp.data || [], start, end);
         if (onTableDataChange) {
           onTableDataChange(resp.data || [], start, end);
         }
-        
       } catch (err) {
         console.error("Erreur fetch echantillons", err);
         setRows([]);
@@ -84,8 +82,32 @@ const EchantillonsTable = forwardRef(
         }
         return;
       }
-      fetchRows();
-    }, [clientId, produitId, phase]);
+
+      if (selectedSituation) {
+        fetchRows();
+      } else {
+        setRows([]);
+        updateFilteredData([], "", "");
+        if (onTableDataChange) {
+          onTableDataChange([], "", "");
+        }
+      }
+    }, [clientId, produitId, phase, selectedSituation]);
+
+    useEffect(() => {
+      if (start || end) {
+        fetchRows();
+      }
+    }, [start, end]);
+
+    // ✅ Filter rows whenever rows or selectedType changes
+    useEffect(() => {
+      if (!selectedType) {
+        setFilteredRows(rows);
+      } else {
+        setFilteredRows(rows.filter((r) => r.type_ciment === selectedType));
+      }
+    }, [rows, selectedType]);
 
     const toggleRow = (id) => {
       const s = new Set(selected);
@@ -95,10 +117,10 @@ const EchantillonsTable = forwardRef(
     };
 
     const toggleAll = () => {
-      if (selected.size === rows.length) {
+      if (selected.size === filteredRows.length) {
         setSelected(new Set());
       } else {
-        setSelected(new Set(rows.map((r) => r.id)));
+        setSelected(new Set(filteredRows.map((r) => r.id)));
       }
     };
 
@@ -138,6 +160,14 @@ const EchantillonsTable = forwardRef(
       const file = e.target.files[0];
       if (!file) return;
 
+      if (
+        !window.confirm(
+          "Êtes-vous sûr de vouloir importer ce fichier ? Les données seront ajoutées à la base de données."
+        )
+      ) {
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (evt) => {
         const data = new Uint8Array(evt.target.result);
@@ -145,12 +175,12 @@ const EchantillonsTable = forwardRef(
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-
-        
         const formattedRows = jsonData.map((row, index) => ({
           id: Date.now() + index,
           num_ech: row.num_ech || row["Ech"] || "",
-          date_test: formatExcelDate(row.date_test || row["Date"] || row["Date test"] || row["date"] || ""),
+          date_test: formatExcelDate(
+            row.date_test || row["Date"] || row["Date test"] || row["date"] || ""
+          ),
           rc2j: row.rc2j || row["RC2J"] || "",
           rc7j: row.rc7j || row["RC7J"] || "",
           rc28j: row.rc28j || row["RC28J"] || "",
@@ -163,6 +193,7 @@ const EchantillonsTable = forwardRef(
           chlorure: row.chlorure || row["Chlorure"] || "",
           c3a: row.c3a || row["C3A"] || "",
           ajout_percent: row.ajout_percent || row["Ajout %"] || "",
+          type_ciment: row.type_ciment || row["Type Ciment"] || "", // ✅ include type
         }));
 
         setRows((prevRows) => {
@@ -174,18 +205,21 @@ const EchantillonsTable = forwardRef(
           return updated;
         });
 
-        axios.post("http://localhost:5000/api/echantillons/bulk", {
-          client_id: clientId,
-          produit_id: produitId,
-          phase: phase,
-          rows: formattedRows
-        })
-        .then((res) => {
-          console.log("✅ Imported to DB:", res.data);
-        })
-        .catch((err) => {
-          console.error("❌ Import error:", err);
-        });
+        axios
+          .post("http://localhost:5000/api/echantillons/bulk", {
+            client_id: clientId,
+            produit_id: produitId,
+            phase: phase,
+            rows: formattedRows,
+          })
+          .then((res) => {
+            console.log("✅ Imported to DB:", res.data);
+            alert("Fichier importé avec succès !");
+          })
+          .catch((err) => {
+            console.error("❌ Import error:", err);
+            alert("Erreur lors de l'importation. Voir console.");
+          });
 
         setSelected(new Set());
       };
@@ -194,14 +228,14 @@ const EchantillonsTable = forwardRef(
     };
 
     const exportToExcel = () => {
-      const ws = XLSX.utils.json_to_sheet(rows);
+      const ws = XLSX.utils.json_to_sheet(filteredRows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Echantillons");
       XLSX.writeFile(wb, "echantillons.xlsx");
     };
 
     const exportToCSV = () => {
-      const ws = XLSX.utils.json_to_sheet(rows);
+      const ws = XLSX.utils.json_to_sheet(filteredRows);
       const csv = XLSX.utils.sheet_to_csv(ws);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
@@ -213,11 +247,11 @@ const EchantillonsTable = forwardRef(
 
     const exportToPDF = () => {
       const doc = new jsPDF();
-      if (rows.length === 0) {
+      if (filteredRows.length === 0) {
         doc.text("Aucune donnée", 10, 10);
       } else {
-        const columns = Object.keys(rows[0]);
-        const body = rows.map((row) => columns.map((col) => row[col]));
+        const columns = Object.keys(filteredRows[0]);
+        const body = filteredRows.map((row) => columns.map((col) => row[col]));
         doc.autoTable({ head: [columns], body });
       }
       doc.save("echantillons.pdf");
@@ -225,19 +259,24 @@ const EchantillonsTable = forwardRef(
 
     const handlePrint = () => {
       const printWindow = window.open("", "_blank");
-      if (!rows.length) {
+      if (!filteredRows.length) {
         printWindow.document.write("<p>Aucune donnée à imprimer</p>");
       } else {
-        const columns = Object.keys(rows[0]);
+        const columns = Object.keys(filteredRows[0]);
         const tableHtml = `
           <table border="1" style="border-collapse: collapse; width: 100%;">
             <thead>
               <tr>${columns.map((c) => `<th>${c}</th>`).join("")}</tr>
             </thead>
             <tbody>
-              ${rows.map((row) =>
-                `<tr>${columns.map((c) => `<td>${row[c] ?? ""}</td>`).join("")}</tr>`
-              ).join("")}
+              ${filteredRows
+                .map(
+                  (row) =>
+                    `<tr>${columns
+                      .map((c) => `<td>${row[c] ?? ""}</td>`)
+                      .join("")}</tr>`
+                )
+                .join("")}
             </tbody>
           </table>`;
         printWindow.document.write(`<html><body>${tableHtml}</body></html>`);
@@ -246,21 +285,32 @@ const EchantillonsTable = forwardRef(
       printWindow.print();
     };
 
-const handleSave = async () => {
-  try {
-    const res = await axios.post("http://localhost:5000/api/echantillons/save", { rows });
-    alert(`✅ Sauvegardé ${res.data.updated} lignes`);
-  } catch (err) {
-    console.error("Erreur lors de la sauvegarde:", err.response?.data || err.message);
-    alert("❌ Erreur lors de la sauvegarde. Voir console.");
-  }
-};
+    const handleSave = async () => {
+      if (
+        !window.confirm("Êtes-vous sûr de vouloir sauvegarder les modifications ?")
+      )
+        return;
 
-
+      try {
+        const res = await axios.post(
+          "http://localhost:5000/api/echantillons/save",
+          { rows }
+        );
+        alert(`✅ Sauvegardé ${res.data.updated} lignes`);
+      } catch (err) {
+        console.error(
+          "Erreur lors de la sauvegarde:",
+          err.response?.data || err.message
+        );
+        alert("❌ Erreur lors de la sauvegarde. Voir console.");
+      }
+    };
 
     return (
       <div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+        <div
+          style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}
+        >
           <label>
             Du{" "}
             <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
@@ -269,7 +319,7 @@ const handleSave = async () => {
             Au{" "}
             <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
           </label>
-          <button onClick={fetchRows} disabled={loading || !clientId}>
+          <button onClick={fetchRows} disabled={loading || !clientId || !selectedSituation}>
             Filtrer
           </button>
         </div>
@@ -277,163 +327,191 @@ const handleSave = async () => {
         <div style={{ marginBottom: "1rem" }}>
           <p>
             <strong>
-              {clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}
+              {clients.find((c) => c.id == clientId)?.nom_raison_sociale ||
+                "Aucun client"}
             </strong>
           </p>
           <h2>Données à traiter</h2>
-          <h2>Période du {start || "......"} au {end || "..........."} </h2>
+          <h2>
+            Période du {start || "......"} au {end || "..........."}{" "}
+          </h2>
           {produitId && <h3>{produitDescription}</h3>}
         </div>
 
-        <div className="table-container">
-          <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th>
-                  <input
-                    type="checkbox"
-                    onChange={toggleAll}
-                    checked={rows.length > 0 && selected.size === rows.length}
-                  />
-                </th>
-                <th>Ech</th>
-                <th>Date</th>
-                <th>RC2J</th>
-                <th>RC7J</th>
-                <th>RC28J</th>
-                <th>Prise</th>
-                <th>Stabilité</th>
-                <th>Hydratation</th>
-                <th>P. Feu</th>
-                <th>R. Insoluble</th>
-                <th>SO3</th>
-                <th>Chlorure</th>
-                {selectedType === 1 && <th>C3A</th>}
-                {selectedType && selectedType !== 1 && <th>Ajout (Type Ajout) %</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className={selected.has(row.id) ? "selected" : ""}>
-                  <td>
+        {!selectedSituation && (
+          <div
+            style={{
+              padding: "20px",
+              textAlign: "center",
+              backgroundColor: "#f8f9fa",
+              border: "1px solid #dee2e6",
+            }}
+          >
+            <p>
+              Veuillez sélectionner une situation (Situation Courante ou Nouveau
+              Type Produit) pour afficher les données.
+            </p>
+          </div>
+        )}
+
+        {selectedSituation && (
+          <div className="table-container">
+            <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th>
                     <input
                       type="checkbox"
-                      checked={selected.has(row.id)}
-                      onChange={() => toggleRow(row.id)}
+                      onChange={toggleAll}
+                      checked={
+                        filteredRows.length > 0 && selected.size === filteredRows.length
+                      }
                     />
-                  </td>
-                  <td>{row.num_ech}</td>
-                  <td>{row.date_test}</td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.rc2j || ""}
-                      onChange={(e) => handleEdit(row.id, "rc2j", e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.rc7j || ""}
-                      onChange={(e) => handleEdit(row.id, "rc7j", e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.rc28j || ""}
-                      onChange={(e) => handleEdit(row.id, "rc28j", e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={row.prise || ""}
-                      onChange={(e) => handleEdit(row.id, "prise", e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={row.stabilite || ""}
-                      onChange={(e) => handleEdit(row.id, "stabilite", e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={row.hydratation || ""}
-                      onChange={(e) => handleEdit(row.id, "hydratation", e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.pfeu || ""}
-                      onChange={(e) => handleEdit(row.id, "pfeu", e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.r_insoluble || ""}
-                      onChange={(e) => handleEdit(row.id, "r_insoluble", e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.so3 || ""}
-                      onChange={(e) => handleEdit(row.id, "so3", e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.chlorure || ""}
-                      onChange={(e) => handleEdit(row.id, "chlorure", e.target.value)}
-                    />
-                  </td>
-                  {selectedType === 1 && (
+                  </th>
+                  <th>Ech</th>
+                  <th>Date</th>
+                  <th>RC2J</th>
+                  <th>RC7J</th>
+                  <th>RC28J</th>
+                  <th>Prise</th>
+                  <th>Stabilité</th>
+                  <th>Hydratation</th>
+                  <th>P. Feu</th>
+                  <th>R. Insoluble</th>
+                  <th>SO3</th>
+                  <th>Chlorure</th>
+                  {selectedType === 1 && <th>C3A</th>}
+                  {selectedType && selectedType !== 1 && <th>Ajout (Type Ajout) %</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRows.map((row) => (
+                  <tr key={row.id} className={selected.has(row.id) ? "selected" : ""}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(row.id)}
+                        onChange={() => toggleRow(row.id)}
+                      />
+                    </td>
+                    <td>{row.num_ech}</td>
+                    <td>{row.date_test}</td>
                     <td>
                       <input
                         type="number"
-                        value={row.c3a || ""}
-                        onChange={(e) => handleEdit(row.id, "c3a", e.target.value)}
+                        value={row.rc2j || ""}
+                        onChange={(e) => handleEdit(row.id, "rc2j", e.target.value)}
                       />
                     </td>
-                  )}
-                  {selectedType && selectedType !== 1 && (
                     <td>
                       <input
                         type="number"
-                        value={row.ajout_percent || ""}
-                        onChange={(e) => handleEdit(row.id, "ajout_percent", e.target.value)}
+                        value={row.rc7j || ""}
+                        onChange={(e) => handleEdit(row.id, "rc7j", e.target.value)}
                       />
                     </td>
-                  )}
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={15}>Aucune donnée pour cette période / client</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                    <td>
+                      <input
+                        type="number"
+                        value={row.rc28j || ""}
+                        onChange={(e) => handleEdit(row.id, "rc28j", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={row.prise || ""}
+                        onChange={(e) => handleEdit(row.id, "prise", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={row.stabilite || ""}
+                        onChange={(e) => handleEdit(row.id, "stabilite", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={row.hydratation || ""}
+                        onChange={(e) => handleEdit(row.id, "hydratation", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        value={row.pfeu || ""}
+                        onChange={(e) => handleEdit(row.id, "pfeu", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        value={row.r_insoluble || ""}
+                        onChange={(e) =>
+                          handleEdit(row.id, "r_insoluble", e.target.value)
+                        }
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        value={row.so3 || ""}
+                        onChange={(e) => handleEdit(row.id, "so3", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        value={row.chlorure || ""}
+                        onChange={(e) => handleEdit(row.id, "chlorure", e.target.value)}
+                      />
+                    </td>
+                    {selectedType === 1 && (
+                      <td>
+                        <input
+                          type="number"
+                          value={row.c3a || ""}
+                          onChange={(e) => handleEdit(row.id, "c3a", e.target.value)}
+                        />
+                      </td>
+                    )}
+                    {selectedType && selectedType !== 1 && (
+                      <td>
+                        <input
+                          type="number"
+                          value={row.ajout_percent || ""}
+                          onChange={(e) =>
+                            handleEdit(row.id, "ajout_percent", e.target.value)
+                          }
+                        />
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {filteredRows.length === 0 && selectedSituation && (
+                  <tr>
+                    <td colSpan={15}>Aucune donnée pour ce type de ciment</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-<div style={{ marginBottom: 10 }}>
-  <input type="file" accept=".xlsx,.xls" onChange={handleImportExcel} />
-<button onClick={handleSave} disabled={rows.length === 0}>Sauvegarder</button>
-
-  <button onClick={exportToExcel}>Export Excel</button>
-  <button onClick={exportToCSV}>Export CSV</button>
-  <button onClick={exportToPDF}>Export PDF</button>
-  <button onClick={handlePrint}>Imprimer</button>
-</div>
-
-
+        {selectedSituation && (
+          <div style={{ marginBottom: 10 }}>
+            <input type="file" accept=".xlsx,.xls" onChange={handleImportExcel} />
+            <button onClick={handleSave} disabled={rows.length === 0}>
+              Sauvegarder
+            </button>
+            <button onClick={exportToExcel}>Export Excel</button>
+            <button onClick={exportToCSV}>Export CSV</button>
+            <button onClick={exportToPDF}>Export PDF</button>
+            <button onClick={handlePrint}>Imprimer</button>
+          </div>
+        )}
       </div>
     );
   }

@@ -13,9 +13,11 @@ import DonneesGraphiques from "../../components/DonneesGraphiques/DonneesGraphiq
 const TraitDonnes = () => {
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState("");
+
   const [produits, setProduits] = useState([]);
   const [selectedProduit, setSelectedProduit] = useState("");
   const [produitDescription, setProduitDescription] = useState("");
+
   const [phase, setPhase] = useState("");
 
   const [tableData, setTableData] = useState([]);
@@ -30,22 +32,22 @@ const TraitDonnes = () => {
 
   const [loading, setLoading] = useState(false);
 
-const [selectedParameter, setSelectedParameter] = useState("resistance");
-const [selectedClass, setSelectedClass] = useState("");
+  const [selectedParameter, setSelectedParameter] = useState("resistance");
+  const [selectedClass, setSelectedClass] = useState("");
 
   const tableRef = useRef();
-const [filteredTableData, setFilteredTableData] = useState([]);
- 
-// ================================
+  const [filteredTableData, setFilteredTableData] = useState([]);
+
+  // Situation state
+  const [selectedSituation, setSelectedSituation] = useState(null); // "courante" or "nouveau"
+  const [availableCementTypes, setAvailableCementTypes] = useState([]);
+  const [newCementType, setNewCementType] = useState("");
+
   // Load clients
-  // ================================
   useEffect(() => {
     setLoading(true);
     fetch("http://localhost:5000/api/clients")
-      .then((res) => {
-        if (!res.ok) throw new Error("Erreur réseau");
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => {
         setClients(data);
         setLoading(false);
@@ -57,22 +59,18 @@ const [filteredTableData, setFilteredTableData] = useState([]);
       });
   }, []);
 
-  // ================================
-  // Load produits for selected client
-  // ================================
+  // Load produits + available cement types when client changes
   useEffect(() => {
     if (!selectedClient) {
       setProduits([]);
       setSelectedProduit("");
       setProduitDescription("");
+      setSelectedSituation(null);
       return;
     }
 
     fetch(`http://localhost:5000/api/produits/${selectedClient}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Erreur réseau produits");
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => {
         setProduits(data);
       })
@@ -80,11 +78,19 @@ const [filteredTableData, setFilteredTableData] = useState([]);
         console.error("Erreur produits:", err);
         setError("Erreur lors du chargement des produits.");
       });
+
+    fetch("http://localhost:5000/api/types_ciment")
+      .then((res) => res.json())
+      .then((data) => {
+        setAvailableCementTypes(data);
+      })
+      .catch((err) => {
+        console.error("Erreur types ciment:", err);
+        setError("Erreur lors du chargement des types de ciment.");
+      });
   }, [selectedClient]);
 
-  // ================================
   // Update produit description
-  // ================================
   useEffect(() => {
     if (!selectedProduit) {
       setProduitDescription("");
@@ -96,15 +102,75 @@ const [filteredTableData, setFilteredTableData] = useState([]);
     }
   }, [selectedProduit, produits]);
 
-  // ================================
-  // Import Excel → DB + refresh table
-  // ================================
+  // Handle situation selection
+  const handleSituationSelect = (situation) => {
+    setSelectedSituation(situation);
+    setPhase(situation === "courante" ? "livraison" : "fabrication");
+    setSelectedProduit("");
+    setProduitDescription("");
+    setNewCementType("");
+  };
+
+  // Add cement type for client (nouveau)
+  const handleAddCementType = async () => {
+    if (!newCementType) {
+      setError("Veuillez sélectionner un type de ciment.");
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:5000/api/client_cement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: selectedClient,
+          typeCimentId: newCementType,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Erreur ajout type ciment");
+
+      // Refresh produits
+      const produitsRes = await fetch(
+        `http://localhost:5000/api/produits/${selectedClient}`
+      );
+      if (produitsRes.ok) {
+        const data = await produitsRes.json();
+        setProduits(data);
+
+        const newProduct = data.find((p) => p.id == newCementType);
+        if (newProduct) {
+          setSelectedProduit(newProduct.id);
+          setProduitDescription(newProduct.description);
+        }
+      }
+
+      setSuccess("Type de ciment ajouté avec succès !");
+      setError("");
+    } catch (err) {
+      console.error("Erreur ajout type ciment:", err);
+      setError("Impossible d'ajouter le type de ciment.");
+      setSuccess("");
+    }
+  };
+
+  // Import Excel → DB + refresh
   const handleFileImport = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     if (!selectedClient || !selectedProduit || !phase) {
-      setError("Veuillez sélectionner un client, un produit et une phase avant d'importer.");
+      setError(
+        "Veuillez sélectionner un client, un produit et une phase avant d'importer."
+      );
+      return;
+    }
+
+    if (
+      !window.confirm(
+        "Êtes-vous sûr de vouloir importer ce fichier ? Les données seront ajoutées à la base."
+      )
+    ) {
       return;
     }
 
@@ -117,131 +183,51 @@ const [filteredTableData, setFilteredTableData] = useState([]);
       const importedData = XLSX.utils.sheet_to_json(ws);
 
       try {
-        const res = await fetch("http://localhost:5000/api/echantillons/import", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            clientId: selectedClient,
-            produitId: selectedProduit,
-            phase,
-            rows: importedData,
-          }),
-        });
+        const res = await fetch(
+          "http://localhost:5000/api/echantillons/import",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              clientId: selectedClient,
+              produitId: selectedProduit,
+              phase,
+              rows: importedData,
+            }),
+          }
+        );
 
         if (!res.ok) throw new Error("Erreur import serveur");
 
-        setSuccess("Fichier Excel importé et enregistré en base !");
+        setSuccess(
+          "Fichier Excel importé et enregistré en base ! (visible désormais dans Situation Courante)"
+        );
         setError("");
 
-        // ✅ Refresh table automatically
+        // keep data visible temporarily in "nouveau"
         tableRef.current?.refresh();
       } catch (err) {
         console.error("Erreur import:", err);
         setError("Impossible d'importer les données.");
+        setSuccess("");
       }
     };
     reader.readAsBinaryString(file);
   };
 
-  // ================================
-  // Export
-  // ================================
-  const handleExport = () => {
-    if (tableData.length === 0) {
-      setError("Aucune donnée à exporter.");
-      return;
-    }
-    const ws = XLSX.utils.json_to_sheet(tableData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Données Traitées");
-    XLSX.writeFile(wb, "donnees_traitees.xlsx");
-    setSuccess("Données exportées avec succès !");
-  };
-
-  const handlePrint = () => window.print();
-
-  // ================================
-  // Save modifications
-  // ================================
-  const handleSave = async () => {
-    try {
-      const res = await fetch("http://localhost:5000/api/echantillons/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows: tableData }),
-      });
-      if (!res.ok) throw new Error("Erreur lors de la sauvegarde");
-      setSuccess("Modifications sauvegardées en base !");
-    } catch (err) {
-      console.error("Erreur sauvegarde:", err);
-      setError("Impossible de sauvegarder les données.");
-    }
-  };
-
-  // ================================
-  // Row management
-  // ================================
-  const handleDelete = async () => {
-    if (selectedRows.length === 0) {
-      setError("Veuillez sélectionner au moins une ligne.");
-      return;
-    }
-    if (!window.confirm(`Supprimer ${selectedRows.length} ligne(s) ?`)) return;
-
-    try {
-      await fetch("http://localhost:5000/api/echantillons/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedRows }),
-      });
-
-      setTableData((prev) => prev.filter((item) => !selectedRows.includes(item.id)));
-      setSelectedRows([]);
-      setSuccess("Lignes supprimées !");
-    } catch (err) {
-      console.error("Erreur suppression:", err);
-      setError("Impossible de supprimer les lignes.");
-    }
-  };
-
-  const handleClearAll = () => {
-    if (!window.confirm("Êtes-vous sûr de vouloir vider toutes les données ?")) return;
-    setTableData([]);
-    setSelectedRows([]);
-    setSuccess("Toutes les données ont été supprimées !");
-  };
-
-  const toggleRowSelection = (id) => {
-    setSelectedRows((prev) =>
-      prev.includes(id) ? prev.filter((rowId) => rowId !== id) : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedRows.length === tableData.length && tableData.length > 0) {
-      setSelectedRows([]);
-    } else {
-      setSelectedRows(tableData.map((item) => item.id));
-    }
-  };
-
-
   const handleTableDataChange = (data, s, e) => {
-  setTableData(data);
-  setStartDate(s);
-  setEndDate(e);
-};
-  // Example data (replace with real state you already have)
-  const parameters = [
-    { id: "resistance", label: "Résistance (MPa)" },
-  ];
+    setTableData(data);
+    setStartDate(s);
+    setEndDate(e);
+  };
 
+  // Example data for graphs
+  const parameters = [{ id: "resistance", label: "Résistance (MPa)" }];
   const classOptions = {
     "CEM I": ["32.5 L", "32.5 N", "32.5 R"],
-    "CEM II": ["42.5 L", "42.5 N","42.5 R"],
-    "CEM III": ["52.5 L", "52.5 N","52.5 R"]
+    "CEM II": ["42.5 L", "42.5 N", "42.5 R"],
+    "CEM III": ["52.5 L", "52.5 N", "52.5 R"],
   };
-
   const chartStats = {
     limiteInf: 27,
     limiteSup: 36,
@@ -254,23 +240,22 @@ const [filteredTableData, setFilteredTableData] = useState([]);
     countBelowGarantie: 0,
     percentBelowGarantie: 0,
   };
-  // ================================
-  // RENDER
-  // ================================
+
   return (
     <div className="trait-donnees-container">
       <Header />
-
       <h1 className="trait-donnees-title">Traitement Données</h1>
-
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
 
-      {/* Sélecteurs */}
+      {/* Selectors */}
       <div className="selectors">
         <label>
           Client:
-          <select value={selectedClient} onChange={(e) => setSelectedClient(e.target.value)}>
+          <select
+            value={selectedClient}
+            onChange={(e) => setSelectedClient(e.target.value)}
+          >
             <option value="">-- Choisir client --</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
@@ -280,32 +265,105 @@ const [filteredTableData, setFilteredTableData] = useState([]);
           </select>
         </label>
 
-        <label>
-          Produit:
-          <select value={selectedProduit} onChange={(e) => setSelectedProduit(e.target.value)}>
-            <option value="">-- Choisir produit --</option>
-            {produits.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nom}
-              </option>
-            ))}
-          </select>
-                      <div className="produit-description">
-              <strong>Description:</strong> {produitDescription}
+        {selectedClient && (
+          <>
+            <div className="situation-selector">
+              <label>Sélectionnez une situation:</label>
+              <div className="situation-buttons">
+                <button
+                  className={
+                    selectedSituation === "courante"
+                      ? "active-situation"
+                      : "situation-button"
+                  }
+                  onClick={() => handleSituationSelect("courante")}
+                >
+                  Situation Courante
+                </button>
+                <button
+                  className={
+                    selectedSituation === "nouveau"
+                      ? "active-situation"
+                      : "situation-button"
+                  }
+                  onClick={() => handleSituationSelect("nouveau")}
+                >
+                  Nouveau Type Produit
+                </button>
+              </div>
             </div>
-        </label>
 
-        <label>
-          Phase:
-          <select value={phase} onChange={(e) => setPhase(e.target.value)}>
-            <option value="">-- Choisir phase --</option>
-            <option value="fabrication"> Nouveau type produit </option>
-            <option value="livraison">Situation courante</option>
-          </select>
-        </label>
+            {selectedSituation === "courante" && (
+              <label>
+                Produit:
+                <select
+                  value={selectedProduit}
+                  onChange={(e) => setSelectedProduit(e.target.value)}
+                >
+                  <option value="">-- Choisir produit --</option>
+                  {produits.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nom}
+                    </option>
+                  ))}
+                </select>
+                {produitDescription && (
+                  <div className="produit-description">
+                    <strong>Description:</strong> {produitDescription}
+                  </div>
+                )}
+              </label>
+            )}
+
+            {selectedSituation === "nouveau" && (
+              <div className="add-cement-form">
+                <label>
+                  Sélectionnez un nouveau type de ciment:
+                  <select
+                    value={newCementType}
+                    onChange={(e) => setNewCementType(e.target.value)}
+                  >
+                    <option value="">-- Choisir type de ciment --</option>
+                    {availableCementTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.code} - {type.description}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button onClick={handleAddCementType}>
+                  Ajouter ce type de ciment
+                </button>
+
+                {selectedProduit && (
+                  <div className="produit-info">
+                    <strong>Produit sélectionné:</strong>{" "}
+                    {produits.find((p) => p.id == selectedProduit)?.nom}
+                    <div className="produit-description">
+                      <strong>Description:</strong> {produitDescription}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {selectedProduit && (
+              <div className="import-section">
+                <label>
+                  Importer un fichier Excel:
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleFileImport}
+                  />
+                </label>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
-      {/* Onglets */}
+      {/* Tabs */}
       <div className="tabs-container">
         <button
           className={activeTab === "donnees" ? "active-tab" : "tab"}
@@ -339,7 +397,7 @@ const [filteredTableData, setFilteredTableData] = useState([]);
         </button>
       </div>
 
-      {/* Contenu des onglets */}
+      {/* Tabs content */}
       <div className="tab-content">
         {activeTab === "donnees" && (
           <EchantillonsTable
@@ -353,13 +411,11 @@ const [filteredTableData, setFilteredTableData] = useState([]);
             clients={clients}
             produits={produits}
             onTableDataChange={handleTableDataChange}
-
             setFilteredTableData={setFilteredTableData}
+            selectedSituation={selectedSituation}
           />
         )}
-
-
-        {activeTab === 'statistiques' && (
+       {activeTab === 'statistiques' && (
           <DonneesStatistiques
             ref={tableRef}
             clientId={selectedClient}
@@ -374,28 +430,27 @@ const [filteredTableData, setFilteredTableData] = useState([]);
               setStartDate(s);
               setEndDate(e);
             }}
-
           />
         )}
-       {activeTab === 'graphiques' && (
-  <DonneesGraphiques
-    parameters={parameters}
-    selectedParameter={selectedParameter}
-    setSelectedParameter={setSelectedParameter}
-    classOptions={classOptions}
-    selectedClass={selectedClass}
-    setSelectedClass={setSelectedClass}
-    chartStats={chartStats}
-    tableData={tableData}
-    handleExport={handleExport}
-    handlePrint={handlePrint}
-    handleSave={handleSave}
-  />
-)}
+        
+        {activeTab === 'graphiques' && (
+          <DonneesGraphiques
+            parameters={parameters}
+            selectedParameter={selectedParameter}
+            setSelectedParameter={setSelectedParameter}
+            classOptions={classOptions}
+            selectedClass={selectedClass}
+            setSelectedClass={setSelectedClass}
+            chartStats={chartStats}
+            tableData={tableData}
+            handleExport={handleExport}
+            handlePrint={handlePrint}
+            handleSave={handleSave}
+          />
+        )}
 
-
-{activeTab === 'contConform' && (
-  <ControleConformite
+        {activeTab === 'contConform' && (
+          <ControleConformite
             ref={tableRef}
             clientId={selectedClient}
             produitId={selectedProduit}
@@ -409,8 +464,9 @@ const [filteredTableData, setFilteredTableData] = useState([]);
               setStartDate(s);
               setEndDate(e);
             }}
-  />
-)}
+          />
+        )}
+        
         {activeTab === 'tabconform' && (
           <TableConformite
             ref={tableRef}
@@ -426,10 +482,8 @@ const [filteredTableData, setFilteredTableData] = useState([]);
               setStartDate(s);
               setEndDate(e);
             }}
- 
           />
-        )}
-
+        )} 
       </div>
     </div>
   );
