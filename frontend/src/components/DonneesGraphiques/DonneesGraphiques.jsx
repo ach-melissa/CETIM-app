@@ -308,7 +308,7 @@ export default function DonneesGraphiques({ selectedType, selectedCement }) {
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="x" name="Échantillon" />
-              <YAxis dataKey="y" name={selectedParameter} />
+              <YAxis dataKey="y" name={selectedParameter} ticks={[0, 15, 30, 45, 60, 75]} />
               <Tooltip
                 formatter={(val) =>
                   isNaN(val) ? "-" : Number(val).toFixed(2)

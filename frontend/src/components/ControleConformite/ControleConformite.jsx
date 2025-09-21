@@ -1,23 +1,34 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import './ControleConformite.css';
 import { useData } from "../../context/DataContext";
 
+// Helper function to calculate basic statistics
 const calculateStats = (data, key) => {
+  if (!data || !data.length) return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
+  
   const values = data.map((row) => parseFloat(row[key])).filter((v) => !isNaN(v));
   if (!values.length) return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
+
   const count = values.length;
   const min = Math.min(...values).toFixed(2);
   const max = Math.max(...values).toFixed(2);
   const mean = (values.reduce((a, b) => a + b, 0) / count).toFixed(2);
   const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
   const std = Math.sqrt(variance).toFixed(2);
+
   return { count, min, max, mean, std };
 };
 
 const evaluateLimits = (data, key, li, ls, lg) => {
-  const values = data.map((row) => parseFloat(row[key])).filter((v) => !isNaN(v));
-  if (!values.length) return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
+  if (!data || !data.length) {
+    return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
+  }
   
+  const values = data.map((row) => parseFloat(row[key])).filter((v) => !isNaN(v));
+  if (!values.length) {
+    return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
+  }
+
   const liNum = li !== "-" ? parseFloat(li) : null;
   const lsNum = ls !== "-" ? parseFloat(ls) : null;
   const lgNum = lg !== "-" ? parseFloat(lg) : null;
@@ -28,12 +39,72 @@ const evaluateLimits = (data, key, li, ls, lg) => {
   const total = values.length;
 
   return {
-    belowLI: belowLI || "-",
-    aboveLS: aboveLS || "-",
-    belowLG: belowLG || "-",
-    percentLI: total && belowLI ? ((belowLI / total) * 100).toFixed(1) : "-",
-    percentLS: total && aboveLS ? ((aboveLS / total) * 100).toFixed(1) : "-",
-    percentLG: total && belowLG ? ((belowLG / total) * 100).toFixed(1) : "-",
+    belowLI: liNum !== null ? belowLI : "-",
+    aboveLS: lsNum !== null ? aboveLS : "-",
+    belowLG: lgNum !== null ? belowLG : "-",
+    percentLI: liNum !== null && total ? ((belowLI / total) * 100).toFixed(1) : "-",
+    percentLS: lsNum !== null && total ? ((aboveLS / total) * 100).toFixed(1) : "-",
+    percentLG: lgNum !== null && total ? ((belowLG / total) * 100).toFixed(1) : "-",
+  };
+};
+
+// Function to get K coefficient based on sample size and percentile
+const getKCoefficient = (conformiteData, n, percentile) => {
+  if (!conformiteData.coefficients_k || n < 20) return null;
+  
+  const kKey = percentile === 5 ? "k_pk5" : "k_pk10";
+  
+  // Find the appropriate range for the sample size
+  const coefficient = conformiteData.coefficients_k.find(coeff => {
+    return n >= coeff.n_min && n <= coeff.n_max;
+  });
+  
+  return coefficient ? coefficient[kKey] : null;
+};
+
+// Function to check statistical compliance
+const checkStatisticalCompliance = (conformiteData, stats, limits, category, limitType) => {
+  const { count, mean, std } = stats;
+  
+  // If we don't have enough data or no limits defined
+  if (count < 20 || mean === "-" || std === "-" || 
+      (limitType === "li" && limits.li === "-") || 
+      (limitType === "ls" && limits.ls === "-")) {
+    return { satisfied: false, equation: "Données insuffisantes" };
+  }
+  
+  const n = parseInt(count);
+  const xBar = parseFloat(mean);
+  const s = parseFloat(std);
+  const limitValue = parseFloat(limitType === "li" ? limits.li : limits.ls);
+  
+  // Determine the percentile based on category and limit type
+  let percentile;
+  if (category === "mecanique") {
+    percentile = limitType === "li" ? 5 : 10;
+  } else {
+    percentile = 10;
+  }
+  
+  // Get the K coefficient
+  const k = getKCoefficient(conformiteData, n, percentile);
+  if (!k) return { satisfied: false, equation: "Coefficient K non disponible" };
+  
+  // Calculate the equation
+  let equationValue;
+  let satisfied = false;
+  
+  if (limitType === "li") {
+    equationValue = xBar - (k * s);
+    satisfied = equationValue >= limitValue;
+  } else {
+    equationValue = xBar + (k * s);
+    satisfied = equationValue <= limitValue;
+  }
+  
+  return {
+    satisfied,
+    equation: `x ${limitType === "li" ? "-" : "+"} k·s = ${equationValue.toFixed(2)} ${limitType === "li" ? "≥" : "≤"} ${limitValue}`
   };
 };
 
@@ -51,9 +122,28 @@ const ControleConformite = ({
 }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
+  const [conformiteData, setConformiteData] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedProductType, setSelectedProductType] = useState("");
   const [selectedProductFamily, setSelectedProductFamily] = useState("");
+  const [dataError, setDataError] = useState(null);
+
+  // Map front-end keys -> JSON keys with categories
+  const keyMapping = useMemo(() => ({
+    rc2j: { key: "resistance_2j", category: "mecanique" },
+    rc7j: { key: "resistance_7j", category: "mecanique" },
+    rc28j: { key: "resistance_28j", category: "mecanique" },
+    prise: { key: "temps_debut_prise", category: "physique" },
+    stabilite: { key: "stabilite", category: "physique" },
+    hydratation: { key: "chaleur_hydratation", category: "physique" },
+    pfeu: { key: "pert_au_feu", category: "chimique" },
+    r_insoluble: { key: "residu_insoluble", category: "chimique" },
+    so3: { key: "SO3", category: "chimique" },
+    chlorure: { key: "teneur_chlour", category: "chimique" },
+    pouzzolanicite: { key: "pouzzolanicite", category: "chimique" },
+    c3a: { key: "C3A", category: "chimique" },
+    ajout_percent: { key: "ajout_percent", category: "chimique" },
+  }), []);
 
   // Get the selected product type and family
   useEffect(() => {
@@ -66,46 +156,45 @@ const ControleConformite = ({
     }
   }, [produitId, produits]);
 
-  // Charger les données depuis le fichier JSON
+  // Charger les données depuis parnorm.json et conformite.json
   useEffect(() => {
-    const fetchMockDetails = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/Data/parnorm.json');
-        if (!response.ok) throw new Error('Erreur lors du chargement des données');
-        const data = await response.json();
-        setMockDetails(data);
+        setLoading(true);
+        // Charger les 2 fichiers JSON en parallèle
+        const [parnormRes, conformiteRes] = await Promise.all([
+          fetch("/Data/parnorm.json"),
+          fetch("/Data/conformite.json"),
+        ]);
+
+        if (!parnormRes.ok) throw new Error("Erreur lors du chargement de parnorm.json");
+        if (!conformiteRes.ok) throw new Error("Erreur lors du chargement de conformite.json");
+
+        const parnormData = await parnormRes.json();
+        const conformiteData = await conformiteRes.json();
+
+        setMockDetails(parnormData);
+        setConformiteData(conformiteData);
+        setDataError(null);
       } catch (error) {
-        console.error('Erreur de chargement des données:', error);
+        console.error("Erreur de chargement des données:", error);
+        setDataError("Erreur de chargement des données de référence");
         setMockDetails({});
+        setConformiteData({});
       } finally {
         setLoading(false);
       }
     };
-    fetchMockDetails();
-  }, []);
-  
-  // Map front-end keys -> JSON keys
-  const keyMapping = {
-    rc2j: "resistance_2j",
-    rc7j: "resistance_7j",
-    rc28j: "resistance_28j",
-    prise: "temps_debut_prise",
-    stabilite: "stabilite",
-    hydratation: "chaleur_hydratation",
-    so3: "SO3",
-    c3a: "C3A",
-    pfeu: "pert_au_feu",
-    r_insoluble: "residu_insoluble",
-    chlorure: "teneur_chlour",
-    ajout_percent: "",
-  };
 
-  const getLimitsByClass = (classe, key) => {
-    const mockKey = keyMapping[key];
-    if (!mockKey || !mockDetails[mockKey]) return { li: "-", ls: "-", lg: "-" };
+    fetchData();
+  }, []);
+
+  const getLimitsByClass = useCallback((classe, paramKey) => {
+    const mapping = keyMapping[paramKey];
+    if (!mapping || !mockDetails[mapping.key]) return { li: "-", ls: "-", lg: "-" };
 
     // Navigate the nested structure: parameter -> family -> type -> classes
-    const parameterData = mockDetails[mockKey];
+    const parameterData = mockDetails[mapping.key];
     
     // If we have both family and type, try to find the exact match
     if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
@@ -173,44 +262,80 @@ const ControleConformite = ({
     
     // Default fallback
     return { li: "-", ls: "-", lg: "-" };
-  };
-  
+  }, [mockDetails, selectedProductFamily, selectedProductType, keyMapping]);
+
   const dataToUse = filteredTableData || [];
   
-  if (loading) return <p className="no-data">Chargement des données de référence...</p>;
-  if (!dataToUse.length) return <p className="no-data">Veuillez d'abord filtrer des échantillons.</p>;
-  
-  const parameters = [
-    { key: "rc2j", label: "RC2J" },
-    { key: "rc7j", label: "RC7J" },
-    { key: "rc28j", label: "RC28J" },
-    { key: "prise", label: "Prise" },
-    { key: "stabilite", label: "Stabilité" },
-    { key: "hydratation", label: "Hydratation" },
-    { key: "pfeu", label: "P. Feu" },
-    { key: "r_insoluble", label: "R. Insoluble" },
-    { key: "so3", label: "SO3" },
-    { key: "chlorure", label: "Chlorure" },
-  ];
+  const parameters = useMemo(() => {
+    const baseParams = [
+      { key: "rc2j", label: "RC2J" },
+      { key: "rc7j", label: "RC7J" },
+      { key: "rc28j", label: "RC28J" },
+      { key: "prise", label: "Prise" },
+      { key: "stabilite", label: "Stabilité" },
+      { key: "hydratation", label: "Hydratation" },
+      { key: "pfeu", label: "P. Feu" },
+      { key: "r_insoluble", label: "R. Insoluble" },
+      { key: "so3", label: "SO3" },
+      { key: "chlorure", label: "Chlorure" },
+    ];
 
-  if (Number(selectedType) === 1) parameters.push({ key: "c3a", label: "C3A" });
-  else if (selectedType) parameters.push({ key: "ajout_percent", label: "Ajout (%)" });
+    if (Number(selectedType) === 1) {
+      return [...baseParams, { key: "c3a", label: "C3A" }];
+    } else if (selectedType) {
+      return [...baseParams, { key: "ajout_percent", label: "Ajout (%)" }];
+    }
+    
+    return baseParams;
+  }, [selectedType]);
 
-  const allStats = parameters.reduce((acc, param) => {
-    acc[param.key] = calculateStats(dataToUse, param.key);
-    return acc;
-  }, {});
+  const allStats = useMemo(() => 
+    parameters.reduce((acc, param) => {
+      acc[param.key] = calculateStats(dataToUse, param.key);
+      return acc;
+    }, {}),
+  [parameters, dataToUse]);
 
-  const classes = ["32.5L", "32.5N", "32.5R", "42.5L", "42.5N", "42.5R", "52.5L", "52.5N", "52.5R"];
+  const classes = useMemo(() => 
+    ["32.5L", "32.5N", "32.5R", "42.5L", "42.5N", "42.5R", "52.5L", "52.5N", "52.5R"],
+  []);
 
   // Function to render class section table
-  const renderClassSection = (classe) => {
+  const renderClassSection = useCallback((classe) => {
     // Calculate compliance for this specific class
     const classCompliance = {};
+    const statisticalCompliance = {};
+    
     parameters.forEach(param => {
+      const mapping = keyMapping[param.key];
       const limits = getLimitsByClass(classe, param.key);
       const stats = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
       classCompliance[param.key] = { limits, stats };
+      
+      // Calculate statistical compliance for parameters with limits
+      if (mapping && (limits.li !== "-" || limits.ls !== "-")) {
+        const category = mapping.category;
+        
+        if (limits.li !== "-") {
+          statisticalCompliance[`${param.key}_li`] = checkStatisticalCompliance(
+            conformiteData, 
+            allStats[param.key], 
+            limits, 
+            category, 
+            "li"
+          );
+        }
+        
+        if (limits.ls !== "-") {
+          statisticalCompliance[`${param.key}_ls`] = checkStatisticalCompliance(
+            conformiteData, 
+            allStats[param.key], 
+            limits, 
+            category, 
+            "ls"
+          );
+        }
+      }
     });
 
     // Determine if this class is overall compliant
@@ -246,6 +371,7 @@ const ControleConformite = ({
             {selectedProductFamily && <p><strong>Famille: {selectedProductFamily}</strong></p>}
             {selectedProductType && <p><strong>Type: {selectedProductType}</strong></p>}
             <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
+            <p>Nombre d'échantillons: {dataToUse.length}</p>
           </div>
           <hr className="strong-hr" />
           <h3>CLASSE {classe}</h3>
@@ -394,19 +520,39 @@ const ControleConformite = ({
               <div className="parameter-list">
                 <div className="parameter-item">
                   <span>Résistance à court terme à 02 j (RC2J) LI</span>
-                  <span>{allStats.rc2j.mean !== "-" ? `x-kass= ${allStats.rc2j.mean} > ${classCompliance.rc2j.limits.li}` : "Données insuffisantes"}</span>
+                  <span>
+                    {statisticalCompliance.rc2j_li ? 
+                      `${statisticalCompliance.rc2j_li.equation}` : 
+                      "Données insuffisantes"}
+                  </span>
+                  <span>{statisticalCompliance.rc2j_li?.satisfied ? "Équation satisfaite" : "Équation non satisfaite"}</span>
+                </div>
+                <div className="parameter-item">
+                  <span>Résistance courante 28j (RC28J) LI</span>
+                  <span>
+                    {statisticalCompliance.rc28j_li ? 
+                      `${statisticalCompliance.rc28j_li.equation}` : 
+                      "Données insuffisantes"}
+                  </span>
+                  <span>{statisticalCompliance.rc28j_li?.satisfied ? "Équation satisfaite" : "Équation non satisfaite"}</span>
                 </div>
                 <div className="parameter-item">
                   <span>Résistance courante 28j (RC28J) LS</span>
-                  <span>{allStats.rc28j.mean !== "-" ? `x-kass= ${allStats.rc28j.mean} < ${classCompliance.rc28j.limits.ls}` : "Données insuffisantes"}</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Résistance courante 28j (RC28J) LG</span>
-                  <span>{allStats.rc28j.mean !== "-" ? `x-kass= ${allStats.rc28j.mean} > ${classCompliance.rc28j.limits.lg}` : "Données insuffisantes"}</span>
+                  <span>
+                    {statisticalCompliance.rc28j_ls ? 
+                      `${statisticalCompliance.rc28j_ls.equation}` : 
+                      "Données insuffisantes"}
+                  </span>
+                  <span>{statisticalCompliance.rc28j_ls?.satisfied ? "Équation satisfaite" : "Équation non satisfaite"}</span>
                 </div>
                 <div className="parameter-item">
                   <span>Temps de début de prise (Prise) LI</span>
-                  <span>{allStats.prise.mean !== "-" ? `x-kass= ${allStats.prise.mean} > ${classCompliance.prise.limits.li}` : "Données insuffisantes"}</span>
+                  <span>
+                    {statisticalCompliance.prise_li ? 
+                      `${statisticalCompliance.prise_li.equation}` : 
+                      "Données insuffisantes"}
+                  </span>
+                  <span>{statisticalCompliance.prise_li?.satisfied ? "Équation satisfaite" : "Équation non satisfaite"}</span>
                 </div>
               </div>
             </div>
@@ -418,16 +564,54 @@ const ControleConformite = ({
               <div className="parameter-list">
                 <div className="parameter-item">
                   <span>Stabilité (Stabilite)</span>
-                  <span>{classCompliance.stabilite.stats.aboveLS === "-" ? "Équation satisfaite" : "Équation non satisfaite"}</span>
+                  <span>
+                    {statisticalCompliance.stabilite_ls ? 
+                      `${statisticalCompliance.stabilite_ls.equation}` : 
+                      classCompliance.stabilite.stats.aboveLS === "-" ? "Aucune déviation" : `${classCompliance.stabilite.stats.percentLS}% > ${classCompliance.stabilite.limits.ls}`}
+                  </span>
+                  <span>{statisticalCompliance.stabilite_ls?.satisfied ? "Équation satisfaite" : "Équation non satisfaite"}</span>
+                </div>
+                <div className="parameter-item">
+                  <span>Perte au feu (P.feu)</span>
+                  <span>
+                    {classCompliance.pfeu.stats.aboveLS === "-" ? "Aucune déviation" : `${classCompliance.pfeu.stats.percentLS}% > ${classCompliance.pfeu.limits.ls}`}
+                  </span>
+                  <span>{classCompliance.pfeu.stats.aboveLS === "-" ? "Équation satisfaite" : "Équation non satisfaite"}</span>
+                </div>
+                <div className="parameter-item">
+                  <span>Résidu insoluble (R.insoluble)</span>
+                  <span>
+                    {classCompliance.r_insoluble.stats.aboveLS === "-" ? "Aucune déviation" : `${classCompliance.r_insoluble.stats.percentLS}% > ${classCompliance.r_insoluble.limits.ls}`}
+                  </span>
+                  <span>{classCompliance.r_insoluble.stats.aboveLS === "-" ? "Équation satisfaite" : "Équation non satisfaite"}</span>
                 </div>
                 <div className="parameter-item">
                   <span>Sulfate (SO3)</span>
-                  <span>{classCompliance.so3.stats.aboveLS === "-" ? "Équation satisfaite" : "Équation non satisfaite"}</span>
+                  <span>
+                    {statisticalCompliance.so3_ls ? 
+                      `${statisticalCompliance.so3_ls.equation}` : 
+                      classCompliance.so3.stats.aboveLS === "-" ? "Aucune déviation" : `${classCompliance.so3.stats.percentLS}% > ${classCompliance.so3.limits.ls}`}
+                  </span>
+                  <span>{statisticalCompliance.so3_ls?.satisfied ? "Équation satisfaite" : "Équation non satisfaite"}</span>
                 </div>
                 <div className="parameter-item">
                   <span>Chlorure (Chlorure)</span>
-                  <span>{classCompliance.chlorure.stats.aboveLS === "-" ? "Équation satisfaite" : "Équation non satisfaite"}</span>
+                  <span>
+                    {statisticalCompliance.chlorure_ls ? 
+                      `${statisticalCompliance.chlorure_ls.equation}` : 
+                      classCompliance.chlorure.stats.aboveLS === "-" ? "Aucune déviation" : `${classCompliance.chlorure.stats.percentLS}% > ${classCompliance.chlorure.limits.ls}`}
+                  </span>
+                  <span>{statisticalCompliance.chlorure_ls?.satisfied ? "Équation satisfaite" : "Équation non satisfaite"}</span>
                 </div>
+                {selectedType === "1" && (
+                  <div className="parameter-item">
+                    <span>C3A (C3A)</span>
+                    <span>
+                      {classCompliance.c3a.stats.aboveLS === "-" ? "Aucune déviation" : `${classCompliance.c3a.stats.percentLS}% > ${classCompliance.c3a.limits.ls}`}
+                    </span>
+                    <span>{classCompliance.c3a.stats.aboveLS === "-" ? "Équation satisfaite" : "Équation non satisfaite"}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -446,20 +630,45 @@ const ControleConformite = ({
         </div>
       </div>
     );
-  };
-
-  if (!dataToUse || dataToUse.length === 0) {
-    return (
-      <div className="cement-report-container">
-        <h2>Aucune donnée disponible pour le contrôle</h2>
-      </div>
-    );
-  }
+  }, [parameters, dataToUse, keyMapping, conformiteData, allStats, getLimitsByClass, clients, clientId, selectedCement, produitDescription, selectedProductFamily, selectedProductType, filterPeriod, selectedType]);
 
   // Dummy handlers
   const handleExport = () => alert("Exporting...");
   const handlePrint = () => alert("Printing...");
   const handleSave = () => alert("Saving...");
+
+  if (loading) {
+    return (
+      <div className="cement-report-container">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Chargement des données de référence...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (dataError) {
+    return (
+      <div className="cement-report-container">
+        <div className="error-container">
+          <h2>Erreur de données</h2>
+          <p>{dataError}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dataToUse.length) {
+    return (
+      <div className="cement-report-container">
+        <div className="no-data-container">
+          <h2>Aucune donnée disponible</h2>
+          <p>Veuillez d'abord filtrer des échantillons.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="cement-report-container">
