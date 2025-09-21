@@ -243,3 +243,137 @@
     padding: 15px;
   }
 }
+/* Situation buttons */
+.situation-buttons {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.situation-button, .active-situation {
+  padding: 10px 15px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+  cursor: pointer;
+}
+
+.active-situation {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+/* Cement type buttons */
+.cement-type-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.cement-type-button, .active-cement-type {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f0f0f0;
+  cursor: pointer;
+}
+
+.active-cement-type {
+  background-color: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
+/* Treatment form */
+.treatment-form {
+  margin: 15px 0;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.date-filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.date-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Import section */
+.import-section {
+  margin: 15px 0;
+  padding: 15px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+/* Product info */
+.produit-info {
+  margin: 10px 0;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.produit-description {
+  margin-top: 5px;
+  font-style: italic;
+}
+
+/* Error and success messages */
+.error-message {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+.success-message {
+  color: #155724;
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+/* Tabs */
+.tabs-container {
+  display: flex;
+  gap: 5px;
+  margin: 20px 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.tab, .active-tab {
+  padding: 10px 15px;
+  border: 1px solid #ddd;
+  border-bottom: none;
+  background-color: #f8f9fa;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+}
+
+.active-tab {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.tab-content {
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+}
