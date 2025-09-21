@@ -48,10 +48,23 @@ const evaluateLimits = (data, key, li, ls, lg) => {
 // ============================================================
 // DonneesStatistiques Component
 // ============================================================
-const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescription, clients = [] }) => {
+const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescription, clients = [], produits = [] }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
   const [loading, setLoading] = useState(true);
+  const [selectedProductType, setSelectedProductType] = useState("");
+  const [selectedProductFamily, setSelectedProductFamily] = useState("");
+
+  // Get the selected product type and family
+  useEffect(() => {
+    if (produitId && produits.length) {
+      const product = produits.find(p => p.id == produitId);
+      if (product) {
+        setSelectedProductType(product.type_code || "");
+        setSelectedProductFamily(product.famille_code || "");
+      }
+    }
+  }, [produitId, produits]);
 
   // Charger les données depuis le fichier JSON
   useEffect(() => {
@@ -91,15 +104,75 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
     const mockKey = keyMapping[key];
     if (!mockKey || !mockDetails[mockKey]) return { li: "-", ls: "-", lg: "-" };
 
-    let found = mockDetails[mockKey].find((item) => item.classe === classe);
-    if (!found) found = mockDetails[mockKey].find((item) => item.classe === "Tous");
-    if (!found && mockDetails[mockKey].length > 0) found = mockDetails[mockKey][0];
-
-    return {
-      li: found?.limit_inf ?? "-",
-      ls: found?.limit_max ?? "-",
-      lg: found?.garantie ?? "-",
-    };
+    // Navigate the nested structure: parameter -> family -> type -> classes
+    const parameterData = mockDetails[mockKey];
+    
+    // If we have both family and type, try to find the exact match
+    if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
+      const familyData = parameterData[selectedProductFamily];
+      
+      if (familyData[selectedProductType]) {
+        const typeData = familyData[selectedProductType];
+        const found = typeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: found.limit_inf ?? "-",
+            ls: found.limit_max ?? "-",
+            lg: found.garantie ?? "-",
+          };
+        }
+      }
+    }
+    
+    // If exact match not found, try to find in the general family section
+    if (selectedProductFamily && parameterData[selectedProductFamily]) {
+      const familyData = parameterData[selectedProductFamily];
+      
+      // Look for a general type (like "CEM I" without specific subtype)
+      if (familyData[selectedProductFamily]) {
+        const generalTypeData = familyData[selectedProductFamily];
+        const found = generalTypeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: found.limit_inf ?? "-",
+            ls: found.limit_max ?? "-",
+            lg: found.garantie ?? "-",
+          };
+        }
+      }
+      
+      // If still not found, try any type in the family
+      for (const typeKey in familyData) {
+        const typeData = familyData[typeKey];
+        const found = typeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: found.limit_inf ?? "-",
+            ls: found.limit_max ?? "-",
+            lg: found.garantie ?? "-",
+          };
+        }
+      }
+    }
+    
+    // If still not found, try any family and type
+    for (const familyKey in parameterData) {
+      const familyData = parameterData[familyKey];
+      for (const typeKey in familyData) {
+        const typeData = familyData[typeKey];
+        const found = typeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: found.limit_inf ?? "-",
+            ls: found.limit_max ?? "-",
+            lg: found.garantie ?? "-",
+          };
+        }
+      }
+    }
+    
+    // Default fallback
+    return { li: "-", ls: "-", lg: "-" };
   };
 
   const dataToUse = filteredTableData || [];
@@ -136,7 +209,7 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
     { key: "std", label: "Écart type" },
   ];
 
-  const classes = ["32.5L", "32.5N", "32.5R", "42.5L", "42.5N", "42.5R", "52.5L", "52.5N", "52.5R"];
+  const classes = ["32.5 L" , "32.5 N", "32.5 R","42.5 L" , "42.5 N", "42.5 R" , "52.5 L" , "52.5 N", "52.5 R"];
 
   const renderClassSection = (classe) => (
     <div className="class-section" key={classe}>
@@ -208,6 +281,8 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
         <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
         <h2>Données Statistiques</h2>
         <p><strong>{produitDescription}</strong></p>
+        {selectedProductFamily && <p><strong>Famille: {selectedProductFamily}</strong></p>}
+        {selectedProductType && <p><strong>Type: {selectedProductType}</strong></p>}
         <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
       </div>
 
@@ -236,6 +311,5 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
 };
 
 export default DonneesStatistiques;
-
 
 

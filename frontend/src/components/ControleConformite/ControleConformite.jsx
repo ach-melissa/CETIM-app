@@ -17,10 +17,16 @@ const calculateStats = (data, key) => {
 const evaluateLimits = (data, key, li, ls, lg) => {
   const values = data.map((row) => parseFloat(row[key])).filter((v) => !isNaN(v));
   if (!values.length) return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
-  const belowLI = li && li !== "-" ? values.filter((v) => v < parseFloat(li)).length : 0;
-  const aboveLS = ls && ls !== "-" ? values.filter((v) => v > parseFloat(ls)).length : 0;
-  const belowLG = lg && lg !== "-" ? values.filter((v) => v < parseFloat(lg)).length : 0;
+  
+  const liNum = li !== "-" ? parseFloat(li) : null;
+  const lsNum = ls !== "-" ? parseFloat(ls) : null;
+  const lgNum = lg !== "-" ? parseFloat(lg) : null;
+
+  const belowLI = liNum ? values.filter((v) => v < liNum).length : 0;
+  const aboveLS = lsNum ? values.filter((v) => v > lsNum).length : 0;
+  const belowLG = lgNum ? values.filter((v) => v < lgNum).length : 0;
   const total = values.length;
+
   return {
     belowLI: belowLI || "-",
     aboveLS: aboveLS || "-",
@@ -46,6 +52,19 @@ const ControleConformite = ({
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
   const [loading, setLoading] = useState(true);
+  const [selectedProductType, setSelectedProductType] = useState("");
+  const [selectedProductFamily, setSelectedProductFamily] = useState("");
+
+  // Get the selected product type and family
+  useEffect(() => {
+    if (produitId && produits.length) {
+      const product = produits.find(p => p.id == produitId);
+      if (product) {
+        setSelectedProductType(product.type_code || "");
+        setSelectedProductFamily(product.famille_code || "");
+      }
+    }
+  }, [produitId, produits]);
 
   // Charger les données depuis le fichier JSON
   useEffect(() => {
@@ -65,34 +84,95 @@ const ControleConformite = ({
     fetchMockDetails();
   }, []);
   
-  const getLimitsByClass = (classe, key) => {
-    const keyMapping = {
-      rc2j: "resistance_2j",
-      rc7j: "resistance_7j",
-      rc28j: "resistance_28j",
-      prise: "temps_debut_prise",
-      stabilite: "stabilite",
-      hydratation: "chaleur_hydratation",
-      so3: "SO3",
-      c3a: "C3A",
-      pfeu: "pert_au_feu",
-      r_insoluble: "residu_insoluble",
-      chlorure: "teneur_chlour",
-      ajout_percent: "",
-    };
+  // Map front-end keys -> JSON keys
+  const keyMapping = {
+    rc2j: "resistance_2j",
+    rc7j: "resistance_7j",
+    rc28j: "resistance_28j",
+    prise: "temps_debut_prise",
+    stabilite: "stabilite",
+    hydratation: "chaleur_hydratation",
+    so3: "SO3",
+    c3a: "C3A",
+    pfeu: "pert_au_feu",
+    r_insoluble: "residu_insoluble",
+    chlorure: "teneur_chlour",
+    ajout_percent: "",
+  };
 
+  const getLimitsByClass = (classe, key) => {
     const mockKey = keyMapping[key];
     if (!mockKey || !mockDetails[mockKey]) return { li: "-", ls: "-", lg: "-" };
+
+    // Navigate the nested structure: parameter -> family -> type -> classes
+    const parameterData = mockDetails[mockKey];
     
-    let found = mockDetails[mockKey].find((item) => item.classe === classe);
-    if (!found) found = mockDetails[mockKey].find((item) => item.classe === "Tous");
-    if (!found && mockDetails[mockKey].length > 0) found = mockDetails[mockKey][0];
+    // If we have both family and type, try to find the exact match
+    if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
+      const familyData = parameterData[selectedProductFamily];
+      
+      if (familyData[selectedProductType]) {
+        const typeData = familyData[selectedProductType];
+        const found = typeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: found.limit_inf ?? "-",
+            ls: found.limit_max ?? "-",
+            lg: found.garantie ?? "-",
+          };
+        }
+      }
+    }
     
-    return { 
-      li: found?.limit_inf ?? "-", 
-      ls: found?.limit_max ?? "-", 
-      lg: found?.garantie ?? "-" 
-    };
+    // If exact match not found, try to find in the general family section
+    if (selectedProductFamily && parameterData[selectedProductFamily]) {
+      const familyData = parameterData[selectedProductFamily];
+      
+      // Look for a general type (like "CEM I" without specific subtype)
+      if (familyData[selectedProductFamily]) {
+        const generalTypeData = familyData[selectedProductFamily];
+        const found = generalTypeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: found.limit_inf ?? "-",
+            ls: found.limit_max ?? "-",
+            lg: found.garantie ?? "-",
+          };
+        }
+      }
+      
+      // If still not found, try any type in the family
+      for (const typeKey in familyData) {
+        const typeData = familyData[typeKey];
+        const found = typeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: found.limit_inf ?? "-",
+            ls: found.limit_max ?? "-",
+            lg: found.garantie ?? "-",
+          };
+        }
+      }
+    }
+    
+    // If still not found, try any family and type
+    for (const familyKey in parameterData) {
+      const familyData = parameterData[familyKey];
+      for (const typeKey in familyData) {
+        const typeData = familyData[typeKey];
+        const found = typeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: found.limit_inf ?? "-",
+            ls: found.limit_max ?? "-",
+            lg: found.garantie ?? "-",
+          };
+        }
+      }
+    }
+    
+    // Default fallback
+    return { li: "-", ls: "-", lg: "-" };
   };
   
   const dataToUse = filteredTableData || [];
@@ -163,6 +243,8 @@ const ControleConformite = ({
             {!selectedCement && produitDescription && (
               <p><strong>{produitDescription}</strong></p>
             )}
+            {selectedProductFamily && <p><strong>Famille: {selectedProductFamily}</strong></p>}
+            {selectedProductType && <p><strong>Type: {selectedProductType}</strong></p>}
             <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
           </div>
           <hr className="strong-hr" />
