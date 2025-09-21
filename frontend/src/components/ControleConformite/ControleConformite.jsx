@@ -41,7 +41,7 @@ const ControleConformite = ({
   produitDescription,
   clients = [], 
   produits = [],
-  
+  selectedCement
 }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
@@ -121,14 +121,6 @@ const ControleConformite = ({
     return acc;
   }, {});
 
-  const statRows = [
-    { key: "count", label: "Nombre" },
-    { key: "min", label: "Min" },
-    { key: "max", label: "Max" },
-    { key: "mean", label: "Moyenne" },
-    { key: "std", label: "Écart type" },
-  ];
-
   const classes = ["32.5L", "32.5N", "32.5R", "42.5L", "42.5N", "42.5R", "52.5L", "52.5N", "52.5R"];
 
   // Function to render class section table
@@ -159,7 +151,18 @@ const ControleConformite = ({
               </strong>
             </p>
             <h2>Contrôle de conformité / classe de résistance</h2>
-            <p><strong>{produitDescription}</strong></p>
+            {selectedCement && (
+              <div className="selected-cement-info">
+                <h3>{selectedCement.name}</h3>
+                <p>Type: {selectedCement.type} | Classe: {selectedCement.class}</p>
+                {selectedCement.description && (
+                  <p><strong>Description:</strong> {selectedCement.description}</p>
+                )}
+              </div>
+            )}
+            {!selectedCement && produitDescription && (
+              <p><strong>{produitDescription}</strong></p>
+            )}
             <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
           </div>
           <hr className="strong-hr" />
@@ -192,7 +195,6 @@ const ControleConformite = ({
                   <span>Déviation={classCompliance.prise.stats.percentLI}%</span>
                 </div>
                 {selectedType === "1" ? (
-                  // 👉 Show C3A for CEM I
                   <div className="parameter-item">
                     <span>C3A</span>
                     <span>
@@ -203,7 +205,6 @@ const ControleConformite = ({
                     <span>Déviation={classCompliance.c3a?.stats?.percentLI}%</span>
                   </div>
                 ) : selectedType ? (
-                  // 👉 Show Ajout for other CEM types
                   <div className="parameter-item">
                     <span>Ajout(Calcaire)</span>
                     <span>
@@ -250,29 +251,6 @@ const ControleConformite = ({
                     : "Aucune déviation"}</span>
                   <span>Déviation={classCompliance.chlorure.stats.percentLS}%</span>
                 </div>
-                {selectedType === "1" ? (
-                  // 👉 Show C3A for CEM I
-                  <div className="parameter-item">
-                    <span>C3A</span>
-                    <span>
-                      {classCompliance.c3a?.stats?.percentLI !== "-" 
-                        ? `${classCompliance.c3a.stats.percentLI}% < ${classCompliance.c3a.limits.li}` 
-                        : "Aucune déviation"}
-                    </span>
-                    <span>Déviation={classCompliance.c3a?.stats?.percentLI}%</span>
-                  </div>
-                ) : selectedType ? (
-                  // 👉 Show Ajout for other CEM types
-                  <div className="parameter-item">
-                    <span>Ajout(Calcaire)</span>
-                    <span>
-                      {classCompliance.ajout_percent?.stats?.percentLI !== "-" 
-                        ? `${classCompliance.ajout_percent.stats.percentLI}% < ${classCompliance.ajout_percent.limits.li}` 
-                        : "Aucune déviation"}
-                    </span>
-                    <span>Déviation={classCompliance.ajout_percent?.stats?.percentLI}%</span>
-                  </div>
-                ) : null}
               </div>
             </div>
           </div>
@@ -341,7 +319,7 @@ const ControleConformite = ({
                   <span>{allStats.rc28j.mean !== "-" ? `x-kass= ${allStats.rc28j.mean} < ${classCompliance.rc28j.limits.ls}` : "Données insuffisantes"}</span>
                 </div>
                 <div className="parameter-item">
-                  <span>Résistance courante 28j (RC28J) L1</span>
+                  <span>Résistance courante 28j (RC28J) LG</span>
                   <span>{allStats.rc28j.mean !== "-" ? `x-kass= ${allStats.rc28j.mean} > ${classCompliance.rc28j.limits.lg}` : "Données insuffisantes"}</span>
                 </div>
                 <div className="parameter-item">
@@ -375,9 +353,9 @@ const ControleConformite = ({
           {/* Class Conclusion */}
           <div className="conclusion-section">
             <div className="conformity-summary">
-              <h4>CONCLUSION :....................... </h4>
+              <h4>CONCLUSION : {isClassConforme ? 'CONFORME' : 'NON CONFORME'}</h4>
             </div>
-            <div className="conformity-box" >
+            <div className={`conformity-box ${isClassConforme ? 'conforme' : 'non-conforme'}`}>
               <strong>CONFORMITÉ: {isClassConforme ? 'CONFORME' : 'NON CONFORME'}</strong>
             </div>
           </div>
