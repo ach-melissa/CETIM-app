@@ -3,42 +3,71 @@ import './ControleConformite.css';
 import { useData } from "../../context/DataContext";
 
 const calculateStats = (data, key) => {
-  if (!data?.length) return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
+  if (!data?.length) return { count: 0, mean: null, std: null };
+
   const values = data.map(r => parseFloat(r[key])).filter(v => !isNaN(v));
-  if (!values.length) return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
+  if (!values.length) return { count: 0, mean: null, std: null };
 
   const count = values.length;
-  const min = Math.min(...values).toFixed(2);
-  const max = Math.max(...values).toFixed(2);
-  const mean = (values.reduce((a, b) => a + b, 0) / count).toFixed(2);
+  const mean = values.reduce((a, b) => a + b, 0) / count;
   const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
-  const std = Math.sqrt(variance).toFixed(2);
+  const std = Math.sqrt(variance);
 
-  return { count, min, max, mean, std };
+  return { count, mean, std };
 };
 
+
 const evaluateLimits = (data, key, li, ls, lg) => {
-  if (!data?.length) return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
-  const values = data.map(r => parseFloat(r[key])).filter(v => !isNaN(v));
-  if (!values.length) return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
+  const values = data.map(v => parseFloat(v[key])).filter(v => !isNaN(v));
+  if (values.length === 0) {
+    return {
+      count: 0,
+      mean: "-",
+      stdDev: "-",
+      countLI: "-",
+      percentLI: "-",
+      countLS: "-",
+      percentLS: "-",
+      countLG: "-",
+      percentLG: "-"
+    };
+  }
 
-  const liNum = li !== "-" ? parseFloat(li) : null;
-  const lsNum = ls !== "-" ? parseFloat(ls) : null;
-  const lgNum = lg !== "-" ? parseFloat(lg) : null;
+  const count = values.length;
+  const mean = values.reduce((a, b) => a + b, 0) / count;
+  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / count;
+  const stdDev = Math.sqrt(variance);
 
-  const belowLI = liNum ? values.filter(v => v < liNum).length : 0;
-  const aboveLS = lsNum ? values.filter(v => v > lsNum).length : 0;
-  const belowLG = lgNum ? values.filter(v => v < lgNum).length : 0;
-  const total = values.length;
+  // Only count if limit is not null or "-"
+  const countLI = (li !== null && li !== "-") ? values.filter(v => v < parseFloat(li)).length : 0;
+  const countLS = (ls !== null && ls !== "-") ? values.filter(v => v > parseFloat(ls)).length : 0;
+  const countLG = (lg !== null && lg !== "-") ? values.filter(v => v < parseFloat(lg)).length : 0;
 
   return {
-    belowLI: liNum !== null ? belowLI : "-",
-    aboveLS: lsNum !== null ? aboveLS : "-",
-    belowLG: lgNum !== null ? belowLG : "-",
-    percentLI: liNum !== null && total ? ((belowLI / total) * 100).toFixed(1) : "-",
-    percentLS: lsNum !== null && total ? ((aboveLS / total) * 100).toFixed(1) : "-",
-    percentLG: lgNum !== null && total ? ((belowLG / total) * 100).toFixed(1) : "-",
+    count,
+    mean: mean.toFixed(2),
+    stdDev: stdDev.toFixed(2),
+    countLI,
+    percentLI: countLI > 0 ? ((countLI / count) * 100).toFixed(2) : "0.00",
+    countLS,
+    percentLS: countLS > 0 ? ((countLS / count) * 100).toFixed(2) : "0.00",
+    countLG,
+    percentLG: countLG > 0 ? ((countLG / count) * 100).toFixed(2) : "0.00",
   };
+};
+
+const safeParse = (v) => {
+  if (v === null || v === undefined || v === "") return NaN;
+  if (typeof v === "number") return v;
+  const n = parseFloat(String(v).toString().replace(",", "."));
+  return Number.isFinite(n) ? n : NaN;
+};
+
+
+const parseLimit = (val) => {
+  if (val === null || val === undefined || val === "-") return null;
+  const num = parseFloat(String(val).replace(",", "."));
+  return isNaN(num) ? null : num;
 };
 
 const getKCoefficient = (conformiteData, n, percentile) => {
@@ -70,6 +99,61 @@ const checkStatisticalCompliance = (conformiteData, stats, limits, category, lim
     satisfied,
     equation: `x ${limitType === "li" ? "-" : "+"} k·s = ${equationValue.toFixed(2)} ${limitType === "li" ? "≥" : "≤"} ${limitValue}`
   };
+};
+
+
+const getKaValue = (conditionsStatistiques, pk) => {
+  // Exemple : conditionsStatistiques = [{ pk_min:1, pk_max:10, ka:1.64 }, ...]
+  const found = conditionsStatistiques.find(c => pk >= c.pk_min && pk <= c.pk_max);
+  return found ? parseFloat(found.ka) : null;
+};
+
+
+const evaluateStatisticalCompliance = (data, key, li, ls, paramType, conditionsStatistiques) => {
+  const stats = calculateStats(data, key);
+  if (!stats.count) return { equation: "Données insuffisantes", satisfied: false };
+
+  let result = { equation: "", satisfied: false };
+
+  if (["rc2j", "rc7j", "rc28j"].includes(paramType)) {
+    // Cas mécanique
+    if (li) {
+      const ka = getKaValue(conditionsStatistiques, 5);
+      const value = stats.mean - ka * stats.std;
+      result = {
+        equation: `X̄ - ${ka} × S = ${value.toFixed(2)} ≥ LI (${li})`,
+        satisfied: value >= parseFloat(li)
+      };
+    }
+    if (ls) {
+      const ka = getKaValue(conditionsStatistiques, 10);
+      const value = stats.mean + ka * stats.std;
+      result = {
+        equation: `X̄ + ${ka} × S = ${value.toFixed(2)} ≤ LS (${ls})`,
+        satisfied: value <= parseFloat(ls)
+      };
+    }
+  } else {
+    // Autres paramètres
+    if (li) {
+      const ka = getKaValue(conditionsStatistiques, 10);
+      const value = stats.mean - ka * stats.std;
+      result = {
+        equation: `X̄ - ${ka} × S = ${value.toFixed(2)} ≥ LI (${li})`,
+        satisfied: value >= parseFloat(li)
+      };
+    }
+    if (ls) {
+      const ka = getKaValue(conditionsStatistiques, 10);
+      const value = stats.mean + ka * stats.std;
+      result = {
+        equation: `X̄ + ${ka} × S = ${value.toFixed(2)} ≤ LS (${ls})`,
+        satisfied: value <= parseFloat(ls)
+      };
+    }
+  }
+
+  return result;
 };
 
 // Fixed function - returns proper display values
@@ -105,7 +189,7 @@ const checkEquationSatisfaction = (values, limits, conditionsStatistiques = []) 
   }
 
   const satisfied = cd <= ca;
-  const equationText = `Cd = ${cd}, Ca = ${ca}`;
+  const equationText = `Cd = ${cd} ≥ Ca = ${ca}`;
   
   return {
     satisfied,
@@ -135,24 +219,9 @@ const ControleConformite = ({
   const [dataError, setDataError] = useState(null);
   const [conditionsStatistiques, setConditionsStatistiques] = useState([]);
 
-  const keyMapping = useMemo(() => ({
-    rc2j: { key: "resistance_2j", category: "mecanique" },
-    rc7j: { key: "resistance_7j", category: "mecanique" },
-    rc28j: { key: "resistance_28j", category: "mecanique" },
-    prise: { key: "temps_debut_prise", category: "physique" },
-    stabilite: { key: "stabilite", category: "physique" },
-    hydratation: { key: "chaleur_hydratation", category: "physique" },
-    pfeu: { key: "pert_au_feu", category: "chimique" },
-    r_insoluble: { key: "residu_insoluble", category: "chimique" },
-    so3: { key: "SO3", category: "chimique" },
-    chlorure: { key: "teneur_chlour", category: "chimique" },
-    pouzzolanicite: { key: "pouzzolanicite", category: "chimique" },
-    c3a: { key: "C3A", category: "chimique" },
-    ajout_percent: { key: "ajout_percent", category: "chimique" },
-  }), []);
 
   useEffect(() => {
-    fetch("/data/conformite.json")
+    fetch("/Data/conformite.json")
       .then((res) => res.json())
       .then((data) => {
         setConditionsStatistiques(data.conditions_statistiques || []);
@@ -170,52 +239,96 @@ const ControleConformite = ({
     }
   }, [produitId, produits]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [parnormRes, conformiteRes] = await Promise.all([
-          fetch("/Data/parnorm.json"),
-          fetch("/Data/conformite.json"),
-        ]);
-        if (!parnormRes.ok) throw new Error("Erreur parnorm.json");
-        if (!conformiteRes.ok) throw new Error("Erreur conformite.json");
-        setMockDetails(await parnormRes.json());
-        setConformiteData(await conformiteRes.json());
-        setDataError(null);
-      } catch (err) {
-        console.error(err);
-        setDataError("Erreur de chargement des données de référence");
-        setMockDetails({});
-        setConformiteData({});
-      } finally { setLoading(false); }
-    };
-    fetchData();
-  }, []);
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [parnormRes, conformiteRes] = await Promise.all([
+        fetch("/Data/parnorm.json"),
+        fetch("/Data/conformite.json"),
+      ]);
+      if (!parnormRes.ok) throw new Error("Erreur parnorm.json");
+      if (!conformiteRes.ok) throw new Error("Erreur conformite.json");
 
-  const getLimitsByClass = useCallback((classe, paramKey) => {
-    const mapping = keyMapping[paramKey];
-    if (!mapping || !mockDetails[mapping.key]) return { li: "-", ls: "-", lg: "-" };
-    const parameterData = mockDetails[mapping.key];
+      const parnormData = await parnormRes.json();
+      const conformiteJson = await conformiteRes.json();
 
-    for (const familleKey in parameterData) {
-      const familleData = parameterData[familleKey];
-      for (const typeKey in familleData) {
-        if (typeKey === selectedProductType) {
-          const typeData = familleData[typeKey];
-          const found = typeData.find(item => item.classe === classe);
-          if (found) return { 
-            li: found.limit_inf ?? "-", 
-            ls: found.limit_max ?? "-", 
-            lg: found.garantie ?? "-",
-            limit_inf: found.limit_inf,
-            limit_max: found.limit_max
-          };
-        }
-      }
+      setMockDetails(parnormData);
+      setConformiteData(conformiteJson);
+      setConditionsStatistiques(conformiteJson.conditions_statistiques || []);
+      setDataError(null);
+    } catch (err) {
+      console.error(err);
+      setDataError("Erreur de chargement des données de référence");
+      setMockDetails({});
+      setConformiteData({});
+      setConditionsStatistiques([]);
+    } finally {
+      setLoading(false);
     }
-    return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
-  }, [mockDetails, selectedProductType, keyMapping]);
+  };
+  fetchData();
+}, []);
+
+const keyMapping = {
+  rc2j: "resistance_2j",
+  rc7j: "resistance_7j", 
+  rc28j: "resistance_28j",
+  prise: "temps_debut_prise",
+  stabilite: "stabilite",
+  hydratation: "chaleur_hydratation",
+  pfeu: "pert_au_feu",
+  r_insoluble: "residu_insoluble",
+  so3: "SO3",
+  chlorure: "teneur_chlour",
+  pouzzolanicite: "pouzzolanicite",
+  c3a: "C3A",
+  ajout_percent: "ajout"
+};
+
+ const getLimitsByClass = useCallback((classe, key) => {
+  const mapping = keyMapping[key];
+  if (!mapping || !mockDetails[mapping]) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
+  
+  const parameterData = mockDetails[mapping];
+  if (!parameterData) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
+
+  // Try exact match first: family -> type -> class
+  if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
+    const familyData = parameterData[selectedProductFamily];
+    if (familyData[selectedProductType]) {
+      const typeData = familyData[selectedProductType];
+      const found = typeData.find(item => item.classe === classe);
+      if (found) return { 
+        li: found.limit_inf ?? "-", 
+        ls: found.limit_max ?? "-", 
+        lg: found.garantie ?? "-",
+        limit_inf: found.limit_inf,
+        limit_max: found.limit_max
+      };
+    }
+  }
+
+  // If exact match not found, search through all families and types
+  for (const familleKey in parameterData) {
+    const familleData = parameterData[familleKey];
+    for (const typeKey in familleData) {
+      const typeData = familleData[typeKey];
+      const found = typeData.find(item => item.classe === classe);
+      if (found) return { 
+        li: found.limit_inf ?? "-", 
+        ls: found.limit_max ?? "-", 
+        lg: found.garantie ?? "-",
+        limit_inf: found.limit_inf,
+        limit_max: found.limit_max
+      };
+    }
+  }
+
+  return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
+}, [mockDetails, selectedProductFamily, selectedProductType]);
+
+
 
   const dataToUse = filteredTableData || [];
 
@@ -241,7 +354,7 @@ const ControleConformite = ({
     parameters.reduce((acc, param) => ({ ...acc, [param.key]: calculateStats(dataToUse, param.key) }), {}),
   [parameters, dataToUse]);
 
-  const classes = useMemo(() => ["32.5L","32.5N","32.5R","42.5L","42.5N","42.5R","52.5L","52.5N","52.5R"], []);
+  const classes = ["32.5 L" , "32.5 N", "32.5 R","42.5 L" , "42.5 N", "42.5 R" , "52.5 L" , "52.5 N", "52.5 R"];
 
   const renderClassSection = useCallback((classe) => {
     const classCompliance = {};
@@ -296,7 +409,7 @@ const ControleConformite = ({
             {selectedProductFamily && <p><strong>Famille: {selectedProductFamily}</strong></p>}
             {selectedProductType && <p><strong>Type: {selectedProductType}</strong></p>}
             <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-            <p>Nombre d'échantillons: {dataToUse.length}</p>
+            
           </div>
           <hr className="strong-hr" />
           <h3>CLASSE {classe}</h3>
@@ -445,39 +558,56 @@ const ControleConformite = ({
               <div className="parameter-list">
                 <div className="parameter-item">
                   <span>Résistance à court terme à 02 j (RC2J) LI</span>
-                  <span>
-                    {statisticalCompliance.rc2j_li ? 
-                      `${statisticalCompliance.rc2j_li.equation}` : 
-                      "Données insuffisantes"}
-                  </span>
-                  <span>{statisticalCompliance.rc2j_li?.satisfied ? "Équation satisfaite" : "Équation non satisfaite"}</span>
+<span>
+  {statisticalCompliance.rc2j_li 
+    ? statisticalCompliance.rc28j_li.equation 
+    : "Données insuffisantes"}
+</span>
+<span>
+  {statisticalCompliance.rc2j_li?.satisfied 
+    ? "Équation satisfaite" 
+    : "Équation non satisfaite"}
+</span>
                 </div>
                 <div className="parameter-item">
                   <span>Résistance courante 28j (RC28J) LI</span>
-                  <span>
-                    {statisticalCompliance.rc28j_li ? 
-                      `${statisticalCompliance.rc28j_li.equation}` : 
-                      "Données insuffisantes"}
-                  </span>
-                  <span>{statisticalCompliance.rc28j_li?.satisfied ? "Équation satisfaite" : "Équation non satisfaite"}</span>
+<span>
+  {statisticalCompliance.rc28j_li 
+    ? statisticalCompliance.rc28j_li.equation 
+    : "Données insuffisantes"}
+</span>
+<span>
+  {statisticalCompliance.rc28j_li?.satisfied 
+    ? "Équation satisfaite" 
+    : "Équation non satisfaite"}
+</span>
+                
                 </div>
                 <div className="parameter-item">
                   <span>Résistance courante 28j (RC28J) LS</span>
-                  <span>
-                    {statisticalCompliance.rc28j_ls ? 
-                      `${statisticalCompliance.rc28j_ls.equation}` : 
-                      "Données insuffisantes"}
-                  </span>
-                  <span>{statisticalCompliance.rc28j_ls?.satisfied ? "Équation satisfaite" : "Équation non satisfaite"}</span>
+<span>
+  {statisticalCompliance.rc28j_ls 
+    ? statisticalCompliance.rc28j_ls.equation 
+    : "Données insuffisantes"}
+</span>
+<span>
+  {statisticalCompliance.rc28j_ls?.satisfied 
+    ? "Équation satisfaite" 
+    : "Équation non satisfaite"}
+</span>
                 </div>
                 <div className="parameter-item">
                   <span>Temps de début de prise (Prise) LI</span>
                   <span>
-                    {statisticalCompliance.prise_li ? 
-                      `${statisticalCompliance.prise_li.equation}` : 
-                      "Données insuffisantes"}
-                  </span>
-                  <span>{statisticalCompliance.prise_li?.satisfied ? "Équation satisfaite" : "Équation non satisfaite"}</span>
+  {statisticalCompliance.prise_li 
+    ? statisticalCompliance.prise_li.equation 
+    : "Données insuffisantes"}
+</span>
+<span>
+  {statisticalCompliance.prise_li?.satisfied 
+    ? "Équation satisfaite" 
+    : "Équation non satisfaite"}
+</span>
                 </div>
               </div>
             </div>
@@ -490,6 +620,7 @@ const ControleConformite = ({
                 <div className="parameter-item">
                   <span>Stabilité (Stabilite)</span>
                   <span>
+                 
                     {checkEquationSatisfaction(
                       classCompliance.stabilite?.values || [],
                       classCompliance.stabilite?.limits || {},

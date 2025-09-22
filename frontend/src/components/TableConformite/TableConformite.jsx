@@ -168,15 +168,9 @@ const TableConformite = ({
   }, {});
 
   const classes = [
-    "32.5L",
-    "32.5N",
-    "32.5R",
-    "42.5L",
-    "42.5N",
-    "42.5R",
-    "52.5L",
-    "52.5N",
-    "52.5R",
+    "32.5 L", "32.5 N", "32.5 R",
+    "42.5 L", "42.5 N", "42.5 R", 
+    "52.5 L", "52.5 N", "52.5 R"
   ];
 
   // Gestion couleurs
@@ -207,7 +201,7 @@ const TableConformite = ({
           <p>
             Période: {filterPeriod.start} à {filterPeriod.end}
           </p>
-          <p>Échantillons: {dataToUse.length}</p>
+          
         </div>
 
         {/* Table Conformité */}
@@ -222,106 +216,150 @@ const TableConformite = ({
                 ))}
               </tr>
             </thead>
-            <tbody>
-              {classes.map((classe) => (
-                <React.Fragment key={classe}>
-                  {/* Row couleur */}
-                  <tr key={`${classe}-name`}>
-                    <td>{classe}</td>
-                    {parameters.map((param) => {
-                      const limits = getLimitsByClass(classe, param.key);
-                      const evaluation = evaluateLimits(
-                        dataToUse,
-                        param.key,
-                        limits.li,
-                        limits.ls,
-                        limits.lg
-                      );
-                      const deviationPercent = Math.max(
-                        parseFloat(evaluation.percentLI || 0),
-                        parseFloat(evaluation.percentLS || 0)
-                      );
-                      const hasDeviation = deviationPercent >= 5;
-                      const hasDefault = parseFloat(evaluation.percentLG) >= 5;
+<tbody>
+  {classes.map((classe) => {
+    let isConforme = true;
 
-                      const cellColor = hasDefault
-                        ? "red"
-                        : hasDeviation
-                        ? "yellow"
-                        : "green";
+    const cells = parameters.map((param) => {
+      const limits = getLimitsByClass(classe, param.key);
+      const evaluation = evaluateLimits(
+        dataToUse,
+        param.key,
+        limits.li,
+        limits.ls,
+        limits.lg
+      );
+      const deviationPercent = Math.max(
+        parseFloat(evaluation.percentLI || 0),
+        parseFloat(evaluation.percentLS || 0)
+      );
+      const hasDeviation = deviationPercent >= 5;
+      const hasDefault = parseFloat(evaluation.percentLG || 0) >= 5;
 
-                      return <td key={param.key} className={cellColor}></td>;
-                    })}
-                  </tr>
+      if (hasDeviation || hasDefault) isConforme = false;
 
-                  {/* Déviation */}
-                  <tr key={`${classe}-deviation`}>
-                    <td>% Déviation (N%&lt;LI ou N%&gt;LS)</td>
-                    {parameters.map((param) => {
-                      const limits = getLimitsByClass(classe, param.key);
-                      const evaluation = evaluateLimits(
-                        dataToUse,
-                        param.key,
-                        limits.li,
-                        limits.ls,
-                        limits.lg
-                      );
-                      const deviationPercent = Math.max(
-                        parseFloat(evaluation.percentLI || 0),
-                        parseFloat(evaluation.percentLS || 0)
-                      );
-                      const cellColor = getDeviationColor(deviationPercent);
+      return <td key={param.key}></td>;
+    });
 
-                      let displayValue = "OK";
-                      if (deviationPercent >= 5) {
-                        displayValue = `${deviationPercent}%`;
-                      }
+    return (
+      <React.Fragment key={classe}>
+        {/* Ligne Classe + Conforme / Non Conforme */}
+        <tr key={`${classe}-name`}>
+          <td>
+            {classe}{" "}
+            <strong
+              style={{
+                marginLeft: "10px",
+                color: isConforme ? "green" : "red",
+              }}
+            >
+              {isConforme ? "Conforme" : "Non Conforme"}
+            </strong>
+          </td>
+          {cells}
+        </tr>
 
-                      return (
-                        <td key={param.key} className={cellColor}>
-                          {displayValue}
-                        </td>
-                      );
-                    })}
-                  </tr>
+        {/* Déviation */}
+        <tr key={`${classe}-deviation`}>
+          <td>% Déviation </td>
+          {parameters.map((param) => {
+            const limits = getLimitsByClass(classe, param.key);
+            const evaluation = evaluateLimits(
+              dataToUse,
+              param.key,
+              limits.li,
+              limits.ls,
+              limits.lg
+            );
+            const deviationPercent = Math.max(
+              parseFloat(evaluation.percentLI || 0),
+              parseFloat(evaluation.percentLS || 0)
+            );
 
-                  {/* Défaut */}
-                  <tr key={`${classe}-default`}>
-                    <td>% Défaut (N%&lt;LG)</td>
-                    {parameters.map((param) => {
-                      const limits = getLimitsByClass(classe, param.key);
-                      const evaluation = evaluateLimits(
-                        dataToUse,
-                        param.key,
-                        limits.li,
-                        limits.ls,
-                        limits.lg
-                      );
-                      const percentLG = parseFloat(evaluation.percentLG || 0);
-                      const cellColor = getDefaultColor(percentLG);
+            let displayValue = "OK";
+            let color = "green";
+            if (deviationPercent >= 5) {
+              displayValue = `${deviationPercent}%`;
+              color = "red";
+            }
 
-                      let displayValue = "OK";
-                      if (percentLG >= 5) {
-                        displayValue = `${percentLG}%`;
-                      }
+            return (
+              <td key={param.key} style={{ color, fontWeight: "bold" }}>
+                {displayValue}
+              </td>
+            );
+          })}
+        </tr>
 
-                      return (
-                        <td key={param.key} className={cellColor}>
-                          {displayValue}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                </React.Fragment>
-              ))}
-            </tbody>
+        {/* Défaut */}
+        <tr key={`${classe}-default`}>
+          <td>% Défaut </td>
+          {parameters.map((param) => {
+            const limits = getLimitsByClass(classe, param.key);
+            const evaluation = evaluateLimits(
+              dataToUse,
+              param.key,
+              limits.li,
+              limits.ls,
+              limits.lg
+            );
+            const percentLG = parseFloat(evaluation.percentLG || 0);
+
+            let displayValue = "OK";
+            let color = "green";
+            if (percentLG >= 5) {
+              displayValue = `${percentLG}%`;
+              color = "red";
+            }
+
+            return (
+              <td key={param.key} style={{ color, fontWeight: "bold" }}>
+                {displayValue}
+              </td>
+            );
+          })}
+        </tr>
+
+        {/* Contrôle Statistique */}
+        <tr key={`${classe}-controlsatic`}>
+          <td>Contrôle Statistique</td>
+          {parameters.map((param) => {
+            const limits = getLimitsByClass(classe, param.key);
+            const evaluation = evaluateLimits(
+              dataToUse,
+              param.key,
+              limits.li,
+              limits.ls,
+              limits.lg
+            );
+            const percentLG = parseFloat(evaluation.percentLG || 0);
+
+            let displayValue = "Satisfaite";
+            let color = "green";
+            if (percentLG >= 5) {
+              displayValue = "Non Satisfaite";
+              color = "red";
+            }
+
+            return (
+              <td key={param.key} style={{ color, fontWeight: "bold" }}>
+                {displayValue}
+              </td>
+            );
+          })}
+        </tr>
+      </React.Fragment>
+    );
+  })}
+</tbody>
+
           </table>
         </div>
 
         {/* Légende */}
         <div className="legend">
           <p>
-            <span className="green-box"></span> OK / % &lt; 5%
+            <span className="green-box"></span> Déviation/Défaut % &lt; 5%
           </p>
           <p>
             <span className="yellow-box"></span> % Déviation ≥ 5%
@@ -334,37 +372,7 @@ const TableConformite = ({
           </p>
         </div>
 
-        {/* Table Statistiques */}
-        <div className="table-section">
-          <h3>Statistiques</h3>
-          <table className="stats-table">
-            <thead>
-              <tr>
-                <th>Paramètre</th>
-                <th>N</th>
-                <th>Moyenne</th>
-                <th>Écart-type</th>
-                <th>Min</th>
-                <th>Max</th>
-              </tr>
-            </thead>
-            <tbody>
-              {parameters.map((param) => {
-                const stats = allStats[param.key];
-                return (
-                  <tr key={param.key}>
-                    <td>{param.label}</td>
-                    <td>{stats.count}</td>
-                    <td>{stats.mean}</td>
-                    <td>{stats.std}</td>
-                    <td>{stats.min}</td>
-                    <td>{stats.max}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+
       </div>
 
       {/* Actions */}
