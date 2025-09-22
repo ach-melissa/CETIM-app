@@ -1,6 +1,8 @@
 {
-      "controles_conformite": [
+  "controles_conformite": { 
+    "mecanique": [
     {
+      "id": 1 ,
       "parametre": "Résistance  à 2 jours",
       "type_controle": "mesure",
       "methode_reference": "EN 196-1",
@@ -10,6 +12,7 @@
       "frequence_admission": "4/semaine"
     },
     {
+      "id": 2 ,
       "parametre": "Résistance  à 7 jours",
       "type_controle": "mesure",
       "methode_reference": "EN 196-1",
@@ -19,6 +22,7 @@
       "frequence_admission": "4/semaine"
     },
     {
+      "id": 3 ,
       "parametre": "Résistance à 28 jours",
       "type_controle": "mesure",
       "methode_reference": "EN 196-1",
@@ -26,8 +30,11 @@
       "ciment_soumis": "Tous",
       "frequence_courante": "2/semaine",
       "frequence_admission": "4/semaine"
-    },
+    }
+  ],
+"physique": [
     {
+      "id": 4 ,
       "parametre": "Temps debut de prise",
       "type_controle": "attribut",
       "methode_reference": "EN 196-3",
@@ -37,6 +44,7 @@
       "frequence_admission": "4/semaine"
     },
     {
+      "id": 5 ,
       "parametre": "Stabilité (expansion)",
       "type_controle": "attribut",
       "methode_reference": "EN 196-3",
@@ -45,70 +53,8 @@
       "frequence_courante": "1/semaine",
       "frequence_admission": "4/semaine"
     },
-    {
-      "parametre": "Perte au feu",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-2",
-      "categorie": "chimique",
-      "ciment_soumis": "CEM I, CEM III",
-      "frequence_courante": "2/mois",
-      "frequence_admission": "1/semaine"
-    },
-    {
-      "parametre": "Résidu insoluble",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-2",
-      "categorie": "chimique",
-      "ciment_soumis": "CEM I, CEM III",
-      "frequence_courante": "2/mois",
-      "frequence_admission": "1/semaine"
-    },
-    {
-      "parametre": "Teneur en sulfate",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-2",
-      "categorie": "chimique",
-      "ciment_soumis": "Tous",
-      "frequence_courante": "2/semaine",
-      "frequence_admission": "4/semaine"
-    },
-    {
-      "parametre": "Teneur en chlorure",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-2",
-      "categorie": "chimique",
-      "ciment_soumis": "Tous",
-      "frequence_courante": "2/mois",
-      "frequence_admission": "1/semaine"
-    },
-    {
-      "parametre": "C3A dans le clinker",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-2 (calc)",
-      "categorie": "chimique",
-      "ciment_soumis": "CEM I-SR 0, CEM I-SR 3, CEM I-SR 5, CEM II/A-SR, CEM IV/B-SR",
-      "frequence_courante": "2/mois",
-      "frequence_admission": "1/semaine"
-    },
-    {
-      "parametre": "C3A dans le clinker",
-      "type_controle": null,
-      "methode_reference": "EN 196-2 (calc)",
-      "categorie": "chimique",
-      "ciment_soumis": "CEM II/A-SR, CEM IV/B-SR",
-      "frequence_courante": null,
-      "frequence_admission": null
-    },
-    {
-      "parametre": "Pouzzolanicité",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-5",
-      "categorie": "chimique",
-      "ciment_soumis": "CEM IV",
-      "frequence_courante": "2/mois",
-      "frequence_admission": "1/semaine"
-    },
-    {
+        {
+          "id": 6 ,
       "parametre": "Chaleur d’hydratation",
       "type_controle": "attribut",
       "methode_reference": "EN 196-8 ou EN 196-9",
@@ -118,6 +64,79 @@
       "frequence_admission": "1/semaine"
     }
   ],
+  "chimique": [
+    {
+      "id": 7 ,
+      "parametre": "Perte au feu",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-2",
+      "categorie": "chimique",
+      "ciment_soumis": "CEM I, CEM III",
+      "frequence_courante": "2/mois",
+      "frequence_admission": "1/semaine"
+    },
+    {
+      "id": 8 ,
+      "parametre": "Résidu insoluble",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-2",
+      "categorie": "chimique",
+      "ciment_soumis": "CEM I, CEM III",
+      "frequence_courante": "2/mois",
+      "frequence_admission": "1/semaine"
+    },
+    {
+      "id": 9 ,
+      "parametre": "Teneur en sulfate",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-2",
+      "categorie": "chimique",
+      "ciment_soumis": "Tous",
+      "frequence_courante": "2/semaine",
+      "frequence_admission": "4/semaine"
+    },
+    {
+      "id": 10 ,
+      "parametre": "Teneur en chlorure",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-2",
+      "categorie": "chimique",
+      "ciment_soumis": "Tous",
+      "frequence_courante": "2/mois",
+      "frequence_admission": "1/semaine"
+    },
+    {
+      "id": 11 ,
+      "parametre": "C3A dans le clinker",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-2 (calc)",
+      "categorie": "chimique",
+      "ciment_soumis": "CEM I-SR 0, CEM I-SR 3, CEM I-SR 5, CEM II/A-SR, CEM IV/B-SR",
+      "frequence_courante": "2/mois",
+      "frequence_admission": "1/semaine"
+    },
+    {
+      "id": 12 ,
+      "parametre": "C3A dans le clinker",
+      "type_controle": null,
+      "methode_reference": "EN 196-2 (calc)",
+      "categorie": "chimique",
+      "ciment_soumis": "CEM II/A-SR, CEM IV/B-SR",
+      "frequence_courante": null,
+      "frequence_admission": null
+    },
+    {
+      "id": 13 ,
+      "parametre": "Pouzzolanicité",
+      "type_controle": "attribut",
+      "methode_reference": "EN 196-5",
+      "categorie": "chimique",
+      "ciment_soumis": "CEM IV",
+      "frequence_courante": "2/mois",
+      "frequence_admission": "1/semaine"
+    }
+  ]
+},
 
   "valeurs_statistiques": [
     { "categorie": "mecanique", "sous_type": "limite_inferieure", "percentile_pk": 5.00, "prob_acceptation_cr": 5.00 },

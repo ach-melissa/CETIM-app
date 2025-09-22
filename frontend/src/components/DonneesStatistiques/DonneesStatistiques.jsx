@@ -9,22 +9,32 @@ import { useData } from "../../context/DataContext";
 const calculateStats = (data, key) => {
   const values = data.map((row) => parseFloat(row[key])).filter((v) => !isNaN(v));
   if (!values.length) return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
+
   const count = values.length;
   const min = Math.min(...values).toFixed(2);
   const max = Math.max(...values).toFixed(2);
   const mean = (values.reduce((a, b) => a + b, 0) / count).toFixed(2);
   const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
   const std = Math.sqrt(variance).toFixed(2);
+
   return { count, min, max, mean, std };
 };
 
 const evaluateLimits = (data, key, li, ls, lg) => {
   const values = data.map((row) => parseFloat(row[key])).filter((v) => !isNaN(v));
-  if (!values.length) return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
-  const belowLI = li && li !== "-" ? values.filter((v) => v < parseFloat(li)).length : 0;
-  const aboveLS = ls && ls !== "-" ? values.filter((v) => v > parseFloat(ls)).length : 0;
-  const belowLG = lg && lg !== "-" ? values.filter((v) => v < parseFloat(lg)).length : 0;
+  if (!values.length) {
+    return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
+  }
+
+  const liNum = li !== "-" ? parseFloat(li) : null;
+  const lsNum = ls !== "-" ? parseFloat(ls) : null;
+  const lgNum = lg !== "-" ? parseFloat(lg) : null;
+
+  const belowLI = liNum ? values.filter((v) => v < liNum).length : 0;
+  const aboveLS = lsNum ? values.filter((v) => v > lsNum).length : 0;
+  const belowLG = lgNum ? values.filter((v) => v < lgNum).length : 0;
   const total = values.length;
+
   return {
     belowLI: belowLI || "-",
     aboveLS: aboveLS || "-",
@@ -38,21 +48,34 @@ const evaluateLimits = (data, key, li, ls, lg) => {
 // ============================================================
 // DonneesStatistiques Component
 // ============================================================
-const DonneesStatistiques = ({ clientId, produitId, start, end, selectedType, produitDescription, clients = []  }) => {
+const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescription, clients = [], produits = [] }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
   const [loading, setLoading] = useState(true);
+  const [selectedProductType, setSelectedProductType] = useState("");
+  const [selectedProductFamily, setSelectedProductFamily] = useState("");
+
+  // Get the selected product type and family
+  useEffect(() => {
+    if (produitId && produits.length) {
+      const product = produits.find(p => p.id == produitId);
+      if (product) {
+        setSelectedProductType(product.type_code || "");
+        setSelectedProductFamily(product.famille_code || "");
+      }
+    }
+  }, [produitId, produits]);
 
   // Charger les données depuis le fichier JSON
   useEffect(() => {
     const fetchMockDetails = async () => {
       try {
-        const response = await fetch('/Data/parnorm.json');
-        if (!response.ok) throw new Error('Erreur lors du chargement des données');
+        const response = await fetch("/Data/parnorm.json");
+        if (!response.ok) throw new Error("Erreur lors du chargement des données");
         const data = await response.json();
         setMockDetails(data);
       } catch (error) {
-        console.error('Erreur de chargement des données:', error);
+        console.error("Erreur de chargement des données:", error);
         setMockDetails({});
       } finally {
         setLoading(false);
@@ -61,34 +84,95 @@ const DonneesStatistiques = ({ clientId, produitId, start, end, selectedType, pr
     fetchMockDetails();
   }, []);
 
-  const getLimitsByClass = (classe, key) => {
-    const keyMapping = {
-      rc2j: "resistance_2j",
-      rc7j: "resistance_7j",
-      rc28j: "resistance_28j",
-      prise: "temps_debut_prise",
-      stabilite: "stabilite",
-      hydratation: "chaleur_hydratation",
-      so3: "SO3",
-      c3a: "C3A",
-      pfeu: "pert_au_feu",
-      r_insoluble: "residu_insoluble",
-      chlorure: "teneur_chlour",
-      ajout_percent: "",
-    };
+  // Map front-end keys -> JSON keys
+  const keyMapping = {
+    rc2j: "resistance_2j",
+    rc7j: "resistance_7j",
+    rc28j: "resistance_28j",
+    prise: "temps_debut_prise",
+    stabilite: "stabilite",
+    hydratation: "chaleur_hydratation",
+    pfeu: "pert_au_feu",
+    r_insoluble: "residu_insoluble",
+    so3: "SO3",
+    chlorure: "teneur_chlour",
+    pouzzolanicite: "pouzzolanicite",
+    c3a: "C3A",
+  };
 
+  const getLimitsByClass = (classe, key) => {
     const mockKey = keyMapping[key];
     if (!mockKey || !mockDetails[mockKey]) return { li: "-", ls: "-", lg: "-" };
+
+    // Navigate the nested structure: parameter -> family -> type -> classes
+    const parameterData = mockDetails[mockKey];
     
-    let found = mockDetails[mockKey].find((item) => item.classe === classe);
-    if (!found) found = mockDetails[mockKey].find((item) => item.classe === "Tous");
-    if (!found && mockDetails[mockKey].length > 0) found = mockDetails[mockKey][0];
+    // If we have both family and type, try to find the exact match
+    if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
+      const familyData = parameterData[selectedProductFamily];
+      
+      if (familyData[selectedProductType]) {
+        const typeData = familyData[selectedProductType];
+        const found = typeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: found.limit_inf ?? "-",
+            ls: found.limit_max ?? "-",
+            lg: found.garantie ?? "-",
+          };
+        }
+      }
+    }
     
-    return { 
-      li: found?.limit_inf ?? "-", 
-      ls: found?.limit_max ?? "-", 
-      lg: found?.garantie ?? "-" 
-    };
+    // If exact match not found, try to find in the general family section
+    if (selectedProductFamily && parameterData[selectedProductFamily]) {
+      const familyData = parameterData[selectedProductFamily];
+      
+      // Look for a general type (like "CEM I" without specific subtype)
+      if (familyData[selectedProductFamily]) {
+        const generalTypeData = familyData[selectedProductFamily];
+        const found = generalTypeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: found.limit_inf ?? "-",
+            ls: found.limit_max ?? "-",
+            lg: found.garantie ?? "-",
+          };
+        }
+      }
+      
+      // If still not found, try any type in the family
+      for (const typeKey in familyData) {
+        const typeData = familyData[typeKey];
+        const found = typeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: found.limit_inf ?? "-",
+            ls: found.limit_max ?? "-",
+            lg: found.garantie ?? "-",
+          };
+        }
+      }
+    }
+    
+    // If still not found, try any family and type
+    for (const familyKey in parameterData) {
+      const familyData = parameterData[familyKey];
+      for (const typeKey in familyData) {
+        const typeData = familyData[typeKey];
+        const found = typeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: found.limit_inf ?? "-",
+            ls: found.limit_max ?? "-",
+            lg: found.garantie ?? "-",
+          };
+        }
+      }
+    }
+    
+    // Default fallback
+    return { li: "-", ls: "-", lg: "-" };
   };
 
   const dataToUse = filteredTableData || [];
@@ -96,6 +180,7 @@ const DonneesStatistiques = ({ clientId, produitId, start, end, selectedType, pr
   if (loading) return <p className="no-data">Chargement des données de référence...</p>;
   if (!dataToUse.length) return <p className="no-data">Veuillez d'abord filtrer des échantillons.</p>;
 
+  // Parameters list
   const parameters = [
     { key: "rc2j", label: "RC2J" },
     { key: "rc7j", label: "RC7J" },
@@ -107,10 +192,9 @@ const DonneesStatistiques = ({ clientId, produitId, start, end, selectedType, pr
     { key: "r_insoluble", label: "R. Insoluble" },
     { key: "so3", label: "SO3" },
     { key: "chlorure", label: "Chlorure" },
+    { key: "pouzzolanicite", label: "Pouzzolanicité" },
   ];
-
   if (Number(selectedType) === 1) parameters.push({ key: "c3a", label: "C3A" });
-  else if (selectedType) parameters.push({ key: "ajout_percent", label: "Ajout (%)" });
 
   const allStats = parameters.reduce((acc, param) => {
     acc[param.key] = calculateStats(dataToUse, param.key);
@@ -125,7 +209,7 @@ const DonneesStatistiques = ({ clientId, produitId, start, end, selectedType, pr
     { key: "std", label: "Écart type" },
   ];
 
-  const classes = ["32.5L", "32.5N", "32.5R", "42.5L", "42.5N", "42.5R", "52.5L", "52.5N", "52.5R"];
+  const classes = ["32.5 L" , "32.5 N", "32.5 R","42.5 L" , "42.5 N", "42.5 R" , "52.5 L" , "52.5 N", "52.5 R"];
 
   const renderClassSection = (classe) => (
     <div className="class-section" key={classe}>
@@ -134,9 +218,7 @@ const DonneesStatistiques = ({ clientId, produitId, start, end, selectedType, pr
         <tbody>
           <tr>
             <td>Limite inférieure (LI)</td>
-            {parameters.map((param) => (
-              <td key={param.key}>{getLimitsByClass(classe, param.key).li}</td>
-            ))}
+            {parameters.map((param) => <td key={param.key}>{getLimitsByClass(classe, param.key).li}</td>)}
           </tr>
           <tr>
             <td>N &lt; LI</td>
@@ -154,9 +236,7 @@ const DonneesStatistiques = ({ clientId, produitId, start, end, selectedType, pr
           </tr>
           <tr>
             <td>Limite supérieure (LS)</td>
-            {parameters.map((param) => (
-              <td key={param.key}>{getLimitsByClass(classe, param.key).ls}</td>
-            ))}
+            {parameters.map((param) => <td key={param.key}>{getLimitsByClass(classe, param.key).ls}</td>)}
           </tr>
           <tr>
             <td>N &gt; LS</td>
@@ -174,9 +254,7 @@ const DonneesStatistiques = ({ clientId, produitId, start, end, selectedType, pr
           </tr>
           <tr>
             <td>Limite garantie (LG)</td>
-            {parameters.map((param) => (
-              <td key={param.key}>{getLimitsByClass(classe, param.key).lg}</td>
-            ))}
+            {parameters.map((param) => <td key={param.key}>{getLimitsByClass(classe, param.key).lg}</td>)}
           </tr>
           <tr>
             <td>N &lt; LG</td>
@@ -197,66 +275,41 @@ const DonneesStatistiques = ({ clientId, produitId, start, end, selectedType, pr
     </div>
   );
 
-  // Dummy handlers
-  const handleExport = () => alert("Exporting...");
-  const handlePrint = () => alert("Printing...");
-  const handleSave = () => alert("Saving...");
-
   return (
     <div className="stats-section">
       <div style={{ marginBottom: "1rem" }}>
-          <p>
-            <strong>
-              {clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}
-            </strong>
-          </p>
+        <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
         <h2>Données Statistiques</h2>
-         <p><strong>{produitDescription}</strong></p>
+        <p><strong>{produitDescription}</strong></p>
+        {selectedProductFamily && <p><strong>Famille: {selectedProductFamily}</strong></p>}
+        {selectedProductType && <p><strong>Type: {selectedProductType}</strong></p>}
         <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-        
       </div>
 
+      {/* Global stats */}
       <table className="stats-table">
         <thead>
           <tr>
             <th>Statistique</th>
-            {parameters.map((param) => (
-              <th key={param.key}>{param.label}</th>
-            ))}
+            {parameters.map((param) => <th key={param.key}>{param.label}</th>)}
           </tr>
         </thead>
         <tbody>
           {statRows.map((row) => (
             <tr key={row.key}>
               <td>{row.label}</td>
-              {parameters.map((param) => (
-                <td key={param.key}>{allStats[param.key][row.key]}</td>
-              ))}
+              {parameters.map((param) => <td key={param.key}>{allStats[param.key][row.key]}</td>)}
             </tr>
           ))}
         </tbody>
       </table>
 
+      {/* Limits per class */}
       {classes.map((classe) => renderClassSection(classe))}
-
-      <div className="actions-bar">
-        <div className="file-actions">
-          <button className="action-btn export-btn" onClick={handleExport} disabled={!dataToUse.length}>
-            Exporter
-          </button>
-          <button className="action-btn print-btn" onClick={handlePrint} disabled={!dataToUse.length}>
-            Imprimer
-          </button>
-        </div>
-        <div className="data-actions">
-          <button className="action-btn save-btn" onClick={handleSave} disabled={!dataToUse.length}>
-            Sauvegarder
-          </button>
-        </div>
-      </div>
     </div>
   );
 };
 
 
 export default DonneesStatistiques;
+

@@ -14,12 +14,22 @@ import {
   Legend,
 } from "recharts";
 
-// -------- Utils --------
+/* ---------- utils ---------- */
+const normalize = (s) => String(s ?? "").replace(/\s+/g, "").toUpperCase();
+
 const safeParse = (v) => {
-  if (v === null || v === undefined) return NaN;
+  if (v === null || v === undefined || v === "") return NaN;
   if (typeof v === "number") return v;
-  const n = parseFloat(String(v).replace(",", "."));
-  return isNaN(n) ? NaN : n;
+  const n = parseFloat(String(v).toString().replace(",", "."));
+  return Number.isFinite(n) ? n : NaN;
+};
+
+const parseLimit = (val) => {
+  if (val === null || val === undefined) return null;
+  const num = safeParse(val);
+  if (!isNaN(num)) return num;
+  const str = String(val).trim();
+  return str === "" ? null : str;
 };
 
 const computeBasicStats = (vals = []) => {
@@ -34,42 +44,42 @@ const computeBasicStats = (vals = []) => {
   };
 };
 
-// -------- Component --------
-export default function DonneesGraphiques({
-  clientId,
-  produitId,
-  selectedType,
-  produitDescription,
-  clients = [],
-  produits = [],
-  selectedCement,
-}) {
-  const { filteredTableData, filterPeriod } = useData();
+/* ---------- component ---------- */
+export default function DonneesGraphiques({ selectedType, selectedCement }) {
+  const { filteredTableData = [], filterPeriod = {} } = useData();
 
-  const [mockDetails, setMockDetails] = useState({});
+  const [limitsData, setLimitsData] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedParameter, setSelectedParameter] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
+  const [selectedProductFamily, setSelectedProductFamily] = useState("");
+  const [selectedProductType, setSelectedProductType] = useState("");
 
-  // Charger les limites depuis JSON
   useEffect(() => {
-    const fetchMockDetails = async () => {
+    if (selectedCement) {
+      setSelectedProductFamily(selectedCement.famille_code || "");
+      setSelectedProductType(selectedCement.type_code || "");
+    }
+  }, [selectedCement]);
+
+  useEffect(() => {
+    const fetchLimits = async () => {
       try {
         const res = await fetch("/Data/parnorm.json");
-        if (!res.ok) throw new Error("Erreur lors du chargement des données");
+        if (!res.ok) throw new Error("parnorm.json introuvable");
         const data = await res.json();
-        setMockDetails(data);
+        setLimitsData(data);
       } catch (err) {
-        console.error("Erreur de chargement des données:", err);
-        setMockDetails({});
+        console.error("Erreur fetch parnorm.json:", err);
+        setLimitsData({});
       } finally {
         setLoading(false);
       }
     };
-    fetchMockDetails();
+    fetchLimits();
   }, []);
 
-  // Mapping paramètres -> clés du JSON
+  // Map parameter keys to match your JSON structure (same as DonneesStatistiques)
   const keyMapping = {
     rc2j: "resistance_2j",
     rc7j: "resistance_7j",
@@ -77,72 +87,145 @@ export default function DonneesGraphiques({
     prise: "temps_debut_prise",
     stabilite: "stabilite",
     hydratation: "chaleur_hydratation",
-    so3: "SO3",
-    c3a: "C3A",
     pfeu: "pert_au_feu",
     r_insoluble: "residu_insoluble",
+    so3: "SO3",
     chlorure: "teneur_chlour",
-    ajout_percent: "",
+    pouzzolanicite: "pouzzolanicite",
+    c3a: "C3A",
+    ajout: "ajout"
   };
 
+  // Use the same getLimitsByClass function as DonneesStatistiques
   const getLimitsByClass = (classe, key) => {
     const mockKey = keyMapping[key];
-    if (!mockKey || !mockDetails[mockKey]) return { li: "-", ls: "-", lg: "-" };
-    let found = mockDetails[mockKey].find((i) => i.classe === classe)
-      || mockDetails[mockKey].find((i) => i.classe === "Tous")
-      || mockDetails[mockKey][0];
-    return {
-      li: found?.limit_inf ?? "-",
-      ls: found?.limit_max ?? "-",
-      lg: found?.garantie ?? "-",
-    };
+    if (!mockKey || !limitsData[mockKey]) return { li: null, ls: null, lg: null };
+
+    // Navigate the nested structure: parameter -> family -> type -> classes
+    const parameterData = limitsData[mockKey];
+    
+    // If we have both family and type, try to find the exact match
+    if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
+      const familyData = parameterData[selectedProductFamily];
+      
+      if (familyData[selectedProductType]) {
+        const typeData = familyData[selectedProductType];
+        const found = typeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: parseLimit(found.limit_inf),
+            ls: parseLimit(found.limit_max),
+            lg: parseLimit(found.garantie),
+          };
+        }
+      }
+    }
+    
+    // If exact match not found, try to find in the general family section
+    if (selectedProductFamily && parameterData[selectedProductFamily]) {
+      const familyData = parameterData[selectedProductFamily];
+      
+      // Look for a general type (like "CEM I" without specific subtype)
+      if (familyData[selectedProductFamily]) {
+        const generalTypeData = familyData[selectedProductFamily];
+        const found = generalTypeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: parseLimit(found.limit_inf),
+            ls: parseLimit(found.limit_max),
+            lg: parseLimit(found.garantie),
+          };
+        }
+      }
+      
+      // If still not found, try any type in the family
+      for (const typeKey in familyData) {
+        const typeData = familyData[typeKey];
+        const found = typeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: parseLimit(found.limit_inf),
+            ls: parseLimit(found.limit_max),
+            lg: parseLimit(found.garantie),
+          };
+        }
+      }
+    }
+    
+    // If still not found, try any family and type
+    for (const familyKey in parameterData) {
+      const familyData = parameterData[familyKey];
+      for (const typeKey in familyData) {
+        const typeData = familyData[typeKey];
+        const found = typeData.find(item => item.classe === classe);
+        if (found) {
+          return {
+            li: parseLimit(found.limit_inf),
+            ls: parseLimit(found.limit_max),
+            lg: parseLimit(found.garantie),
+          };
+        }
+      }
+    }
+    
+    // Default fallback
+    return { li: null, ls: null, lg: null };
   };
 
-  // Liste des paramètres disponibles
   const parameters = [
-    { key: "rc2j", label: "RC2J" },
-    { key: "rc7j", label: "RC7J" },
-    { key: "rc28j", label: "RC28J" },
-    { key: "prise", label: "Prise" },
+    { key: "rc2j", label: "Résistance courante 2 jrs" },
+    { key: "rc7j", label: "Résistance courante 7 jrs" },
+    { key: "rc28j", label: "Résistance courante 28 jrs" },
+    { key: "prise", label: "Temp debut de prise" },
     { key: "stabilite", label: "Stabilité" },
-    { key: "hydratation", label: "Hydratation" },
-    { key: "pfeu", label: "P. Feu" },
-    { key: "r_insoluble", label: "R. Insoluble" },
-    { key: "so3", label: "SO3" },
+    { key: "hydratation", label: "Chaleur d'Hydratation" },
+    { key: "pfeu", label: "Perte au Feu" },
+    { key: "r_insoluble", label: "Résidu Insoluble" },
+    { key: "so3", label: "Teneur en sulfate" },
     { key: "chlorure", label: "Chlorure" },
+    { key: "pouzzolanicite", label: "Pouzzolanicité" },
   ];
-  if (Number(selectedType) === 1) parameters.push({ key: "c3a", label: "C3A" });
-  else if (selectedType) parameters.push({ key: "ajout_percent", label: "Ajout (%)" });
+  
+  // Add C3A only for type 1 (like in DonneesStatistiques)
+  if (Number(selectedType) === 1) {
+    parameters.push({ key: "c3a", label: "C3A" });
+  }
+  
+  parameters.push({ key: "ajout", label: "Ajout" });
 
-  const classes = ["32.5L", "32.5N", "32.5R", "42.5L", "42.5N", "42.5R", "52.5L", "52.5N", "52.5R"];
+  const classes = [
+    "32.5 L", "32.5 N", "32.5 R",
+    "42.5 L", "42.5 N", "42.5 R", 
+    "52.5 L", "52.5 N", "52.5 R"
+  ];
 
-  // Limites en fonction classe + paramètre
   const currentLimits = useMemo(() => {
-    if (!selectedClass || !selectedParameter) return { li: "-", ls: "-", lg: "-" };
+    if (!selectedParameter || !selectedClass) {
+      return { li: null, ls: null, lg: null };
+    }
     return getLimitsByClass(selectedClass, selectedParameter);
-  }, [selectedClass, selectedParameter, mockDetails]);
+  }, [selectedParameter, selectedClass, limitsData, selectedProductFamily, selectedProductType]);
 
-  // Données chart
   const chartData = useMemo(() => {
     if (!selectedParameter) return [];
     return (filteredTableData || []).map((row, i) => ({
       x: i + 1,
       y: safeParse(row[selectedParameter]),
+      raw: row,
     }));
   }, [filteredTableData, selectedParameter]);
 
-  // Stats dérivées
   const derivedStats = useMemo(() => {
     const vals = chartData.map((p) => p.y).filter((v) => !isNaN(v));
     const basic = computeBasicStats(vals);
 
-    const li = currentLimits.li !== "-" ? parseFloat(currentLimits.li) : null;
-    const ls = currentLimits.ls !== "-" ? parseFloat(currentLimits.ls) : null;
-    const lg = currentLimits.lg !== "-" ? parseFloat(currentLimits.lg) : null;
+    const li = typeof currentLimits.li === "number" ? currentLimits.li : null;
+    const ls = typeof currentLimits.ls === "number" ? currentLimits.ls : null;
+    const lg = typeof currentLimits.lg === "number" ? currentLimits.lg : null;
 
-    const countBelow = (limit) => (limit != null ? vals.filter((v) => v < limit).length : 0);
-    const countAbove = (limit) => (limit != null ? vals.filter((v) => v > limit).length : 0);
-    const percent = (n) => (basic.count ? Math.round((n / basic.count) * 100) : 0);
+    const countBelow = (limit) => limit != null ? vals.filter((v) => v < limit).length : 0;
+    const countAbove = (limit) => limit != null ? vals.filter((v) => v > limit).length : 0;
+    const percent = (n) => basic.count ? Math.round((n / basic.count) * 100) : 0;
 
     return {
       ...basic,
@@ -159,80 +242,53 @@ export default function DonneesGraphiques({
     };
   }, [chartData, currentLimits]);
 
-  // Labels lisibles
-  const parameterLabels = {
-    rc2j: "Résistance à 2 jours",
-    rc7j: "Résistance à 7 jours",
-    rc28j: "Résistance à 28 jours",
-    prise: "Temps de début de prise",
-    stabilite: "Stabilité",
-    hydratation: "Chaleur d'hydratation",
-    so3: "SO3",
-    c3a: "C3A",
-    pfeu: "Pertes au feu",
-    r_insoluble: "Résidu insoluble",
-    chlorure: "Teneur en chlorure",
-    ajout_percent: "Pourcentage d'ajout",
-  };
-
-  const getTitle = () =>
-    selectedClass && selectedParameter
-      ? `${parameterLabels[selectedParameter] || selectedParameter} | Classe ${selectedClass}`
-      : "Sélectionnez un paramètre et une classe";
-
-  const tooltipFormatter = (val, name) =>
-    isNaN(val) ? ["-", name] : [val.toFixed(2), name];
-
-  // Actions
-  const handleExport = () => alert("Exporting...");
-  const handlePrint = () => alert("Printing...");
-  const handleSave = () => alert("Saving...");
-
-  // --- Render ---
-  if (loading) return <p className="no-data">Chargement des données de référence...</p>;
-  if (!filteredTableData?.length) return <p className="no-data">Veuillez d'abord filtrer des échantillons.</p>;
+  if (loading) return <p className="no-data">Chargement des limites...</p>;
+  if (!filteredTableData?.length)
+    return <p className="no-data">Veuillez d'abord filtrer des échantillons.</p>;
 
   return (
     <div className="dg-root">
       <div className="dg-header">
         <h2>Données Graphiques</h2>
-        <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-
-        {selectedCement && (
-          <div className="selected-cement-info">
-            <h3>{selectedCement.name}</h3>
-            <p>Type: {selectedCement.type} | Classe: {selectedCement.class}</p>
-            {selectedCement.description && <p><strong>Description:</strong> {selectedCement.description}</p>}
-          </div>
-        )}
+        <p>
+          Période: {filterPeriod.start} à {filterPeriod.end}
+        </p>
+        {selectedProductFamily && <p><strong>Famille: {selectedProductFamily}</strong></p>}
+        {selectedProductType && <p><strong>Type: {selectedProductType}</strong></p>}
       </div>
 
       <div className="dg-top-controls">
-        {/* Paramètre */}
         <div className="dg-parameter-selector">
           <h3>Paramètre</h3>
-          <select value={selectedParameter} onChange={(e) => setSelectedParameter(e.target.value)}>
+          <select
+            value={selectedParameter}
+            onChange={(e) => setSelectedParameter(e.target.value)}
+          >
             <option value="">-- Sélectionner un paramètre --</option>
-            {parameters.map((param) => (
-              <option key={param.key} value={param.key}>{param.label}</option>
+            {parameters.map((p) => (
+              <option key={p.key} value={p.key}>
+                {p.label}
+              </option>
             ))}
           </select>
         </div>
 
-        {/* Classes */}
         <div className="dg-classes-section">
-          <h3>Classes de Résistance</h3>
+          <h3>Classe</h3>
           <div className="dg-class-list">
-            {classes.map((classe) => (
-              <label key={classe} className={`dg-class ${selectedClass === classe ? "active" : ""}`}>
+            {classes.map((c) => (
+              <label
+                key={c}
+                className={`dg-class ${selectedClass === c ? "active" : ""}`}
+              >
                 <input
                   type="radio"
                   name="dg-class"
-                  value={classe}
-                  checked={selectedClass === classe}
-                  onChange={() => setSelectedClass(classe)}
+                  value={c}
+                  checked={selectedClass === c}
+                  onChange={() => setSelectedClass(c)}
                 />
-                <span className="dg-class-text">{classe}</span>
+                <span className="dg-class-text">{c}</span>
               </label>
             ))}
           </div>
@@ -240,82 +296,116 @@ export default function DonneesGraphiques({
       </div>
 
       <div className="dg-main">
-        {/* Chart */}
         <div className="dg-chart-card">
-          <h3>{getTitle()}</h3>
-          <ResponsiveContainer width="100%" height={400}>
-            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+          <h3>
+            {selectedParameter && selectedClass
+              ? `${parameters.find((p) => p.key === selectedParameter)?.label} | Classe ${selectedClass}`
+              : "Sélectionnez paramètre & classe"}
+          </h3>
+          <ResponsiveContainer width="100%" height={420}>
+            <ScatterChart
+              margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="x" name="Échantillon" tick={{ fontSize: 12 }} />
-              <YAxis dataKey="y" name={selectedParameter} tick={{ fontSize: 12 }} />
-              <Tooltip formatter={tooltipFormatter} cursor={{ strokeDasharray: "3 3" }} />
+              <XAxis dataKey="x" name="Échantillon" />
+              <YAxis dataKey="y" name={selectedParameter} ticks={[0, 15, 30, 45, 60, 75]} />
+              <Tooltip
+                formatter={(val) =>
+                  isNaN(val) ? "-" : Number(val).toFixed(2)
+                }
+              />
               <Legend />
-
-              <Scatter name="Mesures" data={chartData} fill="#FFC107" shape="square" size={8} />
-
-              {derivedStats.limiteInf != null && (
-                <ReferenceLine y={derivedStats.limiteInf} stroke="#2B90FF" strokeWidth={2} label={{ value: "LI", position: "right" }} />
+              <Scatter
+                name="Mesures"
+                data={chartData}
+                fill="#FFC107"
+                shape="circle"
+              />
+              
+              {/* Reference Lines with proper validation */}
+              {typeof currentLimits.li === "number" && !isNaN(currentLimits.li) && (
+                <ReferenceLine
+                  y={currentLimits.li}
+                  stroke="#2B90FF"
+                  strokeWidth={2}
+                  label={{ value: "LI", position: "right", fill: "#2B90FF" }}
+                />
               )}
-              {derivedStats.limiteSup != null && (
-                <ReferenceLine y={derivedStats.limiteSup} stroke="#18A558" strokeWidth={2} label={{ value: "LS", position: "right" }} />
+              {typeof currentLimits.ls === "number" && !isNaN(currentLimits.ls) && (
+                <ReferenceLine
+                  y={currentLimits.ls}
+                  stroke="#18A558"
+                  strokeWidth={2}
+                  label={{ value: "LS", position: "right", fill: "#18A558" }}
+                />
               )}
-              {derivedStats.limiteGarantie != null && (
-                <ReferenceLine y={derivedStats.limiteGarantie} stroke="#E53935" strokeWidth={2} label={{ value: "LG", position: "right" }} />
-              )}
-              {derivedStats.moyenne != null && (
-                <ReferenceLine y={derivedStats.moyenne} stroke="#8B5E3C" strokeDasharray="5 5" strokeWidth={2} label={{ value: "Moyenne", position: "right" }} />
+              {typeof currentLimits.lg === "number" && !isNaN(currentLimits.lg) && (
+                <ReferenceLine
+                  y={currentLimits.lg}
+                  stroke="#E53935"
+                  strokeWidth={2}
+                  label={{ value: "LG", position: "right", fill: "#E53935" }}
+                />
               )}
             </ScatterChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Side panel */}
         <aside className="dg-side-panel">
           <div className="dg-stats-card">
             <h3>Statistiques</h3>
-            <div className="dg-stat-row"><span>Nombre d'échantillons</span><strong>{derivedStats.count}</strong></div>
-            <div className="dg-stat-row"><span>Moyenne</span><strong>{derivedStats.moyenne ?? "-"}</strong></div>
-            <div className="dg-stat-row"><span>Min</span><strong>{derivedStats.min ?? "-"}</strong></div>
-            <div className="dg-stat-row"><span>Max</span><strong>{derivedStats.max ?? "-"}</strong></div>
-
+            <div className="dg-stat-row">
+              <span>Moyenne</span>
+              <strong>{derivedStats.moyenne ?? "-"}</strong>
+            </div>
             <div className="dg-divider" />
-
-            {/* Limits section */}
-            <div className="dg-limit-section">
-              <div className="dg-limit-row">
-                <div className="limit-dot li" />
-                <div>
-                  <div className="limit-label">Limite inférieure (LI)</div>
-                  <div className="limit-value">{derivedStats.limiteInf ?? "-"}</div>
-                  <div className="limit-sub">N &lt; LI: {derivedStats.countBelowInf} ({derivedStats.percentBelowInf}%)</div>
-                </div>
-              </div>
-              <div className="dg-limit-row">
-                <div className="limit-dot ls" />
-                <div>
-                  <div className="limit-label">Limite supérieure (LS)</div>
-                  <div className="limit-value">{derivedStats.limiteSup ?? "-"}</div>
-                  <div className="limit-sub">N &gt; LS: {derivedStats.countAboveSup} ({derivedStats.percentAboveSup}%)</div>
-                </div>
-              </div>
-              <div className="dg-limit-row">
-                <div className="limit-dot lg" />
-                <div>
-                  <div className="limit-label">Limite garantie (LG)</div>
-                  <div className="limit-value">{derivedStats.limiteGarantie ?? "-"}</div>
-                  <div className="limit-sub">N &lt; LG: {derivedStats.countBelowGarantie} ({derivedStats.percentBelowGarantie}%)</div>
-                </div>
+            <div className="dg-limit-row">
+              <div className="limit-dot li" />
+              <div>
+                <div>LI</div>
+                <div>{currentLimits.li ?? "-"}</div>
               </div>
             </div>
-          </div>
-
-          <div className="dg-actions">
-            <button className="btn ghost" onClick={handleExport} disabled={!filteredTableData.length}>Exporter</button>
-            <button className="btn ghost" onClick={handlePrint} disabled={!filteredTableData.length}>Imprimer</button>
-            <button className="btn primary" onClick={handleSave} disabled={!filteredTableData.length}>Sauvegarder</button>
+            <div className="dg-limit-row">
+              <div className="limit-dot ls" />
+              <div>
+                <div>LS</div>
+                <div>{currentLimits.ls ?? "-"}</div>
+              </div>
+            </div>
+            <div className="dg-limit-row">
+              <div className="limit-dot lg" />
+              <div>
+                <div>LG</div>
+                <div>{currentLimits.lg ?? "-"}</div>
+              </div>
+            </div>
+            
+            {/* Additional statistics */}
+            {currentLimits.li !== null && (
+              <div className="dg-stat-row">
+                <span>En dessous de LI</span>
+                <strong>{derivedStats.countBelowInf} ({derivedStats.percentBelowInf}%)</strong>
+              </div>
+            )}
+            {currentLimits.ls !== null && (
+              <div className="dg-stat-row">
+                <span>Au dessus de LS</span>
+                <strong>{derivedStats.countAboveSup} ({derivedStats.percentAboveSup}%)</strong>
+              </div>
+            )}
+            {currentLimits.lg !== null && (
+              <div className="dg-stat-row">
+                <span>En dessous de LG</span>
+                <strong>{derivedStats.countBelowGarantie} ({derivedStats.percentBelowGarantie}%)</strong>
+              </div>
+            )}
           </div>
         </aside>
       </div>
     </div>
   );
 }
+
+
+
