@@ -96,7 +96,7 @@ export default function DonneesGraphiques({ selectedType, selectedCement }) {
     ajout: "ajout"
   };
 
-  // Use the same getLimitsByClass function as DonneesStatistiques
+  // Use the same getLimitsByClass function 
   const getLimitsByClass = (classe, key) => {
     const mockKey = keyMapping[key];
     if (!mockKey || !limitsData[mockKey]) return { li: null, ls: null, lg: null };
