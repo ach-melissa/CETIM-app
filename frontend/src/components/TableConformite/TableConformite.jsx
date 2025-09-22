@@ -107,11 +107,11 @@ const TableConformite = ({
     stabilite: "stabilite",
     hydratation: "chaleur_hydratation",
     so3: "SO3",
-    c3a: "C3A",
     pfeu: "pert_au_feu",
     r_insoluble: "residu_insoluble",
     chlorure: "teneur_chlour",
-    ajout_percent: "ajout_percent",
+    c3a: "C3A",
+    ajt : "Ajout"
   };
 
   // Récupère les limites par classe et paramètre

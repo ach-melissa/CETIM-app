@@ -91,9 +91,8 @@ export default function DonneesGraphiques({ selectedType, selectedCement }) {
     r_insoluble: "residu_insoluble",
     so3: "SO3",
     chlorure: "teneur_chlour",
-    pouzzolanicite: "pouzzolanicite",
+    ajt : "Ajout",
     c3a: "C3A",
-    ajout: "ajout"
   };
 
   // Use the same getLimitsByClass function 
@@ -183,7 +182,7 @@ export default function DonneesGraphiques({ selectedType, selectedCement }) {
     { key: "r_insoluble", label: "Résidu Insoluble" },
     { key: "so3", label: "Teneur en sulfate" },
     { key: "chlorure", label: "Chlorure" },
-    { key: "pouzzolanicite", label: "Pouzzolanicité" },
+    
   ];
   
   // Add C3A only for type 1 (like in DonneesStatistiques)

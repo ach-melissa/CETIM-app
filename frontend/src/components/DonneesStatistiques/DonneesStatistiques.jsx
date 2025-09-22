@@ -96,7 +96,7 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
     r_insoluble: "residu_insoluble",
     so3: "SO3",
     chlorure: "teneur_chlour",
-    pouzzolanicite: "pouzzolanicite",
+    ajt : "Ajout",
     c3a: "C3A",
   };
 
@@ -192,7 +192,7 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
     { key: "r_insoluble", label: "R. Insoluble" },
     { key: "so3", label: "SO3" },
     { key: "chlorure", label: "Chlorure" },
-    { key: "pouzzolanicite", label: "Pouzzolanicité" },
+    
   ];
   if (Number(selectedType) === 1) parameters.push({ key: "c3a", label: "C3A" });
 
