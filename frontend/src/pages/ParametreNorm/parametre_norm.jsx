@@ -5,7 +5,56 @@ import Header from "../../components/Header/Header";
 const API_BASE = "http://localhost:5000";
 const USE_MOCK_DATA = true;
 
+const casLimits = {
+  S: {
+    "CEM II/A-S": { limitInf: 6, limitSup: 20 },
+    "CEM II/B-S": { limitInf: 21, limitSup: 35 }
+  },
+  D: {
+    "CEM II/A-D": { limitInf: 6, limitSup: 20 }
+  },
+  P: {
+    "CEM II/A-P": { limitInf: 6, limitSup: 20 },
+    "CEM II/B-P": { limitInf: 21, limitSup: 35 }
+  },
+  Q: {
+    "CEM II/A-Q": { limitInf: 6, limitSup: 20 },
+    "CEM II/B-Q": { limitInf: 21, limitSup: 35 }
+  },
+  V: {
+        "CEM II/A-V": { limitInf: 6, limitSup: 20 },
+    "CEM II/B-V": { limitInf: 21, limitSup: 35 }
+  },
+  W: {
+        "CEM II/A-W": { limitInf: 6, limitSup: 20 },
+    "CEM II/B-W": { limitInf: 21, limitSup: 35 }
+  },
+  T: {
+    "CEM II/A-T": { limitInf: 6, limitSup: 20 },
+    "CEM II/B-T": { limitInf: 21, limitSup: 35 }
+  },
+  L: {
+    "CEM II/A-L": { limitInf: 6, limitSup: 20 },
+    "CEM II/B-L": { limitInf: 21, limitSup: 35 }
+  },
+  LL: {
+    "CEM II/A-LL": { limitInf: 12, limitSup: 20 },
+    "CEM II/B-LL": { limitInf: 21, limitSup: 35 }
+  },
 
+  SDPQVWTLLL:{
+    "CEM II/A-M": { limitInf: 12, limitSup: 20 },
+    "CEM II/B-M": { limitInf: 21, limitSup: 35 }
+  },
+  DPQVW:{
+    "CEM IV/A": { limitInf: 11, limitSup: 35 },
+    "CEM IV/B": { limitInf: 36, limitSup: 55 }
+  },
+  PQV:{
+    "CEM V/A": { limitInf: 18, limitSup: 30 },
+    "CEM V/B": { limitInf: 31, limitSup: 49 }
+  }
+};
 
 
 export default function ParametreNorm() {
@@ -24,7 +73,12 @@ export default function ParametreNorm() {
   const [newParamName, setNewParamName] = useState("");
   const [newParamUnit, setNewParamUnit] = useState("");
   const [validatedParams, setValidatedParams] = useState({});
-  const [rows, setRows] = useState([{ cas: "", limitInf: "", limitSup: "", garantie: "" }]);
+
+  const [selectedCas, setSelectedCas] = useState(""); // selected ajout cas
+const [rows, setRows] = useState([]); // table rows for the selected cas
+const [validatedAjout, setValidatedAjout] = useState({}); // store validated data per cas
+
+
 
 
 
@@ -40,13 +94,13 @@ export default function ParametreNorm() {
     { id: "resistance_2j", nom: "Résistance à 2 jours", unite: "MPa", type_controle: "mesure" },
     { id: "resistance_7j", nom: "Résistance à 7 jours", unite: "MPa", type_controle: "mesure" },
     { id: "resistance_28j", nom: "Résistance à 28 jours", unite: "MPa", type_controle: "mesure" },
-    { id: "ajt", nom: "L'ajoute", unite: null, type_controle: "attribut" },
+    { id: "ajt", nom: "L'ajout", unite: null, type_controle: "attribut" },
   ],
   physique: [
     { id: "temps_debut_prise", nom: "Temps de début de prise", unite: "min", type_controle: "attribut" },
     { id: "stabilite", nom: "Stabilité (expansion)", unite: "mm", type_controle: "attribut" },
     { id: "chaleur_hydratation", nom: "Chaleur d’hydratation", unite: "J/g", type_controle: "attribut" },
-    { id: "ajt", nom: "L'ajoute", unite: null, type_controle: "attribut" },
+    { id: "ajt", nom: "L'ajout", unite: null, type_controle: "attribut" },
   ],
   chimique: [
     { id: "pert_au_feu", nom: "Perte au feu", unite: "%", type_controle: "attribut" },
@@ -55,7 +109,7 @@ export default function ParametreNorm() {
     { id: "teneur_chlour", nom: "Teneur en chlorure", unite: "%", type_controle: "attribut" },
     { id: "C3A", nom: "C3A dans le clinker", unite: "%", type_controle: "attribut" },
     { id: "pouzzolanicite", nom: "Pouzzolanicité", unite: "", type_controle: "attribut" },
-    { id: "ajt", nom: "L'ajoute", unite: null, type_controle: "attribut" }
+    { id: "ajt", nom: "L'ajout", unite: null, type_controle: "attribut" }
   ]
   };
   
@@ -2498,6 +2552,40 @@ SO3: [
 
   const isAjouteParameter = () => selectedParameter === "ajt";
 
+
+
+  // Handler when selecting a cas
+const handleCasSelect = (cas) => {
+  setSelectedCas(cas);
+
+  // Load rows either from validatedAjout if exists, otherwise from casLimits
+  if (cas) {
+    if (validatedAjout[cas]) {
+      setRows(validatedAjout[cas]); // restore previous saved data
+    } else if (casLimits[cas]) {
+      const newRows = Object.entries(casLimits[cas]).map(([cement, limits]) => ({
+        cas,
+        cement,
+        limitInf: limits.limitInf,
+        limitSup: limits.limitSup,
+      }));
+      setRows(newRows);
+    } else {
+      setRows([]);
+    }
+  } else {
+    setRows([]);
+  }
+};
+
+// Handler to validate/save the rows for the selected cas
+const handleValidateAjout = () => {
+  if (!selectedCas) return;
+  setValidatedAjout((prev) => ({
+    ...prev,
+    [selectedCas]: [...rows],
+  }));
+};
   // ---------------- Render ----------------
   return (
     <div className="parametreNormPage">
@@ -2550,117 +2638,89 @@ SO3: [
                         setRows([{ cas: "", limitInf: "", limitSup: "", garantie: "" }]);
                       }}
                     >
-                      {param.nom} {param.unite && `(${param.unite})`} {isAjout && casList.length > 0 && ` (${casList.join(", ")})`}
+                      {param.nom} {param.unite && `(${param.unite})`} 
                     </button>
                   );
                 })}
               </div>
 
   {/* Custom parameter table for "L'ajoute" */}
-              {isAjouteParameter() && (
-                <div className="parameter-details-form">
-                  <h3>
-                    ajout(
-                    {validatedParams[selectedParameter]
-                      ? validatedParams[selectedParameter][0]?.cas || "......."
-                      : rows[0]?.cas || "......."}
-                    )
-                  </h3>
-                  <table className="parameter-table">
-                    <thead>
-                      <tr>
-                        <th>Cas</th>
-                        <th>Limit Inf</th>
-                        <th>Limit Sup</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {validatedParams[selectedParameter] ? (
-                        validatedParams[selectedParameter].map((row, index) => (
-                          <tr key={index}>
-                            <td>{row.cas}</td>
-                            <td>{row.limitInf}</td>
-                            <td>{row.limitSup}</td>
-                            <td>
-                              <button
-                                onClick={() => {
-                                  setRows(validatedParams[selectedParameter]);
-                                  setValidatedParams((prev) => {
-                                    const updated = { ...prev };
-                                    delete updated[selectedParameter];
-                                    return updated;
-                                  });
-                                }}
-                              >
-                                Modifier
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <>
-                          {rows.map((row, index) => (
-                            <tr key={index}>
-                              <td>
-                                <input
-                                  type="text"
-                                  value={row.cas}
-                                  onChange={(e) => handleRowChange(index, "cas", e.target.value)}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  value={row.limitInf}
-                                  onChange={(e) => handleRowChange(index, "limitInf", e.target.value)}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  value={row.limitSup}
-                                  onChange={(e) => handleRowChange(index, "limitSup", e.target.value)}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  value={row.garantie}
-                                  onChange={(e) => handleRowChange(index, "garantie", e.target.value)}
-                                />
-                              </td>
-                              <td>
-                                <button
-                                  onClick={() => {
-                                    const updated = [...rows];
-                                    updated.splice(index, 1);
-                                    setRows(updated);
-                                  }}
-                                >
-                                  Supprimer
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                          <tr>
-                            <td colSpan="4">
-                              <button type="button" onClick={handleAddRow}>
-                                ➕ Ajouter une ligne
-                              </button>
-                            </td>
-                            <td>
-                              <button type="button" onClick={handleValidateAll}>
-                                ✔️ Valider
-                              </button>
-                            </td>
-                          </tr>
-                        </>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+{isAjouteParameter() && (
+  <div className="parameter-details-form">
+    <h3>Ajout</h3>
+
+    {/* Cas selector */}
+    <div className="ajout-selector">
+      <label>Cas: </label>
+      <select
+        value={selectedCas}
+        onChange={(e) => {
+          const cas = e.target.value;
+          setSelectedCas(cas);
+
+          // populate rows based on casLimits for the selected cas
+          if (cas && casLimits[cas]) {
+            const newRows = Object.entries(casLimits[cas]).map(([cement, limits]) => ({
+              cas,
+              cement,
+              limitInf: limits.limitInf,
+              limitSup: limits.limitSup,
+            }));
+            setRows(newRows);
+          } else {
+            setRows([]);
+          }
+        }}
+      >
+        <option value="">-- Sélectionner un cas --</option>
+        {Object.keys(casLimits).map((c) => (
+          <option key={c} value={c}>{c}</option>
+        ))}
+      </select>
+    </div>
+
+    {/* Table shown only if a cas is selected */}
+    {selectedCas && rows.length > 0 && (
+      <table className="parameter-table">
+        <thead>
+          <tr>
+            <th>Cas</th>
+            <th>Ciment</th>
+            <th>Limit Inf</th>
+            <th>Limit Sup</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={index}>
+              <td>{row.cas}</td>
+              <td>{row.cement}</td>
+              <td>
+                <input
+                  type="number"
+                  value={row.limitInf}
+                  onChange={(e) => handleRowChange(index, "limitInf", e.target.value)}
+                />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  value={row.limitSup}
+                  onChange={(e) => handleRowChange(index, "limitSup", e.target.value)}
+                />
+              </td>
+              <td>
+                <button onClick={() => handleDeleteRow(index)}>Supprimer</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </div>
+)}
+
 
               {/* Standard parameter details */}
               {selectedParameter && parameterDetails.length > 0 && !isAjouteParameter() && (
