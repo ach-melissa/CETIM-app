@@ -207,7 +207,7 @@ const ParametreEntreprise = () => {
             <i className="fas fa-cogs"></i> Paramètres Entreprise
           </h1>
         </div>
-           <hr/>
+           
         {validationMessage && <p className="validation-msg">{validationMessage}</p>}
 
         {/* Action buttons - MOVED ABOVE CLIENT INFO */}
@@ -216,7 +216,7 @@ const ParametreEntreprise = () => {
           <button className="secondary-btn" onClick={openEditClient}> ⚙️ Modifier Client</button>
           <button className="danger-btn" onClick={handleDeleteClient}>🗑️ Supprimer Client</button>
         </div>
-            <hr/>
+            
         {/* Informations client */}
         <div className="info-card">
           <h2 className="card-title">Informations Client</h2>
