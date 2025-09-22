@@ -2647,11 +2647,11 @@ const handleValidateAjout = () => {
   {/* Custom parameter table for "L'ajoute" */}
 {isAjouteParameter() && (
   <div className="parameter-details-form">
-    <h3>Ajout</h3>
+   
 
     {/* Cas selector */}
     <div className="ajout-selector">
-      <label>Cas: </label>
+      <label>Ajout: </label>
       <select
         value={selectedCas}
         onChange={(e) => {
