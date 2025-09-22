@@ -1,16 +1,20 @@
-// EchantillonsTable.jsx
-import React, { useEffect, useState, forwardRef, useImperativeHandle } from "react";
+import React, { useEffect, useState, forwardRef, useImperativeHandle } from "react"; 
 import axios from "axios";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { useData } from "../../context/DataContext";
 
+const formatExcelDate = (excelDate) => {
+  if (!excelDate || isNaN(excelDate)) return ""; // Ensure it's a valid date
+  return excelDate; // Return the date as-is, assuming it's already in "YYYY-MM-DD" format
+};
+
 const EchantillonsTable = forwardRef(
   (
     {
       clientId,
-      produitId,
+      clientTypeCimentId,
       phase,
       selectedType,
       onTableDataChange,
@@ -20,17 +24,21 @@ const EchantillonsTable = forwardRef(
       clients = [],
       produits = [],
       hasData,
-      selectedSituation,
     },
     ref
   ) => {
     const [start, setStart] = useState(initialStart || "");
     const [end, setEnd] = useState(initialEnd || "");
     const [rows, setRows] = useState([]);
-    const [filteredRows, setFilteredRows] = useState([]); // ✅ NEW state
+    const [filteredRows, setFilteredRows] = useState([]);
     const [selected, setSelected] = useState(new Set());
     const [loading, setLoading] = useState(false);
-
+    const [showNewTypeForm, setShowNewTypeForm] = useState(false);
+    const [newCement, setNewCement] = useState(null);
+    const [cementList, setCementList] = useState([]);
+    const [showDateFilter, setShowDateFilter] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const { updateFilteredData } = useData();
 
     const fetchRows = async () => {
@@ -38,14 +46,16 @@ const EchantillonsTable = forwardRef(
       setLoading(true);
       try {
         const params = { client_id: clientId };
-        if (produitId) params.produit_id = produitId;
-        if (phase) params.phase = phase;
-        if (start) {
-          params.start = new Date(start).toISOString().split("T")[0];
+
+        if (clientTypeCimentId) {
+          params.client_type_ciment_id = clientTypeCimentId;
         }
+
+        if (phase) params.phase = phase;
+        if (start) params.start = new Date(start).toISOString().split("T")[0];
         if (end) {
           const endDate = new Date(end);
-          endDate.setDate(endDate.getDate() + 1); // inclusive
+          endDate.setDate(endDate.getDate() + 1);
           params.end = endDate.toISOString().split("T")[0];
         }
 
@@ -69,6 +79,55 @@ const EchantillonsTable = forwardRef(
       }
     };
 
+    const fetchCements = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/types_ciment");
+        setCementList(response.data);
+      } catch (err) {
+        console.error("Erreur fetch cement types", err);
+      }
+    };
+
+    const addCementForClient = async () => {
+      if (!newCement) {
+        alert("Veuillez sélectionner un ciment.");
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:5000/api/client_types_ciment", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            clientId: clientId,
+            typeCimentId: newCement,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          alert(`Erreur lors de l'ajout du ciment: ${error.message}`);
+          return;
+        }
+
+        alert("Ciment ajouté au client avec succès !");
+        setNewCement(""); // Clear the selected cement
+        setShowNewTypeForm(false); // Close the form
+        
+        // Refresh the product list
+        fetch(`http://localhost:5000/api/produits/${clientId}`)
+          .then((res) => res.json())
+          .then((data) => setProduits(data))
+          .catch((err) => alert("Erreur lors du chargement des produits."));
+        
+      } catch (err) {
+        console.error("Erreur ajout ciment:", err);
+        alert("Erreur lors de l'ajout du ciment.");
+      }
+    };
+
     useImperativeHandle(ref, () => ({
       refresh: fetchRows,
     }));
@@ -82,25 +141,9 @@ const EchantillonsTable = forwardRef(
         }
         return;
       }
+      fetchRows();
+    }, [clientId, clientTypeCimentId, phase]);
 
-      if (selectedSituation) {
-        fetchRows();
-      } else {
-        setRows([]);
-        updateFilteredData([], "", "");
-        if (onTableDataChange) {
-          onTableDataChange([], "", "");
-        }
-      }
-    }, [clientId, produitId, phase, selectedSituation]);
-
-    useEffect(() => {
-      if (start || end) {
-        fetchRows();
-      }
-    }, [start, end]);
-
-    // ✅ Filter rows whenever rows or selectedType changes
     useEffect(() => {
       if (!selectedType) {
         setFilteredRows(rows);
@@ -108,6 +151,11 @@ const EchantillonsTable = forwardRef(
         setFilteredRows(rows.filter((r) => r.type_ciment === selectedType));
       }
     }, [rows, selectedType]);
+
+    // Fetch cements on component mount
+    useEffect(() => {
+      fetchCements();
+    }, []);
 
     const toggleRow = (id) => {
       const s = new Set(selected);
@@ -130,30 +178,47 @@ const EchantillonsTable = forwardRef(
       );
     };
 
-    const formatExcelDate = (excelDate) => {
-      if (!excelDate) return null;
+    const handleSave = async () => {
+      try {
+        const response = await axios.post("http://localhost:5000/api/echantillons/save", {
+          rows, // The data to be saved
+        });
+        console.log("Saved successfully:", response.data);
+        alert("Data saved successfully!");
+        setIsEditing(false);
+      } catch (error) {
+        console.error("Error saving data:", error);
+        alert("Error while saving data.");
+      }
+    };
 
-      if (excelDate instanceof Date) {
-        return excelDate.toISOString().split("T")[0];
+    const handleDelete = async () => {
+      if (selected.size === 0) {
+        alert("Veuillez sélectionner au moins un échantillon à supprimer.");
+        return;
       }
 
-      if (typeof excelDate === "number") {
-        const date = new Date((excelDate - 25569) * 86400 * 1000);
-        return date.toISOString().split("T")[0];
+      if (!window.confirm("Êtes-vous sûr de vouloir supprimer les échantillons sélectionnés ? Cette action est irréversible.")) {
+        return;
       }
 
-      if (typeof excelDate === "string") {
-        const parts = excelDate.split(/[\/\-]/);
-        if (parts.length === 3) {
-          let [day, month, year] = parts.map((p) => p.padStart(2, "0"));
-          if (year.length === 4 && Number(day) <= 31 && Number(month) <= 12) {
-            return `${year}-${month}-${day}`;
-          }
+      try {
+        const response = await axios.post("http://localhost:5000/api/echantillons/delete", {
+          ids: Array.from(selected),
+        });
+
+        if (response.data.success) {
+          alert("Échantillons supprimés avec succès !");
+          fetchRows(); // Refresh the data
+          setIsDeleting(false);
+          setSelected(new Set());
+        } else {
+          alert("Erreur lors de la suppression des échantillons.");
         }
-        return excelDate;
+      } catch (error) {
+        console.error("Error deleting data:", error);
+        alert("Erreur lors de la suppression des échantillons.");
       }
-
-      return null;
     };
 
     const handleImportExcel = (e) => {
@@ -206,10 +271,9 @@ const EchantillonsTable = forwardRef(
         });
 
         axios
-          .post("http://localhost:5000/api/echantillons/bulk", {
-            client_id: clientId,
-            produit_id: produitId,
-            phase: phase,
+          .post("http://localhost:5000/api/echantillons/import", {
+            clientId: clientId,
+            produitId: clientTypeCimentId, // This is the product ID
             rows: formattedRows,
           })
           .then((res) => {
@@ -227,289 +291,351 @@ const EchantillonsTable = forwardRef(
       reader.readAsArrayBuffer(file);
     };
 
+    // Define exportToExcel outside of handleImportExcel to make it accessible
     const exportToExcel = () => {
+      // Convert the filtered rows to Excel format using XLSX
       const ws = XLSX.utils.json_to_sheet(filteredRows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Echantillons");
+
+      // Save the file as an Excel file
       XLSX.writeFile(wb, "echantillons.xlsx");
     };
 
+    // Define exportToCSV function to handle exporting data as CSV
     const exportToCSV = () => {
+      // Convert the filtered rows to CSV format using XLSX
       const ws = XLSX.utils.json_to_sheet(filteredRows);
       const csv = XLSX.utils.sheet_to_csv(ws);
+
+      // Create a blob from the CSV data and trigger download
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "echantillons.csv";
-      a.click();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "echantillons.csv";
+      link.click();
     };
 
+    // Define exportToPDF function to handle exporting data as PDF
     const exportToPDF = () => {
       const doc = new jsPDF();
-      if (filteredRows.length === 0) {
-        doc.text("Aucune donnée", 10, 10);
-      } else {
-        const columns = Object.keys(filteredRows[0]);
-        const body = filteredRows.map((row) => columns.map((col) => row[col]));
-        doc.autoTable({ head: [columns], body });
-      }
+      doc.autoTable({
+        head: [
+          ["Ech", "Date", "RC2J", "RC7J", "RC28J", "Prise", "Stabilité", "Hydratation", "P. Feu", "R. Insoluble", "SO3", "Chlorure"]
+        ],
+        body: filteredRows.map(row => [
+          row.num_ech,
+          row.date_test,
+          row.rc2j,
+          row.rc7j,
+          row.rc28j,
+          row.prise,
+          row.stabilite,
+          row.hydratation,
+          row.pfeu,
+          row.r_insoluble,
+          row.so3,
+          row.chlorure
+        ])
+      });
+
       doc.save("echantillons.pdf");
     };
 
+    // Define handlePrint function
     const handlePrint = () => {
-      const printWindow = window.open("", "_blank");
-      if (!filteredRows.length) {
-        printWindow.document.write("<p>Aucune donnée à imprimer</p>");
-      } else {
-        const columns = Object.keys(filteredRows[0]);
-        const tableHtml = `
-          <table border="1" style="border-collapse: collapse; width: 100%;">
-            <thead>
-              <tr>${columns.map((c) => `<th>${c}</th>`).join("")}</tr>
-            </thead>
-            <tbody>
-              ${filteredRows
-                .map(
-                  (row) =>
-                    `<tr>${columns
-                      .map((c) => `<td>${row[c] ?? ""}</td>`)
-                      .join("")}</tr>`
-                )
-                .join("")}
-            </tbody>
-          </table>`;
-        printWindow.document.write(`<html><body>${tableHtml}</body></html>`);
-      }
-      printWindow.document.close();
-      printWindow.print();
+      // Open the print dialog for the page content
+      window.print();
     };
 
-    const handleSave = async () => {
-      if (
-        !window.confirm("Êtes-vous sûr de vouloir sauvegarder les modifications ?")
-      )
-        return;
+    const handleApplyDateFilter = () => {
+      fetchRows();
+      setShowDateFilter(false);
+    };
 
-      try {
-        const res = await axios.post(
-          "http://localhost:5000/api/echantillons/save",
-          { rows }
-        );
-        alert(`✅ Sauvegardé ${res.data.updated} lignes`);
-      } catch (err) {
-        console.error(
-          "Erreur lors de la sauvegarde:",
-          err.response?.data || err.message
-        );
-        alert("❌ Erreur lors de la sauvegarde. Voir console.");
-      }
+    const handleClearDateFilter = () => {
+      setStart("");
+      setEnd("");
+      fetchRows();
+      setShowDateFilter(false);
     };
 
     return (
       <div>
-        <div
-          style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}
-        >
-          <label>
-            Du{" "}
-            <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
-          </label>
-          <label>
-            Au{" "}
-            <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
-          </label>
-          <button onClick={fetchRows} disabled={loading || !clientId || !selectedSituation}>
-            Filtrer
-          </button>
-        </div>
+        {/* Date Filter Modal */}
+        {showDateFilter && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              padding: '20px',
+              borderRadius: '8px',
+              width: '400px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3>Filtrer par date</h3>
+                <button 
+                  onClick={() => setShowDateFilter(false)}
+                  style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
+                <label>
+                  Du{" "}
+                  <input 
+                    type="date" 
+                    value={start} 
+                    onChange={(e) => setStart(e.target.value)} 
+                    style={{ padding: '5px', width: '100%' }}
+                  />
+                </label>
+                <label>
+                  Au{" "}
+                  <input 
+                    type="date" 
+                    value={end} 
+                    onChange={(e) => setEnd(e.target.value)} 
+                    style={{ padding: '5px', width: '100%' }}
+                  />
+                </label>
+              </div>
+              
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <button 
+                  onClick={handleClearDateFilter}
+                  style={{ padding: '8px 16px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={handleApplyDateFilter}
+                  disabled={loading || !clientId}
+                  style={{ padding: '8px 16px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Traiter
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Date Filter Button - Only show when produit is selected */}
+        {clientTypeCimentId && (
+          <div style={{ marginBottom: "1rem" }}>
+            <button 
+              onClick={() => setShowDateFilter(true)}
+              style={{ padding: '8px 16px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            >
+              Commencer traitement
+            </button>
+          </div>
+        )}
 
         <div style={{ marginBottom: "1rem" }}>
           <p>
             <strong>
-              {clients.find((c) => c.id == clientId)?.nom_raison_sociale ||
-                "Aucun client"}
+              {clients.find((c) => c.id == clientId)?.nom_raison_sociale || "Aucun client"}
             </strong>
           </p>
           <h2>Données à traiter</h2>
           <h2>
             Période du {start || "......"} au {end || "..........."}{" "}
           </h2>
-          {produitId && <h3>{produitDescription}</h3>}
+          {clientTypeCimentId && <h3>{produitDescription}</h3>}
         </div>
 
-        {!selectedSituation && (
-          <div
-            style={{
-              padding: "20px",
-              textAlign: "center",
-              backgroundColor: "#f8f9fa",
-              border: "1px solid #dee2e6",
-            }}
-          >
-            <p>
-              Veuillez sélectionner une situation (Situation Courante ou Nouveau
-              Type Produit) pour afficher les données.
-            </p>
-          </div>
-        )}
-
-        {selectedSituation && (
-          <div className="table-container">
-            <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <th>
+        <div className="table-container">
+          <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    onChange={toggleAll}
+                    checked={filteredRows.length > 0 && selected.size === filteredRows.length}
+                  />
+                </th>
+                <th>Ech</th>
+                <th>Date</th>
+                <th>RC2J</th>
+                <th>RC7J</th>
+                <th>RC28J</th>
+                <th>Prise</th>
+                <th>Stabilité</th>
+                <th>Hydratation</th>
+                <th>P. Feu</th>
+                <th>R. Insoluble</th>
+                <th>SO3</th>
+                <th>Chlorure</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRows.map((row) => (
+                <tr key={row.id} className={selected.has(row.id) ? "selected" : ""}>
+                  <td>
                     <input
                       type="checkbox"
-                      onChange={toggleAll}
-                      checked={
-                        filteredRows.length > 0 && selected.size === filteredRows.length
-                      }
+                      checked={selected.has(row.id)}
+                      onChange={() => toggleRow(row.id)}
                     />
-                  </th>
-                  <th>Ech</th>
-                  <th>Date</th>
-                  <th>RC2J</th>
-                  <th>RC7J</th>
-                  <th>RC28J</th>
-                  <th>Prise</th>
-                  <th>Stabilité</th>
-                  <th>Hydratation</th>
-                  <th>P. Feu</th>
-                  <th>R. Insoluble</th>
-                  <th>SO3</th>
-                  <th>Chlorure</th>
-                  {selectedType === 1 && <th>C3A</th>}
-                  {selectedType && selectedType !== 1 && <th>Ajout (Type Ajout) %</th>}
+                  </td>
+                  <td>{row.num_ech}</td>
+                  <td>{row.date_test}</td>
+                  <td>
+                    <input
+                      type="number"
+                      value={row.rc2j || ""}
+                      onChange={(e) => handleEdit(row.id, "rc2j", e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={row.rc7j || ""}
+                      onChange={(e) => handleEdit(row.id, "rc7j", e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={row.rc28j || ""}
+                      onChange={(e) => handleEdit(row.id, "rc28j", e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      value={row.prise || ""}
+                      onChange={(e) => handleEdit(row.id, "prise", e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      value={row.stabilite || ""}
+                      onChange={(e) => handleEdit(row.id, "stabilite", e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      value={row.hydratation || ""}
+                      onChange={(e) => handleEdit(row.id, "hydratation", e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={row.pfeu || ""}
+                      onChange={(e) => handleEdit(row.id, "pfeu", e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={row.r_insoluble || ""}
+                      onChange={(e) => handleEdit(row.id, "r_insoluble", e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={row.so3 || ""}
+                      onChange={(e) => handleEdit(row.id, "so3", e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={row.chlorure || ""}
+                      onChange={(e) => handleEdit(row.id, "chlorure", e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredRows.map((row) => (
-                  <tr key={row.id} className={selected.has(row.id) ? "selected" : ""}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selected.has(row.id)}
-                        onChange={() => toggleRow(row.id)}
-                      />
-                    </td>
-                    <td>{row.num_ech}</td>
-                    <td>{row.date_test}</td>
-                    <td>
-                      <input
-                        type="number"
-                        value={row.rc2j || ""}
-                        onChange={(e) => handleEdit(row.id, "rc2j", e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        value={row.rc7j || ""}
-                        onChange={(e) => handleEdit(row.id, "rc7j", e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        value={row.rc28j || ""}
-                        onChange={(e) => handleEdit(row.id, "rc28j", e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="text"
-                        value={row.prise || ""}
-                        onChange={(e) => handleEdit(row.id, "prise", e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="text"
-                        value={row.stabilite || ""}
-                        onChange={(e) => handleEdit(row.id, "stabilite", e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="text"
-                        value={row.hydratation || ""}
-                        onChange={(e) => handleEdit(row.id, "hydratation", e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        value={row.pfeu || ""}
-                        onChange={(e) => handleEdit(row.id, "pfeu", e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        value={row.r_insoluble || ""}
-                        onChange={(e) =>
-                          handleEdit(row.id, "r_insoluble", e.target.value)
-                        }
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        value={row.so3 || ""}
-                        onChange={(e) => handleEdit(row.id, "so3", e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        value={row.chlorure || ""}
-                        onChange={(e) => handleEdit(row.id, "chlorure", e.target.value)}
-                      />
-                    </td>
-                    {selectedType === 1 && (
-                      <td>
-                        <input
-                          type="number"
-                          value={row.c3a || ""}
-                          onChange={(e) => handleEdit(row.id, "c3a", e.target.value)}
-                        />
-                      </td>
-                    )}
-                    {selectedType && selectedType !== 1 && (
-                      <td>
-                        <input
-                          type="number"
-                          value={row.ajout_percent || ""}
-                          onChange={(e) =>
-                            handleEdit(row.id, "ajout_percent", e.target.value)
-                          }
-                        />
-                      </td>
-                    )}
-                  </tr>
-                ))}
-                {filteredRows.length === 0 && selectedSituation && (
-                  <tr>
-                    <td colSpan={15}>Aucune donnée pour ce type de ciment</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+              ))}
+              {filteredRows.length === 0 && (
+                <tr>
+                  <td colSpan={13}>Aucune donnée</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-        {selectedSituation && (
-          <div style={{ marginBottom: 10 }}>
-            <input type="file" accept=".xlsx,.xls" onChange={handleImportExcel} />
-            <button onClick={handleSave} disabled={rows.length === 0}>
-              Sauvegarder
-            </button>
-            <button onClick={exportToExcel}>Export Excel</button>
-            <button onClick={exportToCSV}>Export CSV</button>
-            <button onClick={exportToPDF}>Export PDF</button>
-            <button onClick={handlePrint}>Imprimer</button>
+        <div style={{ marginBottom: 10 }}>
+          {!isEditing && !isDeleting && (
+            <>
+              <button onClick={() => setIsEditing(true)}>Modifier</button>
+              <button onClick={() => setIsDeleting(true)}>Supprimer</button>
+              <button onClick={exportToExcel}>Export Excel</button>
+              <button onClick={exportToCSV}>Export CSV</button>
+              <button onClick={exportToPDF}>Export PDF</button>
+              <button onClick={handlePrint}>Imprimer</button>
+            </>
+          )}
+          
+          {isEditing && (
+            <>
+              <button onClick={handleSave}>Sauvegarder</button>
+              <button onClick={() => setIsEditing(false)}>Annuler</button>
+            </>
+          )}
+          
+          {isDeleting && (
+            <>
+              <button onClick={handleDelete} disabled={selected.size === 0}>
+                Confirmer suppression
+              </button>
+              <button onClick={() => setIsDeleting(false)}>Annuler</button>
+            </>
+          )}
+        </div>
+
+        {/* New Cement Type Form */}
+        {showNewTypeForm && (
+          <div className="form-container">
+            <h3>Ajouter un Nouveau Type de Ciment</h3>
+            <label>
+              Sélectionner le type de ciment:
+              <select
+                value={newCement}
+                onChange={(e) => setNewCement(e.target.value)}
+              >
+                <option value="">-- Choisir ciment --</option>
+                {cementList
+                  .filter((cement) => !produits.some((p) => p.id === cement.id)) // Filter out cements the client already has
+                  .map((cement) => (
+                    <option key={cement.id} value={cement.id}>
+                      {cement.nom}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <button onClick={addCementForClient}>Ajouter</button>
+            <button onClick={() => setShowNewTypeForm(false)}>Annuler</button>
           </div>
         )}
       </div>

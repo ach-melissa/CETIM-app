@@ -377,3 +377,127 @@
   border-top: none;
   border-radius: 0 0 4px 4px;
 }
+/* TraitDonnes.css */
+
+/* Style for the button to trigger the "Nouveau Type Produit" form */
+.new-type-produit-btn {
+  background-color: #4CAF50; /* Green background */
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  margin-top: 20px;
+  transition: background-color 0.3s;
+}
+
+.new-type-produit-btn:hover {
+  background-color: #45a049; /* Darker green when hovered */
+}
+
+/* Style for the form container when adding a new cement */
+.form-container {
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 20px;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 600px;
+  margin-top: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Heading for the new cement form */
+.form-container h3 {
+  font-size: 20px;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+/* Label styling for the form fields */
+.form-container label {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 8px;
+  color: #666;
+}
+
+/* Style for the select field inside the form */
+.form-container select {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 16px;
+  background-color: #fff;
+  color: #333;
+}
+
+/* Style for disabled options in the select dropdown */
+.form-container select option:disabled {
+  color: #999;
+  background-color: #f5f5f5;
+}
+
+/* Button styling inside the form */
+.form-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.form-container button {
+  background-color: #007BFF;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.form-container button:hover {
+  background-color: #0056b3; /* Darker blue when hovered */
+}
+
+.form-container button:last-child {
+  background-color: #f44336; /* Red background for cancel */
+}
+
+.form-container button:last-child:hover {
+  background-color: #d32f2f; /* Darker red on hover */
+}
+
+/* Optional styling for error or success messages */
+.error-message, .success-message {
+  padding: 10px;
+  margin-top: 15px;
+  color: white;
+  font-weight: bold;
+  border-radius: 5px;
+}
+
+.error-message {
+  background-color: #f44336;
+}
+
+.success-message {
+  background-color: #4CAF50;
+}
+.reset-button {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 5px;
+  margin-bottom: 20px;
+}
+
+.reset-button:hover {
+  background-color: #d32f2f;
+}

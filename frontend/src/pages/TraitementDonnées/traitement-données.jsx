@@ -1,7 +1,4 @@
-// TraitDonnes.jsx
 import React, { useState, useEffect, useRef } from "react";
-import * as XLSX from "xlsx";
-
 import "./TraitDonnes.css";
 import Header from "../../components/Header/Header";
 import DonneesStatistiques from "../../components/DonneesStatistiques/DonneesStatistiques";
@@ -9,41 +6,38 @@ import EchantillonsTable from "../../components/EchantillonsTable/EchantillonsTa
 import ControleConformite from "../../components/ControleConformite/ControleConformite";
 import TableConformite from "../../components/TableConformite/TableConformite";
 import DonneesGraphiques from "../../components/DonneesGraphiques/DonneesGraphiques";
+import * as XLSX from "xlsx";
+ const formatExcelDate = (excelDate) => {
+  if (!excelDate || isNaN(excelDate)) return ""; // Ensure it's a valid date
+  return excelDate; // Return the date as-is, assuming it's already in "YYYY-MM-DD" format
+};
+
+
+
 
 const TraitDonnes = () => {
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState("");
-
   const [produits, setProduits] = useState([]);
-  const [selectedProduit, setSelectedProduit] = useState("");
+  const [clientTypeCimentId, setClientTypeCimentId] = useState("");
   const [produitDescription, setProduitDescription] = useState("");
-
   const [phase, setPhase] = useState("");
-
   const [tableData, setTableData] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
-
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [activeTab, setActiveTab] = useState("donnees");
-
   const [loading, setLoading] = useState(false);
-
-  const [selectedParameter, setSelectedParameter] = useState("resistance");
-  const [selectedClass, setSelectedClass] = useState("");
+  const [newCement, setNewCement] = useState("");
+  const [cementList, setCementList] = useState([]);
+  const [clientId, setClientId] = useState("");
+  const [showNewTypeForm, setShowNewTypeForm] = useState(false);
 
   const tableRef = useRef();
-  const [filteredTableData, setFilteredTableData] = useState([]);
 
-  // Situation state
-  const [selectedSituation, setSelectedSituation] = useState(null); // "courante" or "nouveau"
-  const [availableCementTypes, setAvailableCementTypes] = useState([]);
-  const [newCementType, setNewCementType] = useState("");
-
-  // Load clients
+  // Fetch clients
   useEffect(() => {
     setLoading(true);
     fetch("http://localhost:5000/api/clients")
@@ -59,13 +53,25 @@ const TraitDonnes = () => {
       });
   }, []);
 
-  // Load produits + available cement types when client changes
+  // Fetch all cement types
+  useEffect(() => {
+    fetch("http://localhost:5000/api/types_ciment")
+      .then((res) => res.json())
+      .then((data) => {
+        setCementList(data);
+      })
+      .catch((err) => {
+        console.error("Erreur types ciment:", err);
+        setError("Erreur lors du chargement des types de ciment.");
+      });
+  }, []);
+
+  // Fetch produits based on selected client
   useEffect(() => {
     if (!selectedClient) {
       setProduits([]);
-      setSelectedProduit("");
+      setClientTypeCimentId("");
       setProduitDescription("");
-      setSelectedSituation(null);
       return;
     }
 
@@ -78,167 +84,154 @@ const TraitDonnes = () => {
         console.error("Erreur produits:", err);
         setError("Erreur lors du chargement des produits.");
       });
-
-    fetch("http://localhost:5000/api/types_ciment")
-      .then((res) => res.json())
-      .then((data) => {
-        setAvailableCementTypes(data);
-      })
-      .catch((err) => {
-        console.error("Erreur types ciment:", err);
-        setError("Erreur lors du chargement des types de ciment.");
-      });
   }, [selectedClient]);
 
-  // Update produit description
+  // Set description for selected produit
   useEffect(() => {
-    if (!selectedProduit) {
+    if (!clientTypeCimentId) {
       setProduitDescription("");
       return;
     }
-    const produit = produits.find((p) => p.id == selectedProduit);
+    const produit = produits.find((p) => p.id == clientTypeCimentId);
     if (produit) {
       setProduitDescription(produit.description);
     }
-  }, [selectedProduit, produits]);
+  }, [clientTypeCimentId, produits]);
 
-  // Handle situation selection
-  const handleSituationSelect = (situation) => {
-    setSelectedSituation(situation);
-    setPhase(situation === "courante" ? "livraison" : "fabrication");
-    setSelectedProduit("");
-    setProduitDescription("");
-    setNewCementType("");
-  };
-
-  // Add cement type for client (nouveau)
-  const handleAddCementType = async () => {
-    if (!newCementType) {
-      setError("Veuillez sélectionner un type de ciment.");
+  // Add cement for selected client
+  const addCementForClient = async () => {
+    if (!newCement) {
+      setError("Veuillez sélectionner un ciment.");
       return;
     }
 
     try {
-      const res = await fetch("http://localhost:5000/api/client_cement", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId: selectedClient,
-          typeCimentId: newCementType,
-        }),
-      });
+      await fetch("http://localhost:5000/api/client_types_ciment", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    clientId: selectedClient,
+    typeCimentId: newCement,
+  }),
+});
 
-      if (!res.ok) throw new Error("Erreur ajout type ciment");
-
-      // Refresh produits
-      const produitsRes = await fetch(
-        `http://localhost:5000/api/produits/${selectedClient}`
-      );
-      if (produitsRes.ok) {
-        const data = await produitsRes.json();
-        setProduits(data);
-
-        const newProduct = data.find((p) => p.id == newCementType);
-        if (newProduct) {
-          setSelectedProduit(newProduct.id);
-          setProduitDescription(newProduct.description);
-        }
-      }
-
-      setSuccess("Type de ciment ajouté avec succès !");
-      setError("");
+      setSuccess("Ciment ajouté au client avec succès !");
+      setError(""); // Clear any previous errors
+      setNewCement(""); // Clear the selected cement
+      setShowNewTypeForm(false); // Close the form
+      
+      // Refresh the products list
+      fetch(`http://localhost:5000/api/produits/${selectedClient}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setProduits(data);
+        });
     } catch (err) {
-      console.error("Erreur ajout type ciment:", err);
-      setError("Impossible d'ajouter le type de ciment.");
-      setSuccess("");
+      console.error("Erreur ajout ciment:", err);
+      setError("Erreur lors de l'ajout du ciment.");
+      setSuccess(""); // Clear success message
     }
   };
 
-  // Import Excel → DB + refresh
-  const handleFileImport = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  // Handle file import
+  
+const handleFileImport = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    if (!selectedClient || !selectedProduit || !phase) {
-      setError(
-        "Veuillez sélectionner un client, un produit et une phase avant d'importer."
-      );
-      return;
-    }
+  if (!selectedClient || !clientTypeCimentId) {
+    setError("Veuillez sélectionner un client et un produit avant d'importer.");
+    return;
+  }
 
-    if (
-      !window.confirm(
-        "Êtes-vous sûr de vouloir importer ce fichier ? Les données seront ajoutées à la base."
-      )
-    ) {
-      return;
-    }
+  if (!window.confirm("Êtes-vous sûr de vouloir importer ce fichier ? Les données seront ajoutées à la base de données.")) {
+    return;
+  }
 
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
+  const reader = new FileReader();
+  reader.onload = async (evt) => {
+    try {
       const bstr = evt.target.result;
       const wb = XLSX.read(bstr, { type: "binary" });
       const wsname = wb.SheetNames[0];
       const ws = wb.Sheets[wsname];
       const importedData = XLSX.utils.sheet_to_json(ws);
 
-      try {
-        const res = await fetch(
-          "http://localhost:5000/api/echantillons/import",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              clientId: selectedClient,
-              produitId: selectedProduit,
-              phase,
-              rows: importedData,
-            }),
-          }
-        );
+      // Format the data before sending it
+      const formattedRows = importedData.map((row, index) => ({
+  id: Date.now() + index,
+  num_ech: row.num_ech || row["Ech"] || "",
+  date_test: row.date_test || row["Date"] || row["Date test"] || row["date"] || "", // Ensure this field is correctly populated
+  rc2j: row.rc2j || row["RC2J"] || "",
+  rc7j: row.rc7j || row["RC7J"] || "",
+  rc28j: row.rc28j || row["RC28J"] || "",
+  prise: row.prise || row["Prise"] || "",
+  stabilite: row.stabilite || row["Stabilité"] || "",
+  hydratation: row.hydratation || row["Hydratation"] || "",
+  pfeu: row.pfeu || row["P. Feu"] || "",
+  r_insoluble: row.r_insoluble || row["R. Insoluble"] || "",
+  so3: row.so3 || row["SO3"] || "",
+  chlorure: row.chlorure || row["Chlorure"] || "",
+  c3a: row.c3a || row["C3A"] || "",
+  ajout_percent: row.ajout_percent || row["Ajout %"] || "",
+  type_ajout: row.type_ajout || row["Type Ciment"] || "", // Ensure this is set correctly
+}));
 
-        if (!res.ok) throw new Error("Erreur import serveur");
 
-        setSuccess(
-          "Fichier Excel importé et enregistré en base ! (visible désormais dans Situation Courante)"
-        );
-        setError("");
+      // Sending data to the backend
+      const res = await fetch("http://localhost:5000/api/echantillons/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: selectedClient,
+          produitId: clientTypeCimentId,
+          rows: formattedRows,
+          
+        }),
+      });
+ console.log("Imported data with date_test:", importedData);
 
-        // keep data visible temporarily in "nouveau"
-        tableRef.current?.refresh();
-      } catch (err) {
-        console.error("Erreur import:", err);
-        setError("Impossible d'importer les données.");
-        setSuccess("");
+      if (!res.ok) {
+        const error = await res.json();
+        console.error("Import failed:", error);
+        setError("Erreur lors de l'importation des données.");
+        return;
       }
-    };
-    reader.readAsBinaryString(file);
+
+      setSuccess("Fichier Excel importé et enregistré en base !");
+      setError(""); // Clear any errors
+      tableRef.current?.refresh(); // Refresh data table
+    } catch (err) {
+      console.error("Erreur import:", err);
+      setError("Impossible d'importer les données.");
+      setSuccess(""); // Clear success message
+    }
   };
 
-  const handleTableDataChange = (data, s, e) => {
+  reader.onerror = (err) => {
+    console.error("FileReader error:", err);
+    setError("Erreur lors de la lecture du fichier.");
+  };
+
+  reader.readAsBinaryString(file);
+};
+
+
+
+
+
+
+
+
+
+
+  // Define handleTableDataChange
+  const handleTableDataChange = (data, start, end) => {
     setTableData(data);
-    setStartDate(s);
-    setEndDate(e);
-  };
-
-  // Example data for graphs
-  const parameters = [{ id: "resistance", label: "Résistance (MPa)" }];
-  const classOptions = {
-    "CEM I": ["32.5 L", "32.5 N", "32.5 R"],
-    "CEM II": ["42.5 L", "42.5 N", "42.5 R"],
-    "CEM III": ["52.5 L", "52.5 N", "52.5 R"],
-  };
-  const chartStats = {
-    limiteInf: 27,
-    limiteSup: 36,
-    limiteGarantie: 25,
-    moyenne: 32.75,
-    countBelowInf: 1,
-    percentBelowInf: 25,
-    countAboveSup: 1,
-    percentAboveSup: 25,
-    countBelowGarantie: 0,
-    percentBelowGarantie: 0,
+    setStartDate(start);
+    setEndDate(end);
   };
 
   return (
@@ -247,8 +240,26 @@ const TraitDonnes = () => {
       <h1 className="trait-donnees-title">Traitement Données</h1>
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
-
-      {/* Selectors */}
+       <div className="tabs-container">
+        <button className={activeTab === "donnees" ? "active-tab" : "tab"} onClick={() => setActiveTab("donnees")}>
+          Données Traitées
+        </button>
+        <button className={activeTab === "statistiques" ? "active-tab" : "tab"} onClick={() => setActiveTab("statistiques")}>
+          Données Statistiques
+        </button>
+        <button className={activeTab === "graphique" ? "active-tab" : "tab"} onClick={() => setActiveTab("graphique")}>
+          Données Graphiques
+        </button>
+        <button className={activeTab === "conformite" ? "active-tab" : "tab"} onClick={() => setActiveTab("conformite")}>
+          Contrôle de Conformité
+        </button>
+         <button
+          className={activeTab === "tabconform" ? "active-tab" : "tab"}
+          onClick={() => setActiveTab("tabconform")}
+        >
+          Table Conformité
+        </button>
+      </div>
       <div className="selectors">
         <label>
           Client:
@@ -267,87 +278,35 @@ const TraitDonnes = () => {
 
         {selectedClient && (
           <>
-            <div className="situation-selector">
-              <label>Sélectionnez une situation:</label>
-              <div className="situation-buttons">
-                <button
-                  className={
-                    selectedSituation === "courante"
-                      ? "active-situation"
-                      : "situation-button"
-                  }
-                  onClick={() => handleSituationSelect("courante")}
-                >
-                  Situation Courante
-                </button>
-                <button
-                  className={
-                    selectedSituation === "nouveau"
-                      ? "active-situation"
-                      : "situation-button"
-                  }
-                  onClick={() => handleSituationSelect("nouveau")}
-                >
-                  Nouveau Type Produit
-                </button>
-              </div>
-            </div>
+            <label>
+              Produit:
+              <select
+                value={clientTypeCimentId}
+                onChange={(e) => setClientTypeCimentId(e.target.value)}
+              >
+                <option value="">-- Tous les produits --</option>
+                {produits.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nom}
+                  </option>
+                ))}
+              </select>
+              {produitDescription && (
+                <div className="produit-description">
+                  <strong>Description:</strong> {produitDescription}
+                </div>
+              )}
+            </label>
 
-            {selectedSituation === "courante" && (
-              <label>
-                Produit:
-                <select
-                  value={selectedProduit}
-                  onChange={(e) => setSelectedProduit(e.target.value)}
-                >
-                  <option value="">-- Choisir produit --</option>
-                  {produits.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nom}
-                    </option>
-                  ))}
-                </select>
-                {produitDescription && (
-                  <div className="produit-description">
-                    <strong>Description:</strong> {produitDescription}
-                  </div>
-                )}
-              </label>
-            )}
-
-            {selectedSituation === "nouveau" && (
-              <div className="add-cement-form">
-                <label>
-                  Sélectionnez un nouveau type de ciment:
-                  <select
-                    value={newCementType}
-                    onChange={(e) => setNewCementType(e.target.value)}
-                  >
-                    <option value="">-- Choisir type de ciment --</option>
-                    {availableCementTypes.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.code} - {type.description}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button onClick={handleAddCementType}>
-                  Ajouter ce type de ciment
-                </button>
-
-                {selectedProduit && (
-                  <div className="produit-info">
-                    <strong>Produit sélectionné:</strong>{" "}
-                    {produits.find((p) => p.id == selectedProduit)?.nom}
-                    <div className="produit-description">
-                      <strong>Description:</strong> {produitDescription}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {selectedProduit && (
+            {/* Button to trigger new cement form */}
+            <button
+              className="new-type-produit-btn"
+              onClick={() => setShowNewTypeForm(true)}
+              disabled={!selectedClient} // Disable when no client is selected
+            >
+              Nouveau Type Produit
+            </button>
+                {clientTypeCimentId && (
               <div className="import-section">
                 <label>
                   Importer un fichier Excel:
@@ -359,98 +318,133 @@ const TraitDonnes = () => {
                 </label>
               </div>
             )}
+            
           </>
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="tabs-container">
-        <button
-          className={activeTab === "donnees" ? "active-tab" : "tab"}
-          onClick={() => setActiveTab("donnees")}
-        >
-          Données Traitées
-        </button>
-        <button
-          className={activeTab === "statistiques" ? "active-tab" : "tab"}
-          onClick={() => setActiveTab("statistiques")}
-        >
-          Données Statistiques
-        </button>
-        <button
-          className={activeTab === "graphiques" ? "active-tab" : "tab"}
-          onClick={() => setActiveTab("graphiques")}
-        >
-          Données Graphiques
-        </button>
-        <button
-          className={activeTab === "contConform" ? "active-tab" : "tab"}
-          onClick={() => setActiveTab("contConform")}
-        >
-          Contrôle Conformité
-        </button>
-        <button
-          className={activeTab === "tabconform" ? "active-tab" : "tab"}
-          onClick={() => setActiveTab("tabconform")}
-        >
-          Table Conformité
-        </button>
-      </div>
+      {/* New Cement Type Form */}
+      {showNewTypeForm && (
+        <div className="form-container">
+          <h3>Ajouter un Nouveau Type de Ciment</h3>
+          <label>
+            Sélectionner le type de ciment:
+            <select
+              value={newCement}
+              onChange={(e) => setNewCement(e.target.value)}
+            >
+              <option value="">-- Choisir ciment --</option>
+              {cementList.map((cement) => {
+                // Check if the client already has this cement
+                const clientHasCement = produits.some(p => p.id === cement.id);
+                
+                return (
+                  <option 
+                    key={cement.id} 
+                    value={cement.id}
+                    disabled={clientHasCement}
+                    style={clientHasCement ? { color: '#ccc' } : {}}
+                  >
+                    {cement.nom || cement.code} {clientHasCement ? "(Déjà associé)" : ""}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+          <div className="form-buttons">
+            <button onClick={addCementForClient}>Ajouter</button>
+            <button onClick={() => {
+              setShowNewTypeForm(false);
+              setNewCement("");
+            }}>Annuler</button>
+          </div>
+        </div>
+      )}
 
-      {/* Tabs content */}
-      <div className="tab-content">
-        {activeTab === "donnees" && (
-          <EchantillonsTable
-            ref={tableRef}
-            clientId={selectedClient}
-            produitId={selectedProduit}
-            phase={phase}
-            initialStart={startDate}
-            initialEnd={endDate}
-            produitDescription={produitDescription}
-            clients={clients}
-            produits={produits}
-            onTableDataChange={handleTableDataChange}
-            setFilteredTableData={setFilteredTableData}
-            selectedSituation={selectedSituation}
-          />
-        )}
-       {activeTab === 'statistiques' && (
-          <DonneesStatistiques
-            ref={tableRef}
-            clientId={selectedClient}
-            produitId={selectedProduit}
-            initialStart={startDate}
-            initialEnd={endDate}
-            produitDescription={produitDescription}
-            clients={clients}
-            produits={produits}
-            onTableDataChange={(data, s, e) => {
-              setTableData(data);
-              setStartDate(s);
-              setEndDate(e);
-            }}
-          />
-        )}
-        
-        {activeTab === 'graphiques' && (
-          <DonneesGraphiques
-            ref={tableRef}
-            clientId={selectedClient}
-            produitId={selectedProduit}
-            initialStart={startDate}
-            initialEnd={endDate}
-            produitDescription={produitDescription}
-            clients={clients}
-            produits={produits}
-          />
-        )}
 
-        {activeTab === 'contConform' && (
+      {activeTab === "donnees" && (
+        <EchantillonsTable
+          ref={tableRef}
+          clientId={selectedClient}
+          clientTypeCimentId={clientTypeCimentId}
+          phase={phase}
+          tableData={tableData}
+          selectedRows={selectedRows}
+          handleTableDataChange={handleTableDataChange}
+        />
+      )}
+
+      {activeTab === "statistiques" && (
+        <DonneesStatistiques
+          ref={tableRef}
+          clientId={selectedClient}
+          clientTypeCimentId={clientTypeCimentId}
+          initialStart={startDate}
+          initialEnd={endDate}
+          produitDescription={produitDescription}
+          clients={clients}
+          produits={produits}
+          onTableDataChange={(data, s, e) => {
+            setTableData(data);
+            setStartDate(s);
+            setEndDate(e);
+          }}
+        />
+      )}
+      
+      {activeTab === "graphique" && (
+        <DonneesGraphiques
+          ref={tableRef}
+          clientId={selectedClient}
+          clientTypeCimentId={clientTypeCimentId}
+          initialStart={startDate}
+          initialEnd={endDate}
+          produitDescription={produitDescription}
+          clients={clients}
+          produits={produits}
+        />
+      )}
+
+      {activeTab === "conformite" && (
+        <ControleConformite
+          ref={tableRef}
+          clientId={selectedClient}
+          clientTypeCimentId={clientTypeCimentId}
+          initialStart={startDate}
+          initialEnd={endDate}
+          produitDescription={produitDescription}
+          clients={clients}
+          produits={produits}
+          onTableDataChange={(data, s, e) => {
+            setTableData(data);
+            setStartDate(s);
+            setEndDate(e);
+          }}
+        />
+      )}
+
+      {activeTab === "tabconform" && (
+        <TableConformite
+          ref={tableRef}
+          clientId={selectedClient}
+          clientTypeCimentId={clientTypeCimentId}
+          initialStart={startDate}
+          initialEnd={endDate}
+          produitDescription={produitDescription}
+          clients={clients}
+          produits={produits}
+          onTableDataChange={(data, s, e) => {
+            setTableData(data);
+            setStartDate(s);
+            setEndDate(e);
+          }}
+        />
+      )}
+      {activeTab === 'contConform' && (
           <ControleConformite
             ref={tableRef}
             clientId={selectedClient}
-            produitId={selectedProduit}
+            clientTypeCimentId={clientTypeCimentId}
             initialStart={startDate}
             initialEnd={endDate}
             produitDescription={produitDescription}
@@ -463,27 +457,8 @@ const TraitDonnes = () => {
             }}
           />
         )}
-        
-        {activeTab === 'tabconform' && (
-          <TableConformite
-            ref={tableRef}
-            clientId={selectedClient}
-            produitId={selectedProduit}
-            initialStart={startDate}
-            initialEnd={endDate}
-            produitDescription={produitDescription}
-            clients={clients}
-            produits={produits}
-            onTableDataChange={(data, s, e) => {
-              setTableData(data);
-              setStartDate(s);
-              setEndDate(e);
-            }}
-          />
-        )} 
-      </div>
     </div>
   );
 };
 
-export default TraitDonnes;
+export default TraitDonnes; 
