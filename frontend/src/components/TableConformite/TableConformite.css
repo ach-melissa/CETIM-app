@@ -107,3 +107,44 @@
   text-decoration: underline;
   color: #333;
 }
+
+
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 20px; /* space between items */
+}
+
+.legend p {
+  display: flex;
+  align-items: center;
+  margin: 0; /* remove default margins */
+  font-size: 14px;
+}
+
+.legend span {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  margin-right: 6px;
+  border-radius: 3px;
+}
+
+
+/* Colors */
+.green-box {
+  background-color: green;
+}
+
+.yellow-box {
+  background-color: yellow;
+}
+
+.red-box {
+  background-color: red;
+}
+
+.grey-box {
+  background-color: grey;
+}
