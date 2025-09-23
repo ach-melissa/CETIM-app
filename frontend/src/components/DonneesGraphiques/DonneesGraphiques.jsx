@@ -349,7 +349,7 @@ const derivedStats = useMemo(() => {
               margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="x" name="Échantillon" />
+              <XAxis dataKey="x" name="Échantillon"  />
               <YAxis dataKey="y" name={selectedParameter} ticks={[0, 15, 30, 45, 60, 75]} />
               <Tooltip
                 formatter={(val) =>
@@ -357,12 +357,14 @@ const derivedStats = useMemo(() => {
                 }
               />
               <Legend />
-              <Scatter
-                name="Mesures"
-                data={chartData}
-                fill="#FFC107"
-                shape="circle"
-              />
+<Scatter
+  name="Mesures"
+  data={chartData}
+  fill="#FFC107"
+  shape="circle"
+  size={5}   // 👉 try smaller values: 20, 15, 10, 5
+/>
+
 
               {typeof derivedStats.moyenne === "number" && !isNaN(derivedStats.moyenne) && (
   <ReferenceLine

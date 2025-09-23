@@ -413,6 +413,88 @@ const showAjout = ajoutProducts.includes(selectedCement?.name);
       return c.stats.belowLI === "-" && c.stats.aboveLS === "-" && c.stats.belowLG === "-";
     });
 
+
+
+const checkResultsByWeek = (data) => {
+  if (!data || data.length === 0) {
+    console.log("❌ No data provided");
+    return { status: false, missing: [] };
+  }
+
+  const paramsToCheck = [
+    "temps_debut_de_prise",
+    "pert_feu",
+    "residu_insoluble",
+    "sulfat",
+    "chlore",
+    "c3a",
+    "chaleur_hydratation",
+  ];
+
+  // Sort data by date
+  const sorted = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
+  console.log("Sorted data by date:", sorted);
+
+  const startDate = new Date(sorted[0].date);
+  const endDate = new Date(sorted[sorted.length - 1].date);
+
+  let currentStart = new Date(startDate);
+  const missingWindows = [];
+
+  while (currentStart <= endDate) {
+    const currentEnd = new Date(currentStart);
+    currentEnd.setDate(currentEnd.getDate() + 6); // 7-day window
+
+    console.log(
+      `\nChecking week: ${currentStart.toISOString().split("T")[0]} → ${currentEnd
+        .toISOString()
+        .split("T")[0]}`
+    );
+
+    const hasResult = sorted.some((row) => {
+      const d = new Date(row.date);
+      if (d >= currentStart && d <= currentEnd) {
+        const rowHasResult = paramsToCheck.some((param) => {
+          const val = row[param];
+          const num = val !== null && val !== undefined && val !== "" ? parseFloat(String(val).replace(",", ".")) : NaN;
+          const valid = !isNaN(num);
+          console.log(`  Checking row ${row.id || row.date} param ${param}:`, val, "=>", num, "valid?", valid);
+          return valid;
+        });
+        if (rowHasResult) console.log(`  ✅ Row ${row.id || row.date} has valid result`);
+        return rowHasResult;
+      }
+      return false;
+    });
+
+    if (!hasResult) {
+      console.log("  ❌ No results found for this week");
+      missingWindows.push({
+        start: currentStart.toISOString().split("T")[0],
+        end: currentEnd.toISOString().split("T")[0],
+      });
+    }
+
+    currentStart.setDate(currentStart.getDate() + 7); // next window
+  }
+
+  console.log("\nFinal check result:", { status: missingWindows.length === 0, missing: missingWindows });
+  return {
+    status: missingWindows.length === 0,
+    missing: missingWindows,
+  };
+};
+
+// Usage example:
+const { filteredTableData } = useData(); // your data from context
+const result = checkResultsByWeek(filteredTableData);
+
+if (result.status) {
+  console.log("✅ All weeks covered!");
+} else {
+  console.log("❌ Missing weeks:", result.missing);
+}
+
     return (
       <div className="class-section" key={classe}>
         <div className="report-header">
