@@ -2744,8 +2744,7 @@ return (
                               <th>Limit Inf</th>
                               <th>Limit Sup</th>
                               <th>Actions</th>
-                              <th>Unité</th>
-                          <th>Évaluation</th>
+                              
                             </tr>
                           </thead>
                           <tbody>
