@@ -1879,57 +1879,6 @@
 
 },
 
-  "C3A":{
-  
-  "CEM I":{
-        "CEM I-SR 0":[    { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "32.5 N", "limit_inf": "0", "limit_max": "0", "garantie": "1" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "32.5 R", "limit_inf": "0", "limit_max": "0", "garantie": "1" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "42.5 N", "limit_inf": "0", "limit_max": "0", "garantie": "1" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "42.5 R", "limit_inf": "0", "limit_max": "0", "garantie": "1" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "52.5 N", "limit_inf": "0", "limit_max": "0", "garantie": "1" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "52.5 R", "limit_inf": "0", "limit_max": "0", "garantie": "1" }
- ],
-        "CEM I-SR 3":[    { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "32.5 N", "limit_inf": null, "limit_max": "3", "garantie": "4" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "32.5 R", "limit_inf": null, "limit_max": "3", "garantie": "4" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "42.5 N", "limit_inf": null, "limit_max": "3", "garantie": "4" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "42.5 R", "limit_inf": null, "limit_max": "3", "garantie": "4" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "52.5 N", "limit_inf": null, "limit_max": "3", "garantie": "4" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "52.5 R", "limit_inf": null, "limit_max": "3", "garantie": "4" }
- ],
-        "CEM I-SR 5":[    { "famille_code": "CEM I", "type_code": "CEM I-SR 5", "classe": "32.5 N", "limit_inf": null, "limit_max": "5", "garantie": "6" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 5", "classe": "32.5 R", "limit_inf": null, "limit_max": "5", "garantie": "6" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 5", "classe": "42.5 N", "limit_inf": null, "limit_max": "5", "garantie": "6" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 5", "classe": "42.5 R", "limit_inf": null, "limit_max": "5", "garantie": "6" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 5", "classe": "52.5 N", "limit_inf": null, "limit_max": "5", "garantie": "6" },
-    { "famille_code": "CEM I", "type_code": "CEM I-SR 5", "classe": "52.5 R", "limit_inf": null, "limit_max": "5", "garantie": "6" }
- ]
-      },
-        "CEM IV": {
-      "CEM IV/A-SR": [     { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "32.5L", "limit_inf": null, "limit_max": "9", "garantie": "10"},
-    { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "32.5N", "limit_inf": null, "limit_max": "9", "garantie": "10"},
-    { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "32.5R", "limit_inf": null, "limit_max": "9", "garantie": "10"},
-    { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "42.5L", "limit_inf": null, "limit_max": "9", "garantie": "10"},
-    { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "42.5N", "limit_inf": null, "limit_max": "9", "garantie": "10"},
-    { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "42.5R", "limit_inf": null, "limit_max": "9", "garantie": "10"},
-    { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "52.5L", "limit_inf": null, "limit_max": "9", "garantie": "10"},
-    { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "52.5N", "limit_inf": null, "limit_max": "9", "garantie": "10"},
-    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "52.5R", "limit_inf": null, "limit_max": "9", "garantie": "10"}
-
-  ],
-      "CEM IV/B-SR": [     { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "32.5L", "limit_inf": null, "limit_max": "9", "garantie": "10"},
-    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "32.5N", "limit_inf": null, "limit_max":"9", "garantie": "10"  },
-    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "32.5R", "limit_inf": null, "limit_max": "9", "garantie": "10" },
-    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "42.5L", "limit_inf": null, "limit_max": "9", "garantie": "10"  },
-    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "42.5N", "limit_inf": null, "limit_max": "9", "garantie": "10" },
-    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "42.5R", "limit_inf": null, "limit_max": "9", "garantie": "10" },
-    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "52.5L", "limit_inf": null, "limit_max": "9", "garantie": "10" },
-    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "52.5N", "limit_inf": null, "limit_max": "9", "garantie": "10"  },
-    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "32.5R", "limit_inf": null, "limit_max":"9", "garantie": "10" }
-   ]
-    }
-
-},
-
   "pouzzolanicite":{
         "CEM IV": {
       "CEM IV/A": [     { "famille_code": "CEM IV", "type_code": "CEM IV/A", "classe": "32.5N", "limit_inf": null, "limit_max": "satisfait a l'essai", "garantie": "possitive apres 15 jours" },
@@ -2588,6 +2537,108 @@
   { "famille_code": "CEM V", "type_code": "CEM V/B", "classe": "52.5 R", "limit_inf": null, "limit_max": "4", "garantie": "4.5" }
   ]
     }
- }
+ },
+
+
+  "C3A":{
+  
+  "CEM I":{
+        "CEM I-SR 0":[    { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "32.5 N", "limit_inf": "0", "limit_max": "0", "garantie": "1" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "32.5 R", "limit_inf": "0", "limit_max": "0", "garantie": "1" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "42.5 N", "limit_inf": "0", "limit_max": "0", "garantie": "1" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "42.5 R", "limit_inf": "0", "limit_max": "0", "garantie": "1" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "52.5 N", "limit_inf": "0", "limit_max": "0", "garantie": "1" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "52.5 R", "limit_inf": "0", "limit_max": "0", "garantie": "1" }
+ ],
+        "CEM I-SR 3":[    { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "32.5 N", "limit_inf": null, "limit_max": "3", "garantie": "4" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "32.5 R", "limit_inf": null, "limit_max": "3", "garantie": "4" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "42.5 N", "limit_inf": null, "limit_max": "3", "garantie": "4" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "42.5 R", "limit_inf": null, "limit_max": "3", "garantie": "4" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "52.5 N", "limit_inf": null, "limit_max": "3", "garantie": "4" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 3", "classe": "52.5 R", "limit_inf": null, "limit_max": "3", "garantie": "4" }
+ ],
+        "CEM I-SR 5":[    { "famille_code": "CEM I", "type_code": "CEM I-SR 5", "classe": "32.5 N", "limit_inf": null, "limit_max": "5", "garantie": "6" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 5", "classe": "32.5 R", "limit_inf": null, "limit_max": "5", "garantie": "6" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 5", "classe": "42.5 N", "limit_inf": null, "limit_max": "5", "garantie": "6" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 5", "classe": "42.5 R", "limit_inf": null, "limit_max": "5", "garantie": "6" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 5", "classe": "52.5 N", "limit_inf": null, "limit_max": "5", "garantie": "6" },
+    { "famille_code": "CEM I", "type_code": "CEM I-SR 5", "classe": "52.5 R", "limit_inf": null, "limit_max": "5", "garantie": "6" }
+ ]
+      },
+        "CEM IV": {
+      "CEM IV/A-SR": [     { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "32.5L", "limit_inf": null, "limit_max": "9", "garantie": "10"},
+    { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "32.5N", "limit_inf": null, "limit_max": "9", "garantie": "10"},
+    { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "32.5R", "limit_inf": null, "limit_max": "9", "garantie": "10"},
+    { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "42.5L", "limit_inf": null, "limit_max": "9", "garantie": "10"},
+    { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "42.5N", "limit_inf": null, "limit_max": "9", "garantie": "10"},
+    { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "42.5R", "limit_inf": null, "limit_max": "9", "garantie": "10"},
+    { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "52.5L", "limit_inf": null, "limit_max": "9", "garantie": "10"},
+    { "famille_code": "CEM IV", "type_code": "CEM IV/A-SR", "classe": "52.5N", "limit_inf": null, "limit_max": "9", "garantie": "10"},
+    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "52.5R", "limit_inf": null, "limit_max": "9", "garantie": "10"}
+
+  ],
+      "CEM IV/B-SR": [     { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "32.5L", "limit_inf": null, "limit_max": "9", "garantie": "10"},
+    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "32.5N", "limit_inf": null, "limit_max":"9", "garantie": "10"  },
+    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "32.5R", "limit_inf": null, "limit_max": "9", "garantie": "10" },
+    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "42.5L", "limit_inf": null, "limit_max": "9", "garantie": "10"  },
+    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "42.5N", "limit_inf": null, "limit_max": "9", "garantie": "10" },
+    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "42.5R", "limit_inf": null, "limit_max": "9", "garantie": "10" },
+    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "52.5L", "limit_inf": null, "limit_max": "9", "garantie": "10" },
+    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "52.5N", "limit_inf": null, "limit_max": "9", "garantie": "10"  },
+    { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "32.5R", "limit_inf": null, "limit_max":"9", "garantie": "10" }
+   ]
+    }
+
+},
+
+  "Ajout": {
+    "S": {
+      "CEM II/A-S": { "limitInf": 6, "limitSup": 20 },
+      "CEM II/B-S": { "limitInf": 21, "limitSup": 35 }
+    },
+    "D": {
+      "CEM II/A-D": { "limitInf": 6, "limitSup": 20 }
+    },
+    "P": {
+      "CEM II/A-P": { "limitInf": 6, "limitSup": 20 },
+      "CEM II/B-P": { "limitInf": 21, "limitSup": 35 }
+    },
+    "Q": {
+      "CEM II/A-Q": { "limitInf": 6, "limitSup": 20 },
+      "CEM II/B-Q": { "limitInf": 21, "limitSup": 35 }
+    },
+    "V": {
+      "CEM II/A-V": { "limitInf": 6, "limitSup": 20 },
+      "CEM II/B-V": { "limitInf": 21, "limitSup": 35 }
+    },
+    "W": {
+      "CEM II/A-W": { "limitInf": 6, "limitSup": 20 },
+      "CEM II/B-W": { "limitInf": 21, "limitSup": 35 }
+    },
+    "T": {
+      "CEM II/A-T": { "limitInf": 6, "limitSup": 20 },
+      "CEM II/B-T": { "limitInf": 21, "limitSup": 35 }
+    },
+    "L": {
+      "CEM II/A-L": { "limitInf": 6, "limitSup": 20 },
+      "CEM II/B-L": { "limitInf": 21, "limitSup": 35 }
+    },
+    "LL": {
+      "CEM II/A-LL": { "limitInf": 12, "limitSup": 20 },
+      "CEM II/B-LL": { "limitInf": 21, "limitSup": 35 }
+    },
+    "SDPQVWTLLL": {
+      "CEM II/A-M": { "limitInf": 12, "limitSup": 20 },
+      "CEM II/B-M": { "limitInf": 21, "limitSup": 35 }
+    },
+    "DPQVW": {
+      "CEM IV/A": { "limitInf": 11, "limitSup": 35 },
+      "CEM IV/B": { "limitInf": 36, "limitSup": 55 }
+    },
+    "PQV": {
+      "CEM V/A": { "limitInf": 18, "limitSup": 30 },
+      "CEM V/B": { "limitInf": 31, "limitSup": 49 }
+    }
+}
 
 }

@@ -55,6 +55,17 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
   const [selectedProductType, setSelectedProductType] = useState("");
   const [selectedProductFamily, setSelectedProductFamily] = useState("");
 
+
+
+const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
+const ajoutProducts = [
+  "CEM II/A-S", "CEM II/B-S", "CEM II/A-D", "CEM II/A-P", "CEM II/B-P",
+  "CEM II/A-Q", "CEM II/B-Q", "CEM II/A-V", "CEM II/B-V",
+  "CEM II/A-W", "CEM II/B-W", "CEM II/A-T", "CEM II/B-T",
+  "CEM II/A-L", "CEM II/B-L", "CEM II/A-LL", "CEM II/B-LL",
+  "CEM II/A-M", "CEM II/B-M"
+];
+
   // Get the selected product type and family
   useEffect(() => {
     if (produitId && produits.length) {
@@ -100,6 +111,8 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
     c3a: "C3A",
   };
 
+
+  
   const getLimitsByClass = (classe, key) => {
     const mockKey = keyMapping[key];
     if (!mockKey || !mockDetails[mockKey]) return { li: "-", ls: "-", lg: "-" };
@@ -171,6 +184,24 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
       }
     }
     
+    
+     if (key === "c3a") {
+    if (parameterData[selectedProductFamily]?.[selectedProductType]) {
+      const found = parameterData[selectedProductFamily][selectedProductType].find(item => item.classe === classe);
+      if (found) return { li: found.limit_inf ?? "-", ls: found.limit_max ?? "-", lg: found.garantie ?? "-" };
+    }
+  } else if (key === "ajt") {
+    // Ajout is simpler, keyed by product type directly
+    if (parameterData[selectedProductType]) {
+      return {
+        li: parameterData[selectedProductType].limitInf ?? "-",
+        ls: parameterData[selectedProductType].limitSup ?? "-",
+        lg: "-"
+      };
+    }
+  }
+
+
     // Default fallback
     return { li: "-", ls: "-", lg: "-" };
   };
@@ -180,21 +211,33 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
   if (loading) return <p className="no-data">Chargement des données de référence...</p>;
   if (!dataToUse.length) return <p className="no-data">Veuillez d'abord filtrer des échantillons.</p>;
 
-  // Parameters list
-  const parameters = [
-    { key: "rc2j", label: "RC2J" },
-    { key: "rc7j", label: "RC7J" },
-    { key: "rc28j", label: "RC28J" },
-    { key: "prise", label: "Prise" },
-    { key: "stabilite", label: "Stabilité" },
-    { key: "hydratation", label: "Hydratation" },
-    { key: "pfeu", label: "P. Feu" },
-    { key: "r_insoluble", label: "R. Insoluble" },
-    { key: "so3", label: "SO3" },
-    { key: "chlorure", label: "Chlorure" },
-    
-  ];
-  if (Number(selectedType) === 1) parameters.push({ key: "c3a", label: "C3A" });
+  
+  // Default parameters
+let parameters = [
+  { key: "rc2j", label: "RC2J" },
+  { key: "rc7j", label: "RC7J" },
+  { key: "rc28j", label: "RC28J" },
+  { key: "prise", label: "Prise" },
+  { key: "stabilite", label: "Stabilité" },
+  { key: "hydratation", label: "Hydratation" },
+  { key: "pfeu", label: "P. Feu" },
+  { key: "r_insoluble", label: "R. Insoluble" },
+  { key: "so3", label: "SO3" },
+  { key: "chlorure", label: "Chlorure" },
+];
+
+if (selectedType === 1) {
+  // Add C3A if selected product is in c3aProducts
+  if (c3aProducts.includes(selectedProductType)) {
+    parameters.push({ key: "c3a", label: "C3A" });
+  }
+
+  // Add Ajout if selected product is in ajoutProducts
+  if (ajoutProducts.includes(selectedProductType)) {
+    parameters.push({ key: "ajt", label: "Ajout" });
+  }
+}
+
 
   const allStats = parameters.reduce((acc, param) => {
     acc[param.key] = calculateStats(dataToUse, param.key);

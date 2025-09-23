@@ -55,6 +55,16 @@ export default function DonneesGraphiques({ selectedType, selectedCement }) {
   const [selectedProductFamily, setSelectedProductFamily] = useState("");
   const [selectedProductType, setSelectedProductType] = useState("");
 
+
+const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
+const ajoutProducts = [
+  "CEM II/A-S", "CEM II/B-S", "CEM II/A-D", "CEM II/A-P", "CEM II/B-P",
+  "CEM II/A-Q", "CEM II/B-Q", "CEM II/A-V", "CEM II/B-V",
+  "CEM II/A-W", "CEM II/B-W", "CEM II/A-T", "CEM II/B-T",
+  "CEM II/A-L", "CEM II/B-L", "CEM II/A-LL", "CEM II/B-LL",
+  "CEM II/A-M", "CEM II/B-M"
+];
+
   useEffect(() => {
     if (selectedCement) {
       setSelectedProductFamily(selectedCement.famille_code || "");
@@ -167,6 +177,22 @@ export default function DonneesGraphiques({ selectedType, selectedCement }) {
       }
     }
     
+
+    if (key === "c3a") {
+  if (parameterData[selectedProductFamily]?.[selectedProductType]) {
+    const found = parameterData[selectedProductFamily][selectedProductType].find(item => item.classe === classe);
+    if (found) return { li: parseLimit(found.limit_inf), ls: parseLimit(found.limit_max), lg: parseLimit(found.garantie) };
+  }
+} else if (key === "ajt") {
+  if (parameterData[selectedProductType]) {
+    return {
+      li: parseLimit(parameterData[selectedProductType].limitInf ?? null),
+      ls: parseLimit(parameterData[selectedProductType].limitSup ?? null),
+      lg: null
+    };
+  }
+}
+
     // Default fallback
     return { li: null, ls: null, lg: null };
   };
@@ -185,12 +211,13 @@ export default function DonneesGraphiques({ selectedType, selectedCement }) {
     
   ];
   
-  // Add C3A only for type 1 (like in DonneesStatistiques)
-  if (Number(selectedType) === 1) {
-    parameters.push({ key: "c3a", label: "C3A" });
+  if (c3aProducts.includes(selectedProductType)) {
+    baseParams.push({ key: "c3a", label: "C3A" });
   }
-  
-  parameters.push({ key: "ajout", label: "Ajout" });
+
+  if (ajoutProducts.includes(selectedProductType)) {
+    baseParams.push({ key: "ajt", label: "Ajout" });
+  }
 
   const classes = [
     "32.5 L", "32.5 N", "32.5 R",

@@ -219,7 +219,36 @@ const ControleConformite = ({
   const [dataError, setDataError] = useState(null);
   const [conditionsStatistiques, setConditionsStatistiques] = useState([]);
 
+const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
+const ajoutProducts = [
+  "CEM II/A-S", "CEM II/B-S", "CEM II/A-D", "CEM II/A-P", "CEM II/B-P",
+  "CEM II/A-Q", "CEM II/B-Q", "CEM II/A-V", "CEM II/B-V",
+  "CEM II/A-W", "CEM II/B-W", "CEM II/A-T", "CEM II/B-T",
+  "CEM II/A-L", "CEM II/B-L", "CEM II/A-LL", "CEM II/B-LL",
+  "CEM II/A-M", "CEM II/B-M"
+];
 
+    const parameters = [
+    { key: "rc2j", label: "Résistance courante 2 jrs" },
+    { key: "rc7j", label: "Résistance courante 7 jrs" },
+    { key: "rc28j", label: "Résistance courante 28 jrs" },
+    { key: "prise", label: "Temp debut de prise" },
+    { key: "stabilite", label: "Stabilité" },
+    { key: "hydratation", label: "Chaleur d'Hydratation" },
+    { key: "pfeu", label: "Perte au Feu" },
+    { key: "r_insoluble", label: "Résidu Insoluble" },
+    { key: "so3", label: "Teneur en sulfate" },
+    { key: "chlorure", label: "Chlorure" },
+    
+  ];
+  
+  if (c3aProducts.includes(selectedProductType)) {
+    baseParams.push({ key: "c3a", label: "C3A" });
+  }
+
+  if (ajoutProducts.includes(selectedProductType)) {
+    baseParams.push({ key: "ajt", label: "Ajout" });
+  }
   useEffect(() => {
     fetch("/Data/conformite.json")
       .then((res) => res.json())
@@ -332,27 +361,17 @@ const keyMapping = {
 
   const dataToUse = filteredTableData || [];
 
-  const parameters = useMemo(() => {
-    const baseParams = [
-      { key: "rc2j", label: "RC2J" },
-      { key: "rc7j", label: "RC7J" },
-      { key: "rc28j", label: "RC28J" },
-      { key: "prise", label: "Prise" },
-      { key: "stabilite", label: "Stabilité" },
-      { key: "hydratation", label: "Hydratation" },
-      { key: "pfeu", label: "P. Feu" },
-      { key: "r_insoluble", label: "R. Insoluble" },
-      { key: "so3", label: "SO3" },
-      { key: "chlorure", label: "Chlorure" },
-    ];
-    if (Number(selectedType) === 1) return [...baseParams, { key: "c3a", label: "C3A" }];
-    if (selectedType) return [...baseParams, { key: "ajout_percent", label: "Ajout (%)" }];
-    return baseParams;
-  }, [selectedType]);
 
   const allStats = useMemo(() => 
     parameters.reduce((acc, param) => ({ ...acc, [param.key]: calculateStats(dataToUse, param.key) }), {}),
   [parameters, dataToUse]);
+
+
+
+
+const showC3A = c3aProducts.includes(selectedCement?.name);
+const showAjout = ajoutProducts.includes(selectedCement?.name);
+
 
   const classes = ["32.5 L" , "32.5 N", "32.5 R","42.5 L" , "42.5 N", "42.5 R" , "52.5 L" , "52.5 N", "52.5 R"];
 
@@ -440,27 +459,18 @@ const keyMapping = {
                     : "Aucune déviation"}</span>
                   <span>Déviation={classCompliance.prise.stats.percentLI}%</span>
                 </div>
-                {selectedType === "1" ? (
-                  <div className="parameter-item">
-                    <span>C3A</span>
-                    <span>
-                      {classCompliance.c3a?.stats?.percentLI !== "-" 
-                        ? `${classCompliance.c3a.stats.percentLI}% < ${classCompliance.c3a.limits.li}` 
-                        : "Aucune déviation"}
-                    </span>
-                    <span>Déviation={classCompliance.c3a?.stats?.percentLI}%</span>
-                  </div>
-                ) : selectedType ? (
-                  <div className="parameter-item">
-                    <span>Ajout(Calcaire)</span>
-                    <span>
-                      {classCompliance.ajout_percent?.stats?.percentLI !== "-" 
-                        ? `${classCompliance.ajout_percent.stats.percentLI}% < ${classCompliance.ajout_percent.limits.li}` 
-                        : "Aucune déviation"}
-                    </span>
-                    <span>Déviation={classCompliance.ajout_percent?.stats?.percentLI}%</span>
-                  </div>
-                ) : null}
+{showAjout && (
+  <div className="parameter-item">
+    <span>Ajout(Calcaire)</span>
+    <span>
+      {classCompliance.ajout_percent?.stats?.percentLI !== "-" 
+        ? `${classCompliance.ajout_percent.stats.percentLI}% < ${classCompliance.ajout_percent.limits.li}` 
+        : "Aucune déviation"}
+    </span>
+    <span>Déviation={classCompliance.ajout_percent?.stats?.percentLI}%</span>
+  </div>
+)}
+
               </div>
             </div>
           </div>
@@ -497,6 +507,31 @@ const keyMapping = {
                     : "Aucune déviation"}</span>
                   <span>Déviation={classCompliance.chlorure.stats.percentLS}%</span>
                 </div>
+                {/* In Déviations Limites supérieures */}
+{showC3A && (
+  <div className="parameter-item">
+    <span>C3A</span>
+    <span>
+      {classCompliance.c3a?.stats?.percentLS !== "-" 
+        ? `${classCompliance.c3a.stats.percentLS}% > ${classCompliance.c3a.limits.ls}` 
+        : "Aucune déviation"}
+    </span>
+    <span>Déviation={classCompliance.c3a?.stats?.percentLS}%</span>
+  </div>
+)}
+
+{showAjout && (
+  <div className="parameter-item">
+    <span>Ajout(Calcaire)</span>
+    <span>
+      {classCompliance.ajout_percent?.stats?.percentLS !== "-" 
+        ? `${classCompliance.ajout_percent.stats.percentLS}% > ${classCompliance.ajout_percent.limits.ls}` 
+        : "Aucune déviation"}
+    </span>
+    <span>Déviation={classCompliance.ajout_percent?.stats?.percentLS}%</span>
+  </div>
+)}
+
               </div>
             </div>
           </div>
@@ -547,6 +582,17 @@ const keyMapping = {
                     : "Aucun défaut"}</span>
                   <span>Défaut={classCompliance.chlorure.stats.percentLG}%</span>
                 </div>
+{showC3A && (
+  <div className="parameter-item">
+    <span>C3A</span>
+    <span>
+      {classCompliance.c3a?.stats?.percentLG !== "-" 
+        ? `${classCompliance.c3a.stats.percentLG}% < ${classCompliance.c3a.limits.lg}` 
+        : "Aucun défaut"}
+    </span>
+    <span>Défaut={classCompliance.c3a?.stats?.percentLG}%</span>
+  </div>
+)}
               </div>
             </div>
           </div>
@@ -703,25 +749,26 @@ const keyMapping = {
                     ).satisfied ? "Équation satisfaite" : "Équation non satisfaite"}
                   </span>
                 </div>
-                {selectedType === "1" && (
-                  <div className="parameter-item">
-                    <span>C3A (C3A)</span>
-                    <span>
-                      {checkEquationSatisfaction(
-                        classCompliance.c3a?.values || [],
-                        classCompliance.c3a?.limits || {},
-                        conditionsStatistiques
-                      ).displayText}
-                    </span>
-                    <span>
-                      {checkEquationSatisfaction(
-                        classCompliance.c3a?.values || [],
-                        classCompliance.c3a?.limits || {},
-                        conditionsStatistiques
-                      ).satisfied ? "Équation satisfaite" : "Équation non satisfaite"}
-                    </span>
-                  </div>
-                )}
+{showC3A && (
+  <div className="parameter-item">
+    <span>C3A</span>
+    <span>
+      {checkEquationSatisfaction(
+        classCompliance.c3a?.values || [],
+        classCompliance.c3a?.limits || {},
+        conditionsStatistiques
+      ).displayText}
+    </span>
+    <span>
+      {checkEquationSatisfaction(
+        classCompliance.c3a?.values || [],
+        classCompliance.c3a?.limits || {},
+        conditionsStatistiques
+      ).satisfied ? "Équation satisfaite" : "Équation non satisfaite"}
+    </span>
+  </div>
+)}
+
               </div>
             </div>
           </div>
