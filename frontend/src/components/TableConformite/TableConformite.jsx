@@ -5,10 +5,14 @@ import { useData } from "../../context/DataContext";
 // ============================================================
 // Utility: calculate stats
 // ============================================================
+
+
 const calculateStats = (data, key) => {
   const values = data
     .map((row) => parseFloat(row[key]))
     .filter((v) => !isNaN(v));
+
+  const totalSamples = data.length; 
 
   if (!values.length) {
     return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
@@ -17,13 +21,18 @@ const calculateStats = (data, key) => {
   const count = values.length;
   const min = Math.min(...values).toFixed(2);
   const max = Math.max(...values).toFixed(2);
-  const mean = (values.reduce((a, b) => a + b, 0) / count).toFixed(2);
+
+  // ✅ mean divided by total number of samples, not just valid ones
+  const mean = (values.reduce((a, b) => a + b, 0) / totalSamples).toFixed(2);
+
+  // std still based on valid results
   const variance =
     values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
   const std = Math.sqrt(variance).toFixed(2);
 
   return { count, min, max, mean, std };
 };
+
 
 // ============================================================
 // Utility: evaluate conformity vs limits

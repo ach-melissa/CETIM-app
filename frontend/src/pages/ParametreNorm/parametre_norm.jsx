@@ -7,55 +7,94 @@ const USE_MOCK_DATA = true;
 
 const casLimits = {
   S: {
-    "CEM II/A-S": { limitInf: 6, limitSup: 20 },
-    "CEM II/B-S": { limitInf: 21, limitSup: 35 }
+    description: "Laitier de haut fourneau (S)",
+    types: {
+      "CEM II/A-S": { limitInf: 6, limitSup: 20 },
+      "CEM II/B-S": { limitInf: 21, limitSup: 35 },
+      "CEM III/A": { limitInf: 36, limitSup: 65 },
+      "CEM III/B": { limitInf: 66, limitSup: 80 },
+      "CEM III/C": { limitInf: 81, limitSup: 95 },
+      "CEM V/A": { limitInf: 40, limitSup: 64 },
+      "CEM V/B": { limitInf: 20, limitSup: 38 }
+    }
   },
   D: {
-    "CEM II/A-D": { limitInf: 6, limitSup: 20 }
+    description: "Fumée de silice (D)",
+    types: {
+      "CEM II/A-D": { limitInf: 6, limitSup: 20 }
+    }
   },
   P: {
-    "CEM II/A-P": { limitInf: 6, limitSup: 20 },
-    "CEM II/B-P": { limitInf: 21, limitSup: 35 }
+    description: "Pouzzolane naturelle (P) ",
+    types: {
+      "CEM II/A-P": { limitInf: 6, limitSup: 20 },
+      "CEM II/B-P": { limitInf: 21, limitSup: 35 }
+    }
   },
   Q: {
-    "CEM II/A-Q": { limitInf: 6, limitSup: 20 },
-    "CEM II/B-Q": { limitInf: 21, limitSup: 35 }
+    description: "Pouzzolane naturelle calcinée (Q)",
+    types: {
+      "CEM II/A-Q": { limitInf: 6, limitSup: 20 },
+      "CEM II/B-Q": { limitInf: 21, limitSup: 35 }
+    }
   },
   V: {
-        "CEM II/A-V": { limitInf: 6, limitSup: 20 },
-    "CEM II/B-V": { limitInf: 21, limitSup: 35 }
+    description: "Cendres volantes siliceuse (V)",
+    types: {
+      "CEM II/A-V": { limitInf: 6, limitSup: 20 },
+      "CEM II/B-V": { limitInf: 21, limitSup: 35 }
+    }
   },
   W: {
-        "CEM II/A-W": { limitInf: 6, limitSup: 20 },
-    "CEM II/B-W": { limitInf: 21, limitSup: 35 }
+    description: "Cendres volantes calciques (W)",
+    types: {
+      "CEM II/A-W": { limitInf: 6, limitSup: 20 },
+      "CEM II/B-W": { limitInf: 21, limitSup: 35 }
+    }
   },
   T: {
-    "CEM II/A-T": { limitInf: 6, limitSup: 20 },
-    "CEM II/B-T": { limitInf: 21, limitSup: 35 }
+    description: "Schiste calciné (T)",
+    types: {
+      "CEM II/A-T": { limitInf: 6, limitSup: 20 },
+      "CEM II/B-T": { limitInf: 21, limitSup: 35 }
+    }
   },
   L: {
-    "CEM II/A-L": { limitInf: 6, limitSup: 20 },
-    "CEM II/B-L": { limitInf: 21, limitSup: 35 }
+    description: "Calcaire (L)",
+    types: {
+      "CEM II/A-L": { limitInf: 6, limitSup: 20 },
+      "CEM II/B-L": { limitInf: 21, limitSup: 35 }
+    }
   },
   LL: {
-    "CEM II/A-LL": { limitInf: 12, limitSup: 20 },
-    "CEM II/B-LL": { limitInf: 21, limitSup: 35 }
+    description: "Calcaire (LL)",
+    types: {
+      "CEM II/A-LL": { limitInf: 12, limitSup: 20 },
+      "CEM II/B-LL": { limitInf: 21, limitSup: 35 }
+    }
   },
-
-  SDPQVWTLLL:{
-    "CEM II/A-M": { limitInf: 12, limitSup: 20 },
-    "CEM II/B-M": { limitInf: 21, limitSup: 35 }
+  SDPQVWTLLL: {
+    description: "Ciments composés (S-D-P-Q-V-W-T-L-LL) ",
+    types: {
+      "CEM II/A-M": { limitInf: 12, limitSup: 20 },
+      "CEM II/B-M": { limitInf: 21, limitSup: 35 }
+    }
   },
-  DPQVW:{
-    "CEM IV/A": { limitInf: 11, limitSup: 35 },
-    "CEM IV/B": { limitInf: 36, limitSup: 55 }
+  DPQVW: {
+    description: "Ciments pouzzolaniques (D-P-Q-V-W)",
+    types: {
+      "CEM IV/A": { limitInf: 11, limitSup: 35 },
+      "CEM IV/B": { limitInf: 36, limitSup: 55 }
+    }
   },
-  PQV:{
-    "CEM V/A": { limitInf: 18, limitSup: 30 },
-    "CEM V/B": { limitInf: 31, limitSup: 49 }
+  PQV: {
+    description: "Ciments composés (P-Q-V)",
+    types: {
+      "CEM V/A": { limitInf: 18, limitSup: 30 },
+      "CEM V/B": { limitInf: 31, limitSup: 49 }
+    }
   }
 };
-
 
 export default function ParametreNorm() {
   const [selectedCategory, setSelectedCategory] = useState("mecanique");
@@ -77,9 +116,6 @@ export default function ParametreNorm() {
   const [selectedCas, setSelectedCas] = useState(""); // selected ajout cas
 const [rows, setRows] = useState([]); // table rows for the selected cas
 const [validatedAjout, setValidatedAjout] = useState({}); // store validated data per cas
-
-
-
 
 
   // ---------------- Mock Data ----------------
@@ -113,7 +149,6 @@ const [validatedAjout, setValidatedAjout] = useState({}); // store validated dat
   ]
   };
   
-
   // Mock details
   const mockDetails = {
     // Mécanique
@@ -2595,7 +2630,7 @@ const handleValidateAjout = () => {
     [selectedCas]: [...rows],
   }));
 };
-// select cement code
+
 // select cement code
 const [selectedTypeCodes, setSelectedTypeCodes] = useState([]); // Array for multi-select
 
@@ -2640,7 +2675,7 @@ const clearFilters = () => {
 const paramInfo = parameters.find(p => p.id === selectedParameter);
 
 const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
-// -----
+
 // ----------- Render ----------------
 return (
     <div className="parametreNormPage">
@@ -2704,80 +2739,64 @@ return (
                   </div>
 
                   {/* Custom parameter table for "L'ajoute" */}
-                  {isAjouteParameter() && (
-                    <div className="parameter-details-form">
-                      {/* Cas selector */}
-                      <div className="ajout-selector">
-                        <label>Ajout: </label>
-                        <select
-                          value={selectedCas}
-                          onChange={(e) => {
-                            const cas = e.target.value;
-                            setSelectedCas(cas);
+{isAjouteParameter() && (
+  <div className="parameter-details-form">
+    {/* Cas selector */}
+    <div className="ajout-selector">
+      <label>Ajout: </label>
+      <select
+        value={selectedCas}
+        onChange={(e) => {
+          const cas = e.target.value;
+          setSelectedCas(cas);
 
-                            // populate rows based on casLimits for the selected cas
-                            if (cas && casLimits[cas]) {
-                              const newRows = Object.entries(casLimits[cas]).map(([cement, limits]) => ({
-                                cas,
-                                cement,
-                                limitInf: limits.limitInf,
-                                limitSup: limits.limitSup,
-                              }));
-                              setRows(newRows);
-                            } else {
-                              setRows([]);
-                            }
-                          }}
-                        >
-                          <option value="">-- Sélectionner un cas --</option>
-                          {Object.keys(casLimits).map((c) => (
-                            <option key={c} value={c}>{c}</option>
-                          ))}
-                        </select>
-                      </div>
+          if (cas && casLimits[cas]) {
+            // populate rows based on casLimits[cas].types
+            const newRows = Object.entries(casLimits[cas].types).map(([cement, limits]) => ({
+              cas,
+              cement,
+              limitInf: limits.limitInf,
+              limitSup: limits.limitSup,
+            }));
+            setRows(newRows);
+          } else {
+            setRows([]);
+          }
+        }}
+      >
+        <option value="">-- Sélectionner un ajout --</option>
+        {Object.entries(casLimits).map(([key, value]) => (
+          <option key={key} value={key}>
+            {value.description} {/* show description instead of key */}
+          </option>
+        ))}
+      </select>
+    </div>
 
-                      {/* Table shown only if a cas is selected */}
-                      {selectedCas && rows.length > 0 && (
-                        <table className="parameter-table">
-                          <thead>
-                            <tr>
-                              <th>Cas</th>
-                              <th>Ciment</th>
-                              <th>Limit Inf</th>
-                              <th>Limit Sup</th>
-                              <th>Actions</th>
-                              
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {rows.map((row, index) => (
-                              <tr key={index}>
-                                <td>{row.cas}</td>
-                                <td>{row.cement}</td>
-                                <td>
-                                  <input
-                                    type="number"
-                                    value={row.limitInf}
-                                    onChange={(e) => handleRowChange(index, "limitInf", e.target.value)}
-                                  />
-                                </td>
-                                <td>
-                                  <input
-                                    type="number"
-                                    value={row.limitSup}
-                                    onChange={(e) => handleRowChange(index, "limitSup", e.target.value)}
-                                  />
-                                </td>
-                                <td>
-                                  <button onClick={() => handleDeleteRow(index)}>Supprimer</button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-                  )}
+    {/* Table shown only if a cas is selected */}
+    {selectedCas && rows.length > 0 && (
+      <table className="parameter-table">
+        <thead>
+          <tr>
+            <th>Ciment</th>
+            <th>Limit Inf</th>
+            <th>Limit Sup</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+        <tr key={index}>
+          <td>{row.cement}</td>
+          <td>{row.limitInf}</td>   {/* no input, just value */}
+          <td>{row.limitSup}</td>   {/* no input, just value */}
+        </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </div>
+)}
+
 
                   {/* Main Table */}
                   {selectedParameter && parameterDetails.length > 0 && !isAjouteParameter() && (
@@ -2795,20 +2814,21 @@ return (
                           <th>Évaluation</th>
                           </tr>
                         </thead>
-                        <tbody>
-                          {getFilteredParameterDetails().map((detail, index) => (
-                            <tr key={index}>
-                              <td>{detail.famille_code}</td>
-                              <td>{detail.type_code}</td>
-                              <td>{detail.classe}</td>
-                              <td>{detail.limit_inf}</td>
-                              <td>{detail.limit_max}</td>
-                              <td>{detail.garantie}</td>
-                                 <td>{paramInfo?.unite || "-"}</td>
-                              <td>{paramInfo?.type_controle || "-"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
+<tbody>
+  {getFilteredParameterDetails().map((detail, index) => (
+    <tr key={index}>
+      <td>{detail.famille_code || "-"}</td>
+      <td>{detail.type_code || "-"}</td>
+      <td>{detail.classe || "-"}</td>
+      <td>{detail.limit_inf ?? "-"}</td>
+      <td>{detail.limit_max ?? "-"}</td>
+      <td>{detail.garantie ?? "-"}</td>
+      <td>{paramInfo?.unite || "-"}</td>
+      <td>{paramInfo?.type_controle || "-"}</td>
+    </tr>
+  ))}
+</tbody>
+
                       </table>
                     </div>
                   )}

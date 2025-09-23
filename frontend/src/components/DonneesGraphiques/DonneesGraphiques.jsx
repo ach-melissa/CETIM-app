@@ -32,17 +32,22 @@ const parseLimit = (val) => {
   return str === "" ? null : str;
 };
 
-const computeBasicStats = (vals = []) => {
+const computeBasicStats = (vals = [], totalSamples = vals.length) => {
   const numbers = vals.map(safeParse).filter((n) => !isNaN(n));
-  if (!numbers.length) return { count: 0, mean: null, min: null, max: null };
+  if (!numbers.length) {
+    return { count: 0, mean: null, min: null, max: null };
+  }
+
   const sum = numbers.reduce((a, b) => a + b, 0);
+
   return {
-    count: numbers.length,
-    mean: sum / numbers.length,
+    count: numbers.length,              // valid results
+    mean: sum / totalSamples,           // ✅ divided by total échantillons
     min: Math.min(...numbers),
     max: Math.max(...numbers),
   };
 };
+
 
 /* ---------- component ---------- */
 export default function DonneesGraphiques({ selectedType, selectedCement }) {
@@ -241,32 +246,43 @@ const ajoutProducts = [
     }));
   }, [filteredTableData, selectedParameter]);
 
-  const derivedStats = useMemo(() => {
-    const vals = chartData.map((p) => p.y).filter((v) => !isNaN(v));
-    const basic = computeBasicStats(vals);
+const derivedStats = useMemo(() => {
+  if (!selectedParameter) return {};
 
-    const li = typeof currentLimits.li === "number" ? currentLimits.li : null;
-    const ls = typeof currentLimits.ls === "number" ? currentLimits.ls : null;
-    const lg = typeof currentLimits.lg === "number" ? currentLimits.lg : null;
+  // take Y values from chartData (already parsed)
+  const vals = chartData.map((p) => p.y);
 
-    const countBelow = (limit) => limit != null ? vals.filter((v) => v < limit).length : 0;
-    const countAbove = (limit) => limit != null ? vals.filter((v) => v > limit).length : 0;
-    const percent = (n) => basic.count ? Math.round((n / basic.count) * 100) : 0;
+  // ✅ totalSamples = filteredTableData.length (even if some values NaN)
+  const basic = computeBasicStats(vals, filteredTableData.length);
 
-    return {
-      ...basic,
-      moyenne: basic.mean != null ? Number(basic.mean.toFixed(2)) : null,
-      limiteInf: li,
-      limiteSup: ls,
-      limiteGarantie: lg,
-      countBelowInf: countBelow(li),
-      countAboveSup: countAbove(ls),
-      countBelowGarantie: countBelow(lg),
-      percentBelowInf: percent(countBelow(li)),
-      percentAboveSup: percent(countAbove(ls)),
-      percentBelowGarantie: percent(countBelow(lg)),
-    };
-  }, [chartData, currentLimits]);
+  const li = typeof currentLimits.li === "number" ? currentLimits.li : null;
+  const ls = typeof currentLimits.ls === "number" ? currentLimits.ls : null;
+  const lg = typeof currentLimits.lg === "number" ? currentLimits.lg : null;
+
+  const countBelow = (limit) =>
+    limit != null ? vals.filter((v) => v < limit).length : 0;
+  const countAbove = (limit) =>
+    limit != null ? vals.filter((v) => v > limit).length : 0;
+  const percent = (n) =>
+    filteredTableData.length
+      ? Math.round((n / filteredTableData.length) * 100)
+      : 0;
+
+  return {
+    ...basic,
+    moyenne: basic.mean != null ? Number(basic.mean.toFixed(2)) : null,
+    limiteInf: li,
+    limiteSup: ls,
+    limiteGarantie: lg,
+    countBelowInf: countBelow(li),
+    countAboveSup: countAbove(ls),
+    countBelowGarantie: countBelow(lg),
+    percentBelowInf: percent(countBelow(li)),
+    percentAboveSup: percent(countAbove(ls)),
+    percentBelowGarantie: percent(countBelow(lg)),
+  };
+}, [chartData, currentLimits, selectedParameter, filteredTableData.length]);
+
 
   if (loading) return <p className="no-data">Chargement des limites...</p>;
   if (!filteredTableData?.length)
@@ -347,6 +363,17 @@ const ajoutProducts = [
                 fill="#FFC107"
                 shape="circle"
               />
+
+              {typeof derivedStats.moyenne === "number" && !isNaN(derivedStats.moyenne) && (
+  <ReferenceLine
+    y={derivedStats.moyenne}
+    stroke="#800020"       // Burgundy color
+    strokeWidth={2}
+    strokeDasharray="5 5"  // optional: dashed line
+    label={{ value: "Moyenne", position: "right", fill: "#800020" }}
+  />
+)}
+
               
               {/* Reference Lines with proper validation */}
               {typeof currentLimits.li === "number" && !isNaN(currentLimits.li) && (
@@ -414,24 +441,24 @@ const ajoutProducts = [
                 <strong>{derivedStats.countBelowInf} ({derivedStats.percentBelowInf}%)</strong>
               </div>
             )}
+
             {currentLimits.ls !== null && (
               <div className="dg-stat-row">
                 <span>Au dessus de LS</span>
                 <strong>{derivedStats.countAboveSup} ({derivedStats.percentAboveSup}%)</strong>
               </div>
             )}
+
             {currentLimits.lg !== null && (
               <div className="dg-stat-row">
                 <span>En dessous de LG</span>
                 <strong>{derivedStats.countBelowGarantie} ({derivedStats.percentBelowGarantie}%)</strong>
               </div>
             )}
+
           </div>
         </aside>
       </div>
     </div>
   );
 }
-
-
-

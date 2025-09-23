@@ -212,9 +212,8 @@ const ParametreEntreprise = () => {
 
         {/* Action buttons - MOVED ABOVE CLIENT INFO */}
         <div className="action-buttons">
-          <button className="primary-btn" onClick={() => setShowAddClient(true)}>➕ Ajouter Nouveau Client</button>
-          <button className="secondary-btn" onClick={openEditClient}> ⚙️ Modifier Client</button>
-          <button className="danger-btn" onClick={handleDeleteClient}>🗑️ Supprimer Client</button>
+          <button className="primary-btn" onClick={() => setShowAddClient(true)}> Ajouter Nouveau Client </button>
+          <button className="secondary-btn" onClick={openEditClient}> Modifier Client </button>
         </div>
             
         {/* Informations client */}

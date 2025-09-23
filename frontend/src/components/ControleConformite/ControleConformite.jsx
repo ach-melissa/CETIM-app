@@ -3,15 +3,25 @@ import './ControleConformite.css';
 import { useData } from "../../context/DataContext";
 
 const calculateStats = (data, key) => {
-  if (!data?.length) return { count: 0, mean: null, std: null };
+  const values = data
+    .map((row) => parseFloat(row[key]))
+    .filter((v) => !isNaN(v));
 
-  const values = data.map(r => parseFloat(r[key])).filter(v => !isNaN(v));
-  if (!values.length) return { count: 0, mean: null, std: null };
+  const totalSamples = data.length; // nbr total d’échantillons (filtered table size)
+
+  if (!values.length) {
+    return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
+  }
 
   const count = values.length;
-  const mean = values.reduce((a, b) => a + b, 0) / count;
-  const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
-  const std = Math.sqrt(variance);
+
+  // ✅ mean divided by total number of samples, not just valid ones
+  const mean = (values.reduce((a, b) => a + b, 0) / totalSamples).toFixed(2);
+
+  // std still based on valid results
+  const variance =
+    values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
+  const std = Math.sqrt(variance).toFixed(2);
 
   return { count, mean, std };
 };
