@@ -113,6 +113,7 @@ const [validatedAjout, setValidatedAjout] = useState({}); // store validated dat
   ]
   };
   
+
   // Mock details
   const mockDetails = {
     // Mécanique
@@ -2116,7 +2117,7 @@ SO3: [
   { "famille_code": "CEM V", "type_code": "CEM V/B", "classe": "52.5 R", "limit_inf": null, "limit_max": "4", "garantie": "4.5" }
 ],
 
-  teneur_chlour: [
+teneur_chlour: [
     { "famille_code": "CEM I", "type_code": "CEM I", "classe": "32.5 N", "limit_inf": null, "limit_max": "0.1", "garantie": "10" },
     { "famille_code": "CEM I", "type_code": "CEM I", "classe": "32.5 R", "limit_inf": null, "limit_max": "0.1", "garantie": "0.1" },
     { "famille_code": "CEM I", "type_code": "CEM I", "classe": "32.5 L", "limit_inf": null, "limit_max": "0.1", "garantie": "0.1" },
@@ -2426,7 +2427,7 @@ SO3: [
   
   ],
 
-    pouzzolanicite: [
+pouzzolanicite: [
     { "famille_code": "CEM IV", "type_code": "CEM IV/A", "classe": "32.5N", "limit_inf": null, "limit_max": "satisfait a l'essai", "garantie": "possitive apres 15 jours" },
     { "famille_code": "CEM IV", "type_code": "CEM IV/A", "classe": "32.5R", "limit_inf": null, "limit_max": "satisfait a l'essai", "garantie": "possitive apres 15 jours"  },
     { "famille_code": "CEM IV", "type_code": "CEM IV/A", "classe": "42.5N", "limit_inf": null, "limit_max": "satisfait a l'essai", "garantie": "possitive apres 15 jours"  },
@@ -2463,7 +2464,7 @@ SO3: [
   
   ],
 
-  C3A: [
+C3A: [
     { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "32.5 N", "limit_inf": "0", "limit_max": "0", "garantie": "1" },
     { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "32.5 R", "limit_inf": "0", "limit_max": "0", "garantie": "1" },
     { "famille_code": "CEM I", "type_code": "CEM I-SR 0", "classe": "42.5 N", "limit_inf": "0", "limit_max": "0", "garantie": "1" },
@@ -2507,6 +2508,7 @@ SO3: [
     { "famille_code": "CEM IV", "type_code": "CEM IV/B-SR", "classe": "32.5R", "limit_inf": null, "limit_max":"9", "garantie": "10" }
   
   ]
+  
   };
 
   // ---------------- Hooks ----------------
