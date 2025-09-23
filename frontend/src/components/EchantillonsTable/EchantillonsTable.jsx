@@ -6,9 +6,14 @@ import "jspdf-autotable";
 import { useData } from "../../context/DataContext";
 
 const formatExcelDate = (excelDate) => {
-  if (!excelDate || isNaN(excelDate)) return ""; // Ensure it's a valid date
-  return excelDate; // Return the date as-is, assuming it's already in "YYYY-MM-DD" format
+  if (!excelDate || isNaN(excelDate)) return "";
+  // Convert Excel serial date to JS Date
+  const utc_days = Math.floor(excelDate - 25569);
+  const utc_value = utc_days * 86400; 
+  const date_info = new Date(utc_value * 1000);
+  return date_info.toISOString().split("T")[0]; // YYYY-MM-DD
 };
+
 
 const EchantillonsTable = forwardRef(
   (
@@ -240,26 +245,31 @@ const EchantillonsTable = forwardRef(
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-        const formattedRows = jsonData.map((row, index) => ({
-          id: Date.now() + index,
-          num_ech: row.num_ech || row["Ech"] || "",
-          date_test: formatExcelDate(
-            row.date_test || row["Date"] || row["Date test"] || row["date"] || ""
-          ),
-          rc2j: row.rc2j || row["RC2J"] || "",
-          rc7j: row.rc7j || row["RC7J"] || "",
-          rc28j: row.rc28j || row["RC28J"] || "",
-          prise: row.prise || row["Prise"] || "",
-          stabilite: row.stabilite || row["Stabilité"] || "",
-          hydratation: row.hydratation || row["Hydratation"] || "",
-          pfeu: row.pfeu || row["P. Feu"] || "",
-          r_insoluble: row.r_insoluble || row["R. Insoluble"] || "",
-          so3: row.so3 || row["SO3"] || "",
-          chlorure: row.chlorure || row["Chlorure"] || "",
-          c3a: row.c3a || row["C3A"] || "",
-          ajout_percent: row.ajout_percent || row["Ajout %"] || "",
-          type_ciment: row.type_ciment || row["Type Ciment"] || "", // ✅ include type
-        }));
+   const formattedRows = jsonData.map((row, index) => ({
+  id: Date.now() + index,
+
+  num_ech: row["N° ech"] || row["Ech"] || "",
+  date_test: formatExcelDate(row["Date"] || row.date_test || ""),
+  rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
+  rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
+  rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
+
+  // Excel → DB
+  prise: row["Début prise(min)"] || "",
+  stabilite: row["Stabilité (mm)"] || "",
+  hydratation: row["Hydratation"] || "",
+
+  pfeu: row["Perte au feu (%)"] || "",
+  r_insoluble: row["Résidu insoluble (%)"] || "",
+  so3: row["SO3 (%)"] || "",
+  chlorure: row["Cl (%)"] || "",
+  c3a: row["C3A"] || "",
+  ajout_percent: row["Taux d'Ajouts (%)"] || "",
+  type_ajout: row["Type ajout"] || "",
+  source: row["SILO N°"] || "",
+}));
+
+
 
         setRows((prevRows) => {
           const updated = [...prevRows, ...formattedRows];
