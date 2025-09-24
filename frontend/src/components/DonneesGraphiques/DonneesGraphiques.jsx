@@ -221,7 +221,7 @@ const ajoutProducts = [
   }
 
   if (ajoutProducts.includes(selectedProductType)) {
-    baseParams.push({ key: "ajt", label: "Ajout" });
+    baseParams.push({ key: "ajt", label: "ajout" });
   }
 
   const classes = [

@@ -325,6 +325,8 @@ const allParameters = [...baseParams, ...timeDependentParams.filter(p =>
     fetchData();
   }, []);
 
+
+
   const keyMapping = {
     rc2j: "resistance_2j",
     rc7j: "resistance_7j", 
@@ -341,17 +343,25 @@ const allParameters = [...baseParams, ...timeDependentParams.filter(p =>
     ajout_percent: "ajout"
   };
 
-  const getLimitsByClass = useCallback((classe, key) => {
-    const mapping = keyMapping[key];
-    if (!mapping || !mockDetails[mapping]) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
+
+
+const getLimitsByClass = useCallback((classe, key) => {
+  const mapping = keyMapping[key];
+  if (!mapping || !mockDetails[mapping]) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
     
-    const parameterData = mockDetails[mapping];
-    if (!parameterData) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
+  const parameterData = mockDetails[mapping];
+  if (!parameterData) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
 
-    if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
-      const familyData = parameterData[selectedProductFamily];
-      if (familyData[selectedProductType]) {
-        const typeData = familyData[selectedProductType];
+  // Add debugging to see the actual structure
+  console.log(`Parameter data for ${key}:`, parameterData);
+
+  if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
+    const familyData = parameterData[selectedProductFamily];
+    if (familyData[selectedProductType]) {
+      const typeData = familyData[selectedProductType];
+      
+      // FIX: Check if typeData is an array before using .find()
+      if (Array.isArray(typeData)) {
         const found = typeData.find(item => item.classe === classe);
         if (found) return { 
           li: found.limit_inf ?? "-", 
@@ -362,11 +372,15 @@ const allParameters = [...baseParams, ...timeDependentParams.filter(p =>
         };
       }
     }
+  }
 
-    for (const familleKey in parameterData) {
-      const familleData = parameterData[familleKey];
-      for (const typeKey in familleData) {
-        const typeData = familleData[typeKey];
+  for (const familleKey in parameterData) {
+    const familleData = parameterData[familleKey];
+    for (const typeKey in familleData) {
+      const typeData = familleData[typeKey];
+      
+      // FIX: Check if typeData is an array
+      if (Array.isArray(typeData)) {
         const found = typeData.find(item => item.classe === classe);
         if (found) return { 
           li: found.limit_inf ?? "-", 
@@ -377,9 +391,11 @@ const allParameters = [...baseParams, ...timeDependentParams.filter(p =>
         };
       }
     }
+  }
 
-    return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
-  }, [mockDetails, selectedProductFamily, selectedProductType]);
+  return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
+}, [mockDetails, selectedProductFamily, selectedProductType]);
+
 
   const dataToUse = filteredTableData || [];
 

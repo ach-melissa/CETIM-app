@@ -119,7 +119,7 @@ const ajoutProducts = [
     r_insoluble: "residu_insoluble",
     so3: "SO3",
     chlorure: "teneur_chlour",
-    ajt : "Ajout",
+    ajt : "ajout",
     c3a: "C3A",
   };
 
