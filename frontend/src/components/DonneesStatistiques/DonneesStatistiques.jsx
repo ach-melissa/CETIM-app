@@ -1,5 +1,5 @@
 // src/components/DonneesStatistiques/DonneesStatistiques.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./DonneesStatistiques.css";
 import { useData } from "../../context/DataContext";
 
@@ -11,7 +11,7 @@ const calculateStats = (data, key) => {
     .map((row) => parseFloat(row[key]))
     .filter((v) => !isNaN(v));
 
-  const totalSamples = data.length; // nbr total d’échantillons (filtered table size)
+  const totalSamples = data.length;
 
   if (!values.length) {
     return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
@@ -20,13 +20,9 @@ const calculateStats = (data, key) => {
   const count = values.length;
   const min = Math.min(...values).toFixed(2);
   const max = Math.max(...values).toFixed(2);
-
-  // ✅ mean divided by total number of samples, not just valid ones
   const mean = (values.reduce((a, b) => a + b, 0) / totalSamples).toFixed(2);
 
-  // std still based on valid results
-  const variance =
-    values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
+  const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
   const std = Math.sqrt(variance).toFixed(2);
 
   return { count, min, max, mean, std };
@@ -60,34 +56,62 @@ const evaluateLimits = (data, key, li, ls, lg) => {
 // ============================================================
 // DonneesStatistiques Component
 // ============================================================
-const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescription, clients = [], produits = [] }) => {
+const DonneesStatistiques = ({ 
+  clientId, 
+  clientTypeCimentId, 
+  produitInfo,
+  produitDescription, 
+  clients = [], 
+  produits = [] 
+}) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
   const [loading, setLoading] = useState(true);
-  const [selectedProductType, setSelectedProductType] = useState("");
-  const [selectedProductFamily, setSelectedProductFamily] = useState("");
+  const [debugInfo, setDebugInfo] = useState("");
+  const debugLogRef = useRef([]);
 
+  const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
+  const ajoutProducts = [
+    "CEM II/A-S", "CEM II/B-S", "CEM II/A-D", "CEM II/A-P", "CEM II/B-P",
+    "CEM II/A-Q", "CEM II/B-Q", "CEM II/A-V", "CEM II/B-V",
+    "CEM II/A-W", "CEM II/B-W", "CEM II/A-T", "CEM II/B-T",
+    "CEM II/A-L", "CEM II/B-L", "CEM II/A-LL", "CEM II/B-LL",
+    "CEM II/A-M", "CEM II/B-M"
+  ];
 
-
-const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
-const ajoutProducts = [
-  "CEM II/A-S", "CEM II/B-S", "CEM II/A-D", "CEM II/A-P", "CEM II/B-P",
-  "CEM II/A-Q", "CEM II/B-Q", "CEM II/A-V", "CEM II/B-V",
-  "CEM II/A-W", "CEM II/B-W", "CEM II/A-T", "CEM II/B-T",
-  "CEM II/A-L", "CEM II/B-L", "CEM II/A-LL", "CEM II/B-LL",
-  "CEM II/A-M", "CEM II/B-M"
-];
-
-  // Get the selected product type and family
+  // Debug: Log the complete produitInfo structure
   useEffect(() => {
-    if (produitId && produits.length) {
-      const product = produits.find(p => p.id == produitId);
-      if (product) {
-        setSelectedProductType(product.type_code || "");
-        setSelectedProductFamily(product.famille_code || "");
-      }
+    if (produitInfo) {
+      console.log("=== PRODUIT INFO COMPLETE STRUCTURE ===", produitInfo);
+      console.log("Produit nom:", produitInfo.nom);
+      console.log("Produit description:", produitInfo.description);
+      console.log("Produit famille:", produitInfo.famille);
+      console.log("Famille code:", produitInfo.famille?.code);
+      console.log("Famille nom:", produitInfo.famille?.nom);
     }
-  }, [produitId, produits]);
+  }, [produitInfo]);
+
+  // Get product type and famille from produitInfo with fallbacks
+  const selectedProductType = produitInfo?.nom || produitInfo?.code || "";
+  const selectedProductFamille = produitInfo?.famille?.code || "";
+  const selectedProductFamilleName = produitInfo?.famille?.nom || "";
+
+  // FIXED: Better famille detection from product type
+  const determineFamilleFromType = (productType) => {
+    if (!productType) return "";
+    
+    // Match the complete famille pattern (CEM I, CEM II, etc.)
+    const familleMatch = productType.match(/^(CEM [I|II|III|IV|V]+)/);
+    if (familleMatch) {
+      return familleMatch[1];
+    }
+    
+    return "";
+  };
+
+  // Final famille values with fallback
+  const finalFamilleCode = selectedProductFamille || determineFamilleFromType(selectedProductType);
+  const finalFamilleName = selectedProductFamilleName || finalFamilleCode;
 
   // Charger les données depuis le fichier JSON
   useEffect(() => {
@@ -97,6 +121,11 @@ const ajoutProducts = [
         if (!response.ok) throw new Error("Erreur lors du chargement des données");
         const data = await response.json();
         setMockDetails(data);
+        
+        console.log("=== COMPLETE JSON STRUCTURE ===");
+        console.log(data);
+        console.log("=== END JSON STRUCTURE ===");
+        
       } catch (error) {
         console.error("Erreur de chargement des données:", error);
         setMockDetails({});
@@ -119,126 +148,153 @@ const ajoutProducts = [
     r_insoluble: "residu_insoluble",
     so3: "SO3",
     chlorure: "teneur_chlour",
-    ajt : "ajout",
+    ajt: "ajout",
     c3a: "C3A",
   };
 
+  // Function to add debug logs without causing re-renders
+  const addDebugLog = (message) => {
+    debugLogRef.current.push(`${new Date().toLocaleTimeString()}: ${message}`);
+    if (debugLogRef.current.length > 50) {
+      debugLogRef.current = debugLogRef.current.slice(-50);
+    }
+  };
 
-  
   const getLimitsByClass = (classe, key) => {
     const mockKey = keyMapping[key];
-    if (!mockKey || !mockDetails[mockKey]) return { li: "-", ls: "-", lg: "-" };
+    if (!mockKey || !mockDetails[mockKey]) {
+      addDebugLog(`❌ Parameter "${mockKey}" not found in JSON`);
+      return { li: "-", ls: "-", lg: "-" };
+    }
 
-    // Navigate the nested structure: parameter -> family -> type -> classes
     const parameterData = mockDetails[mockKey];
     
-    // If we have both family and type, try to find the exact match
-    if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
-      const familyData = parameterData[selectedProductFamily];
+    let debugMessage = `🔍 Searching: ${mockKey} -> ${finalFamilleCode} -> ${selectedProductType} -> ${classe}`;
+    
+    // Check if famille exists in this parameter
+    if (!parameterData[finalFamilleCode]) {
+      const availableFamilles = Object.keys(parameterData).join(", ");
+      debugMessage += `\n❌ Famille "${finalFamilleCode}" not found in ${mockKey}. Available: ${availableFamilles}`;
+      addDebugLog(debugMessage);
+      return { li: "-", ls: "-", lg: "-" };
+    }
+
+    const familleData = parameterData[finalFamilleCode];
+    debugMessage += `\n✅ Famille "${finalFamilleCode}" found in ${mockKey}`;
+
+    // For "ajout" parameter, the structure is different
+    if (key === "ajt") {
+      debugMessage += `\n🔄 Special handling for "ajout" parameter`;
       
-      if (familyData[selectedProductType]) {
-        const typeData = familyData[selectedProductType];
-        const found = typeData.find(item => item.classe === classe);
-        if (found) {
-          return {
-            li: found.limit_inf ?? "-",
-            ls: found.limit_max ?? "-",
-            lg: found.garantie ?? "-",
-          };
-        }
-      }
-    }
-    
-    // If exact match not found, try to find in the general family section
-    if (selectedProductFamily && parameterData[selectedProductFamily]) {
-      const familyData = parameterData[selectedProductFamily];
+      // Extract the ajout code from the product type (e.g., "M" from "CEM II/B-M")
+      const ajoutCode = selectedProductType.split('/').pop()?.split('-').pop()?.trim();
+      debugMessage += `\n🔍 Extracted ajout code: "${ajoutCode}" from product type: "${selectedProductType}"`;
       
-      // Look for a general type (like "CEM I" without specific subtype)
-      if (familyData[selectedProductFamily]) {
-        const generalTypeData = familyData[selectedProductFamily];
-        const found = generalTypeData.find(item => item.classe === classe);
-        if (found) {
-          return {
-            li: found.limit_inf ?? "-",
-            ls: found.limit_max ?? "-",
-            lg: found.garantie ?? "-",
-          };
-        }
+      if (!ajoutCode || !familleData[ajoutCode]) {
+        const availableAjoutCodes = Object.keys(familleData).join(", ");
+        debugMessage += `\n❌ Ajout code "${ajoutCode}" not found. Available: ${availableAjoutCodes}`;
+        addDebugLog(debugMessage);
+        return { li: "-", ls: "-", lg: "-" };
       }
+
+      const ajoutData = familleData[ajoutCode];
+      debugMessage += `\n✅ Ajout code "${ajoutCode}" found`;
       
-      // If still not found, try any type in the family
-      for (const typeKey in familyData) {
-        const typeData = familyData[typeKey];
-        const found = typeData.find(item => item.classe === classe);
-        if (found) {
-          return {
-            li: found.limit_inf ?? "-",
-            ls: found.limit_max ?? "-",
-            lg: found.garantie ?? "-",
-          };
-        }
-      }
-    }
-    
-    // If still not found, try any family and type
-    for (const familyKey in parameterData) {
-      const familyData = parameterData[familyKey];
-      for (const typeKey in familyData) {
-        const typeData = familyData[typeKey];
-        const found = typeData.find(item => item.classe === classe);
-        if (found) {
-          return {
-            li: found.limit_inf ?? "-",
-            ls: found.limit_max ?? "-",
-            lg: found.garantie ?? "-",
-          };
-        }
-      }
-    }
-    
-    
-     if (key === "c3a") {
-    if (parameterData[selectedProductFamily]?.[selectedProductType]) {
-      const found = parameterData[selectedProductFamily][selectedProductType].find(item => item.classe === classe);
-      if (found) return { li: found.limit_inf ?? "-", ls: found.limit_max ?? "-", lg: found.garantie ?? "-" };
-    }
-  } else if (key === "ajt") {
-    // Ajout is simpler, keyed by product type directly
-    if (parameterData[selectedProductType]) {
-      return {
-        li: parameterData[selectedProductType].limitInf ?? "-",
-        ls: parameterData[selectedProductType].limitSup ?? "-",
-        lg: "-"
+      const limits = {
+        li: ajoutData.limitInf ?? ajoutData.limit_inf ?? "-",
+        ls: ajoutData.limitSup ?? ajoutData.limit_max ?? "-",
+        lg: ajoutData.garantie ?? "-"
       };
+      
+      debugMessage += `\n✅ Ajout limits: LI=${limits.li}, LS=${limits.ls}, LG=${limits.lg}`;
+      addDebugLog(debugMessage);
+      return limits;
     }
-  }
 
+    // For other parameters, search for the class data
+    debugMessage += `\n📊 Searching for class "${classe}" in famille data`;
+    
+    let classData = null;
+    
+    // First, check if familleData is an array of classes
+    if (Array.isArray(familleData)) {
+      classData = familleData.find(item => item.classe === classe);
+      if (classData) debugMessage += `\n✅ Found class "${classe}" in array structure`;
+    } 
+    // If not array, check if it's an object with class keys
+    else if (typeof familleData === 'object' && familleData[classe]) {
+      classData = familleData[classe];
+      if (classData) debugMessage += `\n✅ Found class "${classe}" in object structure`;
+    }
+    // If not found, search in nested structures
+    else {
+      for (const key in familleData) {
+        const subData = familleData[key];
+        if (Array.isArray(subData)) {
+          const found = subData.find(item => item.classe === classe);
+          if (found) {
+            classData = found;
+            debugMessage += `\n✅ Found class "${classe}" in sub-key "${key}" (array)`;
+            break;
+          }
+        } else if (typeof subData === 'object' && subData[classe]) {
+          classData = subData[classe];
+          debugMessage += `\n✅ Found class "${classe}" in sub-key "${key}" (object)`;
+          break;
+        } else if (typeof subData === 'object' && (subData.limit_inf || subData.limitInf)) {
+          // Direct limits object
+          classData = subData;
+          debugMessage += `\n✅ Found direct limits in sub-key "${key}"`;
+          break;
+        }
+      }
+    }
 
-    // Default fallback
-    return { li: "-", ls: "-", lg: "-" };
+    if (!classData) {
+      debugMessage += `\n❌ No data found for class "${classe}" in famille "${finalFamilleCode}"`;
+      debugMessage += `\n📋 Available keys in famille data: ${Object.keys(familleData).join(', ')}`;
+      addDebugLog(debugMessage);
+      return { li: "-", ls: "-", lg: "-" };
+    }
+
+    const limits = {
+      li: classData.limit_inf ?? classData.limitInf ?? "-",
+      ls: classData.limit_max ?? classData.limitSup ?? classData.limitMax ?? "-",
+      lg: classData.garantie ?? classData.garantieValue ?? "-",
+    };
+
+    debugMessage += `\n✅ Limits found for class "${classe}": LI=${limits.li}, LS=${limits.ls}, LG=${limits.lg}`;
+    addDebugLog(debugMessage);
+
+    return limits;
   };
+
+  // Update debug info only when needed
+  useEffect(() => {
+    if (debugLogRef.current.length > 0) {
+      setDebugInfo(debugLogRef.current.join('\n'));
+    }
+  }, [filteredTableData, selectedProductType, finalFamilleCode]);
 
   const dataToUse = filteredTableData || [];
 
   if (loading) return <p className="no-data">Chargement des données de référence...</p>;
   if (!dataToUse.length) return <p className="no-data">Veuillez d'abord filtrer des échantillons.</p>;
 
-  
   // Default parameters
-let parameters = [
-  { key: "rc2j", label: "RC2J" },
-  { key: "rc7j", label: "RC7J" },
-  { key: "rc28j", label: "RC28J" },
-  { key: "prise", label: "Prise" },
-  { key: "stabilite", label: "Stabilité" },
-  { key: "hydratation", label: "Hydratation" },
-  { key: "pfeu", label: "P. Feu" },
-  { key: "r_insoluble", label: "R. Insoluble" },
-  { key: "so3", label: "SO3" },
-  { key: "chlorure", label: "Chlorure" },
-];
+  let parameters = [
+    { key: "rc2j", label: "RC2J" },
+    { key: "rc7j", label: "RC7J" },
+    { key: "rc28j", label: "RC28J" },
+    { key: "prise", label: "Prise" },
+    { key: "stabilite", label: "Stabilité" },
+    { key: "hydratation", label: "Hydratation" },
+    { key: "pfeu", label: "P. Feu" },
+    { key: "r_insoluble", label: "R. Insoluble" },
+    { key: "so3", label: "SO3" },
+    { key: "chlorure", label: "Chlorure" },
+  ];
 
-if (selectedType === 1) {
   // Add C3A if selected product is in c3aProducts
   if (c3aProducts.includes(selectedProductType)) {
     parameters.push({ key: "c3a", label: "C3A" });
@@ -248,8 +304,6 @@ if (selectedType === 1) {
   if (ajoutProducts.includes(selectedProductType)) {
     parameters.push({ key: "ajt", label: "Ajout" });
   }
-}
-
 
   const allStats = parameters.reduce((acc, param) => {
     acc[param.key] = calculateStats(dataToUse, param.key);
@@ -264,7 +318,7 @@ if (selectedType === 1) {
     { key: "std", label: "Écart type" },
   ];
 
-  const classes = ["32.5 L" , "32.5 N", "32.5 R","42.5 L" , "42.5 N", "42.5 R" , "52.5 L" , "52.5 N", "52.5 R"];
+  const classes = ["32.5 L", "32.5 N", "32.5 R", "42.5 L", "42.5 N", "42.5 R", "52.5 L", "52.5 N", "52.5 R"];
 
   const renderClassSection = (classe) => (
     <div className="class-section" key={classe}>
@@ -273,56 +327,71 @@ if (selectedType === 1) {
         <tbody>
           <tr>
             <td>Limite inférieure (LI)</td>
-            {parameters.map((param) => <td key={param.key}>{getLimitsByClass(classe, param.key).li}</td>)}
+            {parameters.map((param) => {
+              const limits = getLimitsByClass(classe, param.key);
+              return <td key={param.key}>{limits.li}</td>;
+            })}
           </tr>
           <tr>
             <td>N &lt; LI</td>
             {parameters.map((param) => {
               const limits = getLimitsByClass(classe, param.key);
-              return <td key={param.key}>{evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).belowLI}</td>;
+              const evaluation = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
+              return <td key={param.key}>{evaluation.belowLI}</td>;
             })}
           </tr>
           <tr>
             <td>% &lt; LI</td>
             {parameters.map((param) => {
               const limits = getLimitsByClass(classe, param.key);
-              return <td key={param.key}>{evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).percentLI}</td>;
+              const evaluation = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
+              return <td key={param.key}>{evaluation.percentLI}</td>;
             })}
           </tr>
           <tr>
             <td>Limite supérieure (LS)</td>
-            {parameters.map((param) => <td key={param.key}>{getLimitsByClass(classe, param.key).ls}</td>)}
+            {parameters.map((param) => {
+              const limits = getLimitsByClass(classe, param.key);
+              return <td key={param.key}>{limits.ls}</td>;
+            })}
           </tr>
           <tr>
             <td>N &gt; LS</td>
             {parameters.map((param) => {
               const limits = getLimitsByClass(classe, param.key);
-              return <td key={param.key}>{evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).aboveLS}</td>;
+              const evaluation = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
+              return <td key={param.key}>{evaluation.aboveLS}</td>;
             })}
           </tr>
           <tr>
             <td>% &gt; LS</td>
             {parameters.map((param) => {
               const limits = getLimitsByClass(classe, param.key);
-              return <td key={param.key}>{evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).percentLS}</td>;
+              const evaluation = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
+              return <td key={param.key}>{evaluation.percentLS}</td>;
             })}
           </tr>
           <tr>
             <td>Limite garantie (LG)</td>
-            {parameters.map((param) => <td key={param.key}>{getLimitsByClass(classe, param.key).lg}</td>)}
+            {parameters.map((param) => {
+              const limits = getLimitsByClass(classe, param.key);
+              return <td key={param.key}>{limits.lg}</td>;
+            })}
           </tr>
           <tr>
             <td>N &lt; LG</td>
             {parameters.map((param) => {
               const limits = getLimitsByClass(classe, param.key);
-              return <td key={param.key}>{evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).belowLG}</td>;
+              const evaluation = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
+              return <td key={param.key}>{evaluation.belowLG}</td>;
             })}
           </tr>
           <tr>
             <td>% &lt; LG</td>
             {parameters.map((param) => {
               const limits = getLimitsByClass(classe, param.key);
-              return <td key={param.key}>{evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).percentLG}</td>;
+              const evaluation = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
+              return <td key={param.key}>{evaluation.percentLG}</td>;
             })}
           </tr>
         </tbody>
@@ -335,10 +404,94 @@ if (selectedType === 1) {
       <div style={{ marginBottom: "1rem" }}>
         <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
         <h2>Données Statistiques</h2>
-        <p><strong>{produitDescription}</strong></p>
-        {selectedProductFamily && <p><strong>Famille: {selectedProductFamily}</strong></p>}
-        {selectedProductType && <p><strong>Type: {selectedProductType}</strong></p>}
+        {produitInfo && (
+          <>
+            <p><strong>Produit: {produitInfo.nom}</strong></p>
+            <p><strong>Description: {produitInfo.description}</strong></p>
+            {finalFamilleCode && (
+              <p>
+                <strong>Famille: {finalFamilleName} ({finalFamilleCode})</strong>
+                {!selectedProductFamille && <span style={{color: 'orange', fontSize: '12px'}}> *Détectée automatiquement</span>}
+              </p>
+            )}
+          </>
+        )}
         <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
+      </div>
+
+      {/* Enhanced Debug information */}
+      <div style={{ 
+        backgroundColor: '#f0f8ff', 
+        padding: '15px', 
+        marginBottom: '15px', 
+        border: '1px solid #ccc',
+        borderRadius: '5px',
+        fontSize: '14px'
+      }}>
+        <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>🔧 Debug Information</h4>
+        <div style={{ marginBottom: '10px' }}>
+          <strong>Selected Product:</strong> {selectedProductType || "None"}<br/>
+          <strong>Selected Famille from DB:</strong> {selectedProductFamilleName} ({selectedProductFamille || "NULL"})<br/>
+          <strong>Final Famille Used:</strong> {finalFamilleName} ({finalFamilleCode})<br/>
+          <strong>Client Type Cement ID:</strong> {clientTypeCimentId || "None"}
+        </div>
+        
+        <div>
+          <strong>Available Familles in JSON:</strong><br/>
+          {Object.keys(mockDetails).length > 0 ? (
+            Object.keys(mockDetails).map(famille => (
+              <div key={famille} style={{ marginLeft: '10px' }}>
+                • {famille}: {Object.keys(mockDetails[famille] || {}).join(', ')}
+              </div>
+            ))
+          ) : (
+            "Loading..."
+          )}
+        </div>
+        
+        {debugInfo && (
+          <div style={{ marginTop: '10px' }}>
+            <strong>Search Logs:</strong>
+            <pre style={{ 
+              backgroundColor: '#fff', 
+              padding: '10px', 
+              border: '1px solid #ddd',
+              borderRadius: '3px',
+              fontSize: '12px',
+              whiteSpace: 'pre-wrap',
+              marginTop: '5px',
+              maxHeight: '150px',
+              overflowY: 'auto'
+            }}>
+              {debugInfo}
+            </pre>
+          </div>
+        )}
+        
+        <button 
+          onClick={() => {
+            console.log("=== PRODUIT INFO COMPLETE ===", produitInfo);
+            console.log("=== PRODUIT FAMEILLE DETAILS ===", produitInfo?.famille);
+            console.log("=== FINAL FAMILLE ===", finalFamilleCode);
+            console.log("=== AVAILABLE FAMILLES ===", Object.keys(mockDetails));
+            // Log specific famille data for debugging
+            if (finalFamilleCode && mockDetails.resistance_2j) {
+              console.log(`=== ${finalFamilleCode} DATA in resistance_2j ===`, mockDetails.resistance_2j[finalFamilleCode]);
+            }
+          }}
+          style={{
+            padding: '5px 10px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '3px',
+            cursor: 'pointer',
+            fontSize: '12px',
+            marginTop: '10px'
+          }}
+        >
+          Log Complete Details to Console
+        </button>
       </div>
 
       {/* Global stats */}
@@ -365,6 +518,4 @@ if (selectedType === 1) {
   );
 };
 
-
 export default DonneesStatistiques;
-
