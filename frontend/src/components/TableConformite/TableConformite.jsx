@@ -686,11 +686,15 @@ const getLimitsByClass = useCallback((classe, key) => {
   return (
     <div className="cement-table-page">
       <div className="cement-table-container">
-        <div style={{ marginBottom: "1rem" }}>
-          <p><strong>{clients.find((c) => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
-          <p><strong>{produitDescription}</strong></p>
-          <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-        </div>
+      <div style={{ marginBottom: "1rem" }}>
+        <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
+        {produitInfo && (
+          <>
+            <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
+          </>
+        )}
+        <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
+      </div>
 
         <div className="table-section">
           <h3>Conformité</h3>

@@ -373,14 +373,7 @@ const DonneesStatistiques = ({
         <h2>Données Statistiques</h2>
         {produitInfo && (
           <>
-            <p><strong>Produit: {produitInfo.nom}</strong></p>
-            <p><strong>Description: {produitInfo.description}</strong></p>
-            {finalFamilleCode && (
-              <p>
-                <strong>Famille: {finalFamilleName} ({finalFamilleCode})</strong>
-                {!selectedProductFamille && <span style={{color: 'orange', fontSize: '12px'}}> *Détectée automatiquement</span>}
-              </p>
-            )}
+            <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
           </>
         )}
         <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>

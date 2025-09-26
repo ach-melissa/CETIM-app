@@ -390,22 +390,16 @@ export default function DonneesGraphiques({
     return <p className="no-data">Veuillez d'abord filtrer des échantillons.</p>;
 
   return (
-    <div className="dg-root">
-      <div className="dg-header">
+    <div className="dg-root">  
+      <div style={{ marginBottom: "1rem" }}>
+        <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
         <h2>Données Graphiques</h2>
-        <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
         {produitInfo && (
           <>
-            <p><strong>Produit: {produitInfo.nom}</strong></p>
-            <p><strong>Description: {produitInfo.description}</strong></p>
-            {finalFamilleCode && (
-              <p>
-                <strong>Famille: {finalFamilleName} ({finalFamilleCode})</strong>
-                {!selectedProductFamille && <span style={{color: 'orange', fontSize: '12px'}}> *Détectée automatiquement</span>}
-              </p>
-            )}
+            <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
           </>
         )}
+        <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
       </div>
 
       <div className="dg-top-controls">

@@ -291,16 +291,13 @@ const TraitDonnes = () => {
                 <option value="">-- Tous les produits --</option>
                 {produits.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.nom} {p.famille ? `(${p.famille.nom})` : ''}
+                    {p.nom} 
                   </option>
                 ))}
               </select>
               {selectedProduitInfo && (
                 <div className="produit-info">
                   <div><strong>Description:</strong> {selectedProduitInfo.description}</div>
-                  {selectedProduitInfo.famille && (
-                    <div><strong>Famille:</strong> {selectedProduitInfo.famille.nom} ({selectedProduitInfo.famille.code})</div>
-                  )}
                 </div>
               )}
             </label>

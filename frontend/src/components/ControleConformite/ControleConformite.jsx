@@ -657,30 +657,16 @@ const ControleConformite = ({
     return (
       <div className="class-section" key={classe}>
         <div className="report-header">
-          <div style={{ marginBottom: "1rem" }}>
-            <p>
-              <strong>
-                {clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}
-              </strong>
-            </p>
-            <h2>Contrôle de conformité / classe de résistance</h2>
-            
-            {selectedCement ? (
-              <div className="selected-cement-info">
-                <h3>{selectedCement.name}</h3>
-                <p>Type: {selectedCement.type} | Classe: {selectedCement.class} | Famille: {selectedCement.famille}</p>
-                {selectedCement.description && (
-                  <p><strong>Description:</strong> {selectedCement.description}</p>
-                )}
-              </div>
-            ) : produitDescription ? (
-              <p><strong>{produitDescription}</strong></p>
-            ) : null}
-            
-            {finalFamilleName && <p><strong>Famille: {finalFamilleName}</strong></p>}
-            {selectedProductType && <p><strong>Type: {selectedProductType}</strong></p>}
-            <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-          </div>
+       <div style={{ marginBottom: "1rem" }}>
+        <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
+          <h2>Contrôle de conformité / classe de résistance</h2>
+        {produitInfo && (
+          <>
+            <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
+          </>
+        )}
+        <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
+      </div>
           
           <hr className="strong-hr" />
           <h3>CLASSE {classe}</h3>
