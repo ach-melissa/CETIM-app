@@ -3139,6 +3139,11 @@
       "CEM II/A-M": { "key":"SDPQVWTLLL","limitInf": 12, "limitSup": 20 },
       "CEM II/B-M": {"key":"SDPQVWTLLL", "limitInf": 21, "limitSup": 35 }
    },
+   "CEM III":{
+      "CEM III/A": { "key":"S" , "limitInf": 36, "limitSup": 65  },
+      "CEM III/B": { "key":"S" , "limitInf": 66, "limitSup": 80},
+      "CEM III/C": { "key":"S" , "limitInf": 81, "limitSup": 95}
+   },
    "CEM IV":{
       "CEM IV/A": { "key":"DPQVW","limitInf": 11, "limitSup": 35 },
       "CEM IV/B": {"key":"DPQVW", "limitInf": 36, "limitSup": 55 }

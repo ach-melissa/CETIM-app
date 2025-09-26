@@ -3,59 +3,138 @@ import "./TableConformite.css";
 import { useData } from "../../context/DataContext";
 
 const calculateStats = (data, key) => {
-  const values = data
-    .map((row) => parseFloat(row[key]))
-    .filter((v) => !isNaN(v));
+  console.log(`=== RECHERCHE VALEURS MANQUANTES ${key} ===`);
+  
+  const missingValues = [];
+  const values = [];
+  
+  data.forEach((row, index) => {
+    const value = row[key];
+    
+    // ✅ CORRECTION AMÉLIORÉE : Détection plus robuste des valeurs manquantes
+    const isMissing = 
+      value === null || 
+      value === undefined || 
+      value === "" || 
+      value === " " || 
+      value === "NULL" || 
+      value === "null" || // Ajout spécifique pour "null" en chaîne
+      value === "undefined" ||
+      String(value).trim() === "" ||
+      String(value).toLowerCase() === "null" || // Détection case-insensitive
+      String(value).toLowerCase() === "undefined";
+    
+    if (isMissing) {
+      missingValues.push({ line: index + 1, value: value, type: typeof value });
+      console.log(`Ligne ${index + 1}: VALEUR MANQUANTE -> "${value}" (type: ${typeof value})`);
+    } else {
+      // ✅ CORRECTION : Conversion numérique plus robuste
+      try {
+        const stringValue = String(value).trim().replace(',', '.');
+        const numericValue = parseFloat(stringValue);
+        
+        if (!isNaN(numericValue) && isFinite(numericValue)) {
+          values.push(numericValue);
+        } else {
+          missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "NaN or Infinite" });
+          console.log(`Ligne ${index + 1}: VALEUR NON NUMÉRIQUE -> "${value}"`);
+        }
+      } catch (error) {
+        missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "Conversion error" });
+        console.log(`Ligne ${index + 1}: ERREUR CONVERSION -> "${value}"`);
+      }
+    }
+  });
+  
+  console.log(`Total valeurs manquantes: ${missingValues.length}`);
+  console.log(`Valeurs valides trouvées: ${values.length}`);
+  console.log("Positions des manquants:", missingValues.slice(0, 10)); // Afficher seulement les 10 premiers pour éviter l'overflow
 
-  const totalSamples = data.length;
-
-  if (!values.length) {
+  // ✅ CORRECTION : Vérification plus explicite
+  if (values.length === 0) {
+    console.log(`❌ AUCUNE VALEUR VALIDE TROUVÉE pour ${key}`);
+    
+    // Debug supplémentaire : analyser les types de données trouvés
+    const valueTypes = {};
+    data.forEach(row => {
+      const val = row[key];
+      const type = typeof val;
+      valueTypes[type] = (valueTypes[type] || 0) + 1;
+    });
+    console.log(`Types de données pour ${key}:`, valueTypes);
+    
     return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
   }
 
+  console.log("=== ANALYSE VALEURS VALIDES ===");
+  console.log("Nombre de valeurs valides:", values.length);
+  console.log("Valeurs uniques:", [...new Set(values)].length);
+  console.log("Premières valeurs valides:", values.slice(0, 5));
+  
+
+
+  const zeroValues = values.filter(v => v === 0);
+  console.log("Valeurs égales à zéro:", zeroValues.length);
+
+  // ✅ CORRECTION : Utilisation de reduce pour éviter les problèmes de stack
   const count = values.length;
-  const mean = (values.reduce((a, b) => a + b, 0) / totalSamples).toFixed(2);
+  const min = values.reduce((a, b) => Math.min(a, b), values[0]);
+  const max = values.reduce((a, b) => Math.max(a, b), values[0]);
+ const sum = values.reduce((a, b) => a + b, 0);
+  const mean = sum / count;
+  
+  // DEBUG: Log intermediate values
+  console.log('=== DEBUG CALCULATION ===');
+  console.log('Values count:', values.length);
+  console.log('Sum:', sum);
+  console.log('Mean:', mean);
+  
   const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
-  const std = Math.sqrt(variance).toFixed(2);
-
-  return { count, mean, std };
-};
-
-const evaluateLimits = (data, key, li, ls, lg) => {
-  const values = data.map(v => parseFloat(v[key])).filter(v => !isNaN(v));
-  if (values.length === 0) {
-    return {
-      count: 0,
-      mean: "-",
-      stdDev: "-",
-      countLI: "-",
-      percentLI: "-",
-      countLS: "-",
-      percentLS: "-",
-      countLG: "-",
-      percentLG: "-"
-    };
-  }
-
-  const count = values.length;
-  const mean = values.reduce((a, b) => a + b, 0) / count;
-  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / count;
-  const stdDev = Math.sqrt(variance);
-
-  const countLI = (li !== null && li !== "-") ? values.filter(v => v < parseFloat(li)).length : 0;
-  const countLS = (ls !== null && ls !== "-") ? values.filter(v => v > parseFloat(ls)).length : 0;
-  const countLG = (lg !== null && lg !== "-") ? values.filter(v => v < parseFloat(lg)).length : 0;
-
+  console.log('Variance:', variance);
+  
+  const std = Math.sqrt(variance);
+  console.log('Standard Deviation:', std);
+  console.log('Rounded SD:', std.toFixed(2));
+  
   return {
     count,
-    mean: mean.toFixed(2),
-    stdDev: stdDev.toFixed(2),
-    countLI,
-    percentLI: countLI > 0 ? ((countLI / count) * 100).toFixed(2) : "0.00",
-    countLS,
-    percentLS: countLS > 0 ? ((countLS / count) * 100).toFixed(2) : "0.00",
-    countLG,
-    percentLG: countLG > 0 ? ((countLG / count) * 100).toFixed(2) : "0.00",
+    min: min.toFixed(2),
+    max: max.toFixed(2),
+    mean: mean.toFixed(2),  // Use calculated mean, not assumed one
+    std: std.toFixed(2),
+  };
+};
+
+
+const evaluateLimits = (data, key, li, ls, lg) => {
+  // Fonction helper pour parser correctement
+  const safeParse = (val) => {
+    if (val === null || val === undefined || val === "" || val === "-") return NaN;
+    return parseFloat(String(val).replace(',', '.'));
+  };
+
+  const values = data.map((row) => safeParse(row[key])).filter((v) => !isNaN(v));
+  
+  if (!values.length) {
+    return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
+  }
+
+  const liNum = safeParse(li);
+  const lsNum = safeParse(ls);
+  const lgNum = safeParse(lg);
+
+  const belowLI = !isNaN(liNum) ? values.filter((v) => v < liNum).length : 0;
+  const aboveLS = !isNaN(lsNum) ? values.filter((v) => v > lsNum).length : 0;
+  const belowLG = !isNaN(lgNum) ? values.filter((v) => v < lgNum).length : 0;
+  const total = values.length;
+
+  return {
+    belowLI: belowLI > 0 ? belowLI : "-",
+    aboveLS: aboveLS > 0 ? aboveLS : "-",
+    belowLG: belowLG > 0 ? belowLG : "-",
+    percentLI: belowLI > 0 ? ((belowLI / total) * 100).toFixed(1) : "-",
+    percentLS: aboveLS > 0 ? ((aboveLS / total) * 100).toFixed(1) : "-",
+    percentLG: belowLG > 0 ? ((belowLG / total) * 100).toFixed(1) : "-",
   };
 };
 

@@ -3,7 +3,7 @@ import './ControleConformite.css';
 import { useData } from "../../context/DataContext";
 
 const calculateStats = (data, key) => {
- 
+  console.log(`=== RECHERCHE VALEURS MANQUANTES ${key} ===`);
   
   const missingValues = [];
   const values = [];
@@ -46,10 +46,13 @@ const calculateStats = (data, key) => {
     }
   });
   
+  console.log(`Total valeurs manquantes: ${missingValues.length}`);
+  console.log(`Valeurs valides trouvées: ${values.length}`);
+  console.log("Positions des manquants:", missingValues.slice(0, 10)); // Afficher seulement les 10 premiers pour éviter l'overflow
 
   // ✅ CORRECTION : Vérification plus explicite
   if (values.length === 0) {
-    
+    console.log(`❌ AUCUNE VALEUR VALIDE TROUVÉE pour ${key}`);
     
     // Debug supplémentaire : analyser les types de données trouvés
     const valueTypes = {};
@@ -63,8 +66,15 @@ const calculateStats = (data, key) => {
     return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
   }
 
-  const zeroValues = values.filter(v => v === 0);
+  console.log("=== ANALYSE VALEURS VALIDES ===");
+  console.log("Nombre de valeurs valides:", values.length);
+  console.log("Valeurs uniques:", [...new Set(values)].length);
+  console.log("Premières valeurs valides:", values.slice(0, 5));
+  
 
+
+  const zeroValues = values.filter(v => v === 0);
+  console.log("Valeurs égales à zéro:", zeroValues.length);
 
   // ✅ CORRECTION : Utilisation de reduce pour éviter les problèmes de stack
   const count = values.length;
@@ -73,12 +83,18 @@ const calculateStats = (data, key) => {
  const sum = values.reduce((a, b) => a + b, 0);
   const mean = sum / count;
   
-
+  // DEBUG: Log intermediate values
+  console.log('=== DEBUG CALCULATION ===');
+  console.log('Values count:', values.length);
+  console.log('Sum:', sum);
+  console.log('Mean:', mean);
+  
   const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
-
+  console.log('Variance:', variance);
   
   const std = Math.sqrt(variance);
-
+  console.log('Standard Deviation:', std);
+  console.log('Rounded SD:', std.toFixed(2));
   
   return {
     count,
@@ -89,41 +105,36 @@ const calculateStats = (data, key) => {
   };
 };
 
+
 const evaluateLimits = (data, key, li, ls, lg) => {
-  const values = data.map(v => parseFloat(v[key])).filter(v => !isNaN(v));
-  if (values.length === 0) {
-    return {
-      count: 0,
-      mean: "-",
-      stdDev: "-",
-      countLI: "-",
-      percentLI: "-",
-      countLS: "-",
-      percentLS: "-",
-      countLG: "-",
-      percentLG: "-"
-    };
+  // Fonction helper pour parser correctement
+  const safeParse = (val) => {
+    if (val === null || val === undefined || val === "" || val === "-") return NaN;
+    return parseFloat(String(val).replace(',', '.'));
+  };
+
+  const values = data.map((row) => safeParse(row[key])).filter((v) => !isNaN(v));
+  
+  if (!values.length) {
+    return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
   }
 
-  const count = values.length;
-  const mean = values.reduce((a, b) => a + b, 0) / count;
-  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / count;
-  const stdDev = Math.sqrt(variance);
+  const liNum = safeParse(li);
+  const lsNum = safeParse(ls);
+  const lgNum = safeParse(lg);
 
-  const countLI = (li !== null && li !== "-") ? values.filter(v => v < parseFloat(li)).length : 0;
-  const countLS = (ls !== null && ls !== "-") ? values.filter(v => v > parseFloat(ls)).length : 0;
-  const countLG = (lg !== null && lg !== "-") ? values.filter(v => v < parseFloat(lg)).length : 0;
+  const belowLI = !isNaN(liNum) ? values.filter((v) => v < liNum).length : 0;
+  const aboveLS = !isNaN(lsNum) ? values.filter((v) => v > lsNum).length : 0;
+  const belowLG = !isNaN(lgNum) ? values.filter((v) => v < lgNum).length : 0;
+  const total = values.length;
 
   return {
-    count,
-    mean: mean.toFixed(2),
-    stdDev: stdDev.toFixed(2),
-    countLI,
-    percentLI: countLI > 0 ? ((countLI / count) * 100).toFixed(2) : "0.00",
-    countLS,
-    percentLS: countLS > 0 ? ((countLS / count) * 100).toFixed(2) : "0.00",
-    countLG,
-    percentLG: countLG > 0 ? ((countLG / count) * 100).toFixed(2) : "0.00",
+    belowLI: belowLI > 0 ? belowLI : "-",
+    aboveLS: aboveLS > 0 ? aboveLS : "-",
+    belowLG: belowLG > 0 ? belowLG : "-",
+    percentLI: belowLI > 0 ? ((belowLI / total) * 100).toFixed(1) : "-",
+    percentLS: aboveLS > 0 ? ((aboveLS / total) * 100).toFixed(1) : "-",
+    percentLG: belowLG > 0 ? ((belowLG / total) * 100).toFixed(1) : "-",
   };
 };
 

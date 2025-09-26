@@ -6,50 +6,94 @@ import { useData } from "../../context/DataContext";
 // ============================================================
 // Utility functions
 // ============================================================
+
 const calculateStats = (data, key) => {
-  const values = data
-    .map((row) => parseFloat(row[key]))
-    .filter((v) => !isNaN(v));
+  const missingValues = [];
+  const values = [];
+  
+  data.forEach((row, index) => {
+    const value = row[key];
+    
+    const isMissing = 
+      value === null || 
+      value === undefined || 
+      value === "" || 
+      value === " " || 
+      value === "NULL" || 
+      value === "null" ||
+      value === "undefined" ||
+      String(value).trim() === "" ||
+      String(value).toLowerCase() === "null" ||
+      String(value).toLowerCase() === "undefined";
+    
+    if (isMissing) {
+      missingValues.push({ line: index + 1, value: value, type: typeof value });
+    } else {
+      try {
+        const stringValue = String(value).trim().replace(',', '.');
+        const numericValue = parseFloat(stringValue);
+        
+        if (!isNaN(numericValue) && isFinite(numericValue)) {
+          values.push(numericValue);
+        } else {
+          missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "NaN or Infinite" });
+        }
+      } catch (error) {
+        missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "Conversion error" });
+      }
+    }
+  });
 
-  const totalSamples = data.length;
-
-  if (!values.length) {
+  if (values.length === 0) {
     return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
   }
 
   const count = values.length;
-  const min = Math.min(...values).toFixed(2);
-  const max = Math.max(...values).toFixed(2);
-  const mean = (values.reduce((a, b) => a + b, 0) / totalSamples).toFixed(2);
-
+  const min = values.reduce((a, b) => Math.min(a, b), values[0]);
+  const max = values.reduce((a, b) => Math.max(a, b), values[0]);
+  const sum = values.reduce((a, b) => a + b, 0);
+  const mean = sum / count;
+  
   const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
-  const std = Math.sqrt(variance).toFixed(2);
-
-  return { count, min, max, mean, std };
+  const std = Math.sqrt(variance);
+  
+  return {
+    count,
+    min: min.toFixed(2),
+    max: max.toFixed(2),
+    mean: mean.toFixed(2),
+    std: std.toFixed(2),
+  };
 };
 
 const evaluateLimits = (data, key, li, ls, lg) => {
-  const values = data.map((row) => parseFloat(row[key])).filter((v) => !isNaN(v));
+  const safeParse = (val) => {
+    if (val === null || val === undefined || val === "" || val === "-") return NaN;
+    return parseFloat(String(val).replace(',', '.'));
+  };
+
+  const values = data.map((row) => safeParse(row[key])).filter((v) => !isNaN(v));
+  
   if (!values.length) {
     return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
   }
 
-  const liNum = li !== "-" ? parseFloat(li) : null;
-  const lsNum = ls !== "-" ? parseFloat(ls) : null;
-  const lgNum = lg !== "-" ? parseFloat(lg) : null;
+  const liNum = safeParse(li);
+  const lsNum = safeParse(ls);
+  const lgNum = safeParse(lg);
 
-  const belowLI = liNum ? values.filter((v) => v < liNum).length : 0;
-  const aboveLS = lsNum ? values.filter((v) => v > lsNum).length : 0;
-  const belowLG = lgNum ? values.filter((v) => v < lgNum).length : 0;
+  const belowLI = !isNaN(liNum) ? values.filter((v) => v < liNum).length : 0;
+  const aboveLS = !isNaN(lsNum) ? values.filter((v) => v > lsNum).length : 0;
+  const belowLG = !isNaN(lgNum) ? values.filter((v) => v < lgNum).length : 0;
   const total = values.length;
 
   return {
-    belowLI: belowLI || "-",
-    aboveLS: aboveLS || "-",
-    belowLG: belowLG || "-",
-    percentLI: total && belowLI ? ((belowLI / total) * 100).toFixed(1) : "-",
-    percentLS: total && aboveLS ? ((aboveLS / total) * 100).toFixed(1) : "-",
-    percentLG: total && belowLG ? ((belowLG / total) * 100).toFixed(1) : "-",
+    belowLI: belowLI > 0 ? belowLI : "-",
+    aboveLS: aboveLS > 0 ? aboveLS : "-",
+    belowLG: belowLG > 0 ? belowLG : "-",
+    percentLI: belowLI > 0 ? ((belowLI / total) * 100).toFixed(1) : "-",
+    percentLS: aboveLS > 0 ? ((aboveLS / total) * 100).toFixed(1) : "-",
+    percentLG: belowLG > 0 ? ((belowLG / total) * 100).toFixed(1) : "-",
   };
 };
 
@@ -67,8 +111,6 @@ const DonneesStatistiques = ({
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
   const [loading, setLoading] = useState(true);
-  const [debugInfo, setDebugInfo] = useState("");
-  const debugLogRef = useRef([]);
 
   const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
   const ajoutProducts = [
@@ -79,28 +121,14 @@ const DonneesStatistiques = ({
     "CEM II/A-M", "CEM II/B-M"
   ];
 
-  // Debug: Log the complete produitInfo structure
-  useEffect(() => {
-    if (produitInfo) {
-      console.log("=== PRODUIT INFO COMPLETE STRUCTURE ===", produitInfo);
-      console.log("Produit nom:", produitInfo.nom);
-      console.log("Produit description:", produitInfo.description);
-      console.log("Produit famille:", produitInfo.famille);
-      console.log("Famille code:", produitInfo.famille?.code);
-      console.log("Famille nom:", produitInfo.famille?.nom);
-    }
-  }, [produitInfo]);
-
   // Get product type and famille from produitInfo with fallbacks
   const selectedProductType = produitInfo?.nom || produitInfo?.code || "";
   const selectedProductFamille = produitInfo?.famille?.code || "";
   const selectedProductFamilleName = produitInfo?.famille?.nom || "";
 
-  // FIXED: Better famille detection from product type
   const determineFamilleFromType = (productType) => {
     if (!productType) return "";
     
-    // Match the complete famille pattern (CEM I, CEM II, etc.)
     const familleMatch = productType.match(/^(CEM [I|II|III|IV|V]+)/);
     if (familleMatch) {
       return familleMatch[1];
@@ -121,11 +149,6 @@ const DonneesStatistiques = ({
         if (!response.ok) throw new Error("Erreur lors du chargement des données");
         const data = await response.json();
         setMockDetails(data);
-        
-        console.log("=== COMPLETE JSON STRUCTURE ===");
-        console.log(data);
-        console.log("=== END JSON STRUCTURE ===");
-        
       } catch (error) {
         console.error("Erreur de chargement des données:", error);
         setMockDetails({});
@@ -152,129 +175,73 @@ const DonneesStatistiques = ({
     c3a: "C3A",
   };
 
-  // Function to add debug logs without causing re-renders
-  const addDebugLog = (message) => {
-    debugLogRef.current.push(`${new Date().toLocaleTimeString()}: ${message}`);
-    if (debugLogRef.current.length > 50) {
-      debugLogRef.current = debugLogRef.current.slice(-50);
-    }
-  };
-
   const getLimitsByClass = (classe, key) => {
     const mockKey = keyMapping[key];
     if (!mockKey || !mockDetails[mockKey]) {
-      addDebugLog(`❌ Parameter "${mockKey}" not found in JSON`);
       return { li: "-", ls: "-", lg: "-" };
     }
 
     const parameterData = mockDetails[mockKey];
     
-    let debugMessage = `🔍 Searching: ${mockKey} -> ${finalFamilleCode} -> ${selectedProductType} -> ${classe}`;
-    
-    // Check if famille exists in this parameter
     if (!parameterData[finalFamilleCode]) {
-      const availableFamilles = Object.keys(parameterData).join(", ");
-      debugMessage += `\n❌ Famille "${finalFamilleCode}" not found in ${mockKey}. Available: ${availableFamilles}`;
-      addDebugLog(debugMessage);
       return { li: "-", ls: "-", lg: "-" };
     }
 
     const familleData = parameterData[finalFamilleCode];
-    debugMessage += `\n✅ Famille "${finalFamilleCode}" found in ${mockKey}`;
 
     // For "ajout" parameter, the structure is different
     if (key === "ajt") {
-      debugMessage += `\n🔄 Special handling for "ajout" parameter`;
-      
-      // Extract the ajout code from the product type (e.g., "M" from "CEM II/B-M")
       const ajoutCode = selectedProductType.split('/').pop()?.split('-').pop()?.trim();
-      debugMessage += `\n🔍 Extracted ajout code: "${ajoutCode}" from product type: "${selectedProductType}"`;
       
       if (!ajoutCode || !familleData[ajoutCode]) {
-        const availableAjoutCodes = Object.keys(familleData).join(", ");
-        debugMessage += `\n❌ Ajout code "${ajoutCode}" not found. Available: ${availableAjoutCodes}`;
-        addDebugLog(debugMessage);
         return { li: "-", ls: "-", lg: "-" };
       }
 
       const ajoutData = familleData[ajoutCode];
-      debugMessage += `\n✅ Ajout code "${ajoutCode}" found`;
       
-      const limits = {
+      return {
         li: ajoutData.limitInf ?? ajoutData.limit_inf ?? "-",
         ls: ajoutData.limitSup ?? ajoutData.limit_max ?? "-",
         lg: ajoutData.garantie ?? "-"
       };
-      
-      debugMessage += `\n✅ Ajout limits: LI=${limits.li}, LS=${limits.ls}, LG=${limits.lg}`;
-      addDebugLog(debugMessage);
-      return limits;
     }
 
     // For other parameters, search for the class data
-    debugMessage += `\n📊 Searching for class "${classe}" in famille data`;
-    
     let classData = null;
     
-    // First, check if familleData is an array of classes
     if (Array.isArray(familleData)) {
       classData = familleData.find(item => item.classe === classe);
-      if (classData) debugMessage += `\n✅ Found class "${classe}" in array structure`;
-    } 
-    // If not array, check if it's an object with class keys
-    else if (typeof familleData === 'object' && familleData[classe]) {
+    } else if (typeof familleData === 'object' && familleData[classe]) {
       classData = familleData[classe];
-      if (classData) debugMessage += `\n✅ Found class "${classe}" in object structure`;
-    }
-    // If not found, search in nested structures
-    else {
+    } else {
       for (const key in familleData) {
         const subData = familleData[key];
         if (Array.isArray(subData)) {
           const found = subData.find(item => item.classe === classe);
           if (found) {
             classData = found;
-            debugMessage += `\n✅ Found class "${classe}" in sub-key "${key}" (array)`;
             break;
           }
         } else if (typeof subData === 'object' && subData[classe]) {
           classData = subData[classe];
-          debugMessage += `\n✅ Found class "${classe}" in sub-key "${key}" (object)`;
           break;
         } else if (typeof subData === 'object' && (subData.limit_inf || subData.limitInf)) {
-          // Direct limits object
           classData = subData;
-          debugMessage += `\n✅ Found direct limits in sub-key "${key}"`;
           break;
         }
       }
     }
 
     if (!classData) {
-      debugMessage += `\n❌ No data found for class "${classe}" in famille "${finalFamilleCode}"`;
-      debugMessage += `\n📋 Available keys in famille data: ${Object.keys(familleData).join(', ')}`;
-      addDebugLog(debugMessage);
       return { li: "-", ls: "-", lg: "-" };
     }
 
-    const limits = {
+    return {
       li: classData.limit_inf ?? classData.limitInf ?? "-",
       ls: classData.limit_max ?? classData.limitSup ?? classData.limitMax ?? "-",
       lg: classData.garantie ?? classData.garantieValue ?? "-",
     };
-
-    debugMessage += `\n✅ Limits found for class "${classe}": LI=${limits.li}, LS=${limits.ls}, LG=${limits.lg}`;
-    addDebugLog(debugMessage);
-
-    return limits;
   };
-
-  // Update debug info only when needed
-  useEffect(() => {
-    if (debugLogRef.current.length > 0) {
-      setDebugInfo(debugLogRef.current.join('\n'));
-    }
-  }, [filteredTableData, selectedProductType, finalFamilleCode]);
 
   const dataToUse = filteredTableData || [];
 
@@ -417,81 +384,6 @@ const DonneesStatistiques = ({
           </>
         )}
         <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-      </div>
-
-      {/* Enhanced Debug information */}
-      <div style={{ 
-        backgroundColor: '#f0f8ff', 
-        padding: '15px', 
-        marginBottom: '15px', 
-        border: '1px solid #ccc',
-        borderRadius: '5px',
-        fontSize: '14px'
-      }}>
-        <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>🔧 Debug Information</h4>
-        <div style={{ marginBottom: '10px' }}>
-          <strong>Selected Product:</strong> {selectedProductType || "None"}<br/>
-          <strong>Selected Famille from DB:</strong> {selectedProductFamilleName} ({selectedProductFamille || "NULL"})<br/>
-          <strong>Final Famille Used:</strong> {finalFamilleName} ({finalFamilleCode})<br/>
-          <strong>Client Type Cement ID:</strong> {clientTypeCimentId || "None"}
-        </div>
-        
-        <div>
-          <strong>Available Familles in JSON:</strong><br/>
-          {Object.keys(mockDetails).length > 0 ? (
-            Object.keys(mockDetails).map(famille => (
-              <div key={famille} style={{ marginLeft: '10px' }}>
-                • {famille}: {Object.keys(mockDetails[famille] || {}).join(', ')}
-              </div>
-            ))
-          ) : (
-            "Loading..."
-          )}
-        </div>
-        
-        {debugInfo && (
-          <div style={{ marginTop: '10px' }}>
-            <strong>Search Logs:</strong>
-            <pre style={{ 
-              backgroundColor: '#fff', 
-              padding: '10px', 
-              border: '1px solid #ddd',
-              borderRadius: '3px',
-              fontSize: '12px',
-              whiteSpace: 'pre-wrap',
-              marginTop: '5px',
-              maxHeight: '150px',
-              overflowY: 'auto'
-            }}>
-              {debugInfo}
-            </pre>
-          </div>
-        )}
-        
-        <button 
-          onClick={() => {
-            console.log("=== PRODUIT INFO COMPLETE ===", produitInfo);
-            console.log("=== PRODUIT FAMEILLE DETAILS ===", produitInfo?.famille);
-            console.log("=== FINAL FAMILLE ===", finalFamilleCode);
-            console.log("=== AVAILABLE FAMILLES ===", Object.keys(mockDetails));
-            // Log specific famille data for debugging
-            if (finalFamilleCode && mockDetails.resistance_2j) {
-              console.log(`=== ${finalFamilleCode} DATA in resistance_2j ===`, mockDetails.resistance_2j[finalFamilleCode]);
-            }
-          }}
-          style={{
-            padding: '5px 10px',
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '3px',
-            cursor: 'pointer',
-            fontSize: '12px',
-            marginTop: '10px'
-          }}
-        >
-          Log Complete Details to Console
-        </button>
       </div>
 
       {/* Global stats */}

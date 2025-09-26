@@ -1,5 +1,5 @@
 // src/components/DonneesGraphiques/DonneesGraphiques.jsx
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./DonneesGraphiques.css";
 import { useData } from "../../context/DataContext";
 import {
@@ -17,35 +17,106 @@ import {
 /* ---------- utils ---------- */
 const normalize = (s) => String(s ?? "").replace(/\s+/g, "").toUpperCase();
 
-const safeParse = (v) => {
-  if (v === null || v === undefined || v === "") return NaN;
-  if (typeof v === "number") return v;
-  const n = parseFloat(String(v).toString().replace(",", "."));
-  return Number.isFinite(n) ? n : NaN;
+const calculateStats = (data, key) => {
+  const missingValues = [];
+  const values = [];
+  
+  data.forEach((row, index) => {
+    const value = row[key];
+    
+    const isMissing = 
+      value === null || 
+      value === undefined || 
+      value === "" || 
+      value === " " || 
+      value === "NULL" || 
+      value === "null" ||
+      value === "undefined" ||
+      String(value).trim() === "" ||
+      String(value).toLowerCase() === "null" ||
+      String(value).toLowerCase() === "undefined";
+    
+    if (isMissing) {
+      missingValues.push({ line: index + 1, value: value, type: typeof value });
+    } else {
+      try {
+        const stringValue = String(value).trim().replace(',', '.');
+        const numericValue = parseFloat(stringValue);
+        
+        if (!isNaN(numericValue) && isFinite(numericValue)) {
+          values.push(numericValue);
+        } else {
+          missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "NaN or Infinite" });
+        }
+      } catch (error) {
+        missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "Conversion error" });
+      }
+    }
+  });
+
+  if (values.length === 0) {
+    return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
+  }
+
+  const count = values.length;
+  const min = values.reduce((a, b) => Math.min(a, b), values[0]);
+  const max = values.reduce((a, b) => Math.max(a, b), values[0]);
+  const sum = values.reduce((a, b) => a + b, 0);
+  const mean = sum / count;
+  
+  const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
+  const std = Math.sqrt(variance);
+  
+  return {
+    count,
+    min: min.toFixed(2),
+    max: max.toFixed(2),
+    mean: mean.toFixed(2),
+    std: std.toFixed(2),
+  };
+};
+
+const evaluateLimits = (data, key, li, ls, lg) => {
+  const safeParse = (val) => {
+    if (val === null || val === undefined || val === "" || val === "-") return NaN;
+    return parseFloat(String(val).replace(',', '.'));
+  };
+
+  const values = data.map((row) => safeParse(row[key])).filter((v) => !isNaN(v));
+  
+  if (!values.length) {
+    return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
+  }
+
+  const liNum = safeParse(li);
+  const lsNum = safeParse(ls);
+  const lgNum = safeParse(lg);
+
+  const belowLI = !isNaN(liNum) ? values.filter((v) => v < liNum).length : 0;
+  const aboveLS = !isNaN(lsNum) ? values.filter((v) => v > lsNum).length : 0;
+  const belowLG = !isNaN(lgNum) ? values.filter((v) => v < lgNum).length : 0;
+  const total = values.length;
+
+  return {
+    belowLI: belowLI > 0 ? belowLI : "-",
+    aboveLS: aboveLS > 0 ? aboveLS : "-",
+    belowLG: belowLG > 0 ? belowLG : "-",
+    percentLI: belowLI > 0 ? ((belowLI / total) * 100).toFixed(1) : "-",
+    percentLS: aboveLS > 0 ? ((aboveLS / total) * 100).toFixed(1) : "-",
+    percentLG: belowLG > 0 ? ((belowLG / total) * 100).toFixed(1) : "-",
+  };
 };
 
 const parseLimit = (val) => {
   if (val === null || val === undefined) return null;
-  const num = safeParse(val);
+  
+  if (val === "" || val === "-") return null;
+  
+  const num = parseFloat(String(val).replace(',', '.'));
   if (!isNaN(num)) return num;
+  
   const str = String(val).trim();
   return str === "" ? null : str;
-};
-
-const computeBasicStats = (vals = [], totalSamples = vals.length) => {
-  const numbers = vals.map(safeParse).filter((n) => !isNaN(n));
-  if (!numbers.length) {
-    return { count: 0, mean: null, min: null, max: null };
-  }
-
-  const sum = numbers.reduce((a, b) => a + b, 0);
-
-  return {
-    count: numbers.length,              // valid results
-    mean: sum / totalSamples,           // ✅ divided by total échantillons
-    min: Math.min(...numbers),
-    max: Math.max(...numbers),
-  };
 };
 
 /* ---------- component ---------- */
@@ -63,8 +134,6 @@ export default function DonneesGraphiques({
   const [loading, setLoading] = useState(true);
   const [selectedParameter, setSelectedParameter] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
-  const [debugInfo, setDebugInfo] = useState("");
-  const debugLogRef = useRef([]);
 
   const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
   const ajoutProducts = [
@@ -75,18 +144,6 @@ export default function DonneesGraphiques({
     "CEM II/A-M", "CEM II/B-M"
   ];
 
-  // Debug: Log the complete produitInfo structure
-  useEffect(() => {
-    if (produitInfo) {
-      console.log("=== PRODUIT INFO COMPLETE STRUCTURE (Graphiques) ===", produitInfo);
-      console.log("Produit nom:", produitInfo.nom);
-      console.log("Produit description:", produitInfo.description);
-      console.log("Produit famille:", produitInfo.famille);
-      console.log("Famille code:", produitInfo.famille?.code);
-      console.log("Famille nom:", produitInfo.famille?.nom);
-    }
-  }, [produitInfo]);
-
   // Get product type and famille from produitInfo with fallbacks
   const selectedProductType = produitInfo?.nom || produitInfo?.code || "";
   const selectedProductFamille = produitInfo?.famille?.code || "";
@@ -96,7 +153,6 @@ export default function DonneesGraphiques({
   const determineFamilleFromType = (productType) => {
     if (!productType) return "";
     
-    // Match the complete famille pattern (CEM I, CEM II, etc.)
     const familleMatch = productType.match(/^(CEM [I|II|III|IV|V]+)/);
     if (familleMatch) {
       return familleMatch[1];
@@ -116,11 +172,6 @@ export default function DonneesGraphiques({
         if (!res.ok) throw new Error("parnorm.json introuvable");
         const data = await res.json();
         setLimitsData(data);
-        
-        console.log("=== COMPLETE JSON STRUCTURE (Graphiques) ===");
-        console.log(data);
-        console.log("=== END JSON STRUCTURE ===");
-        
       } catch (err) {
         console.error("Erreur fetch parnorm.json:", err);
         setLimitsData({});
@@ -147,53 +198,29 @@ export default function DonneesGraphiques({
     c3a: "C3A",
   };
 
-  // Function to add debug logs without causing re-renders
-  const addDebugLog = (message) => {
-    debugLogRef.current.push(`${new Date().toLocaleTimeString()}: ${message}`);
-    if (debugLogRef.current.length > 50) {
-      debugLogRef.current = debugLogRef.current.slice(-50);
-    }
-  };
-
   const getLimitsByClass = (classe, key) => {
     const mockKey = keyMapping[key];
     if (!mockKey || !limitsData[mockKey]) {
-      addDebugLog(`❌ Parameter "${mockKey}" not found in JSON`);
       return { li: null, ls: null, lg: null };
     }
 
     const parameterData = limitsData[mockKey];
     
-    let debugMessage = `🔍 Searching: ${mockKey} -> ${finalFamilleCode} -> ${selectedProductType} -> ${classe}`;
-    
-    // Check if famille exists in this parameter
     if (!parameterData[finalFamilleCode]) {
-      const availableFamilles = Object.keys(parameterData).join(", ");
-      debugMessage += `\n❌ Famille "${finalFamilleCode}" not found in ${mockKey}. Available: ${availableFamilles}`;
-      addDebugLog(debugMessage);
       return { li: null, ls: null, lg: null };
     }
 
     const familleData = parameterData[finalFamilleCode];
-    debugMessage += `\n✅ Famille "${finalFamilleCode}" found in ${mockKey}`;
 
     // For "ajout" parameter, the structure is different
     if (key === "ajt") {
-      debugMessage += `\n🔄 Special handling for "ajout" parameter`;
-      
-      // Extract the ajout code from the product type (e.g., "M" from "CEM II/B-M")
       const ajoutCode = selectedProductType.split('/').pop()?.split('-').pop()?.trim();
-      debugMessage += `\n🔍 Extracted ajout code: "${ajoutCode}" from product type: "${selectedProductType}"`;
       
       if (!ajoutCode || !familleData[ajoutCode]) {
-        const availableAjoutCodes = Object.keys(familleData).join(", ");
-        debugMessage += `\n❌ Ajout code "${ajoutCode}" not found. Available: ${availableAjoutCodes}`;
-        addDebugLog(debugMessage);
         return { li: null, ls: null, lg: null };
       }
 
       const ajoutData = familleData[ajoutCode];
-      debugMessage += `\n✅ Ajout code "${ajoutCode}" found`;
       
       const limits = {
         li: parseLimit(ajoutData.limitInf ?? ajoutData.limit_inf),
@@ -201,54 +228,36 @@ export default function DonneesGraphiques({
         lg: parseLimit(ajoutData.garantie)
       };
       
-      debugMessage += `\n✅ Ajout limits: LI=${limits.li}, LS=${limits.ls}, LG=${limits.lg}`;
-      addDebugLog(debugMessage);
       return limits;
     }
 
     // For other parameters, search for the class data
-    debugMessage += `\n📊 Searching for class "${classe}" in famille data`;
-    
     let classData = null;
     
-    // First, check if familleData is an array of classes
     if (Array.isArray(familleData)) {
       classData = familleData.find(item => item.classe === classe);
-      if (classData) debugMessage += `\n✅ Found class "${classe}" in array structure`;
-    } 
-    // If not array, check if it's an object with class keys
-    else if (typeof familleData === 'object' && familleData[classe]) {
+    } else if (typeof familleData === 'object' && familleData[classe]) {
       classData = familleData[classe];
-      if (classData) debugMessage += `\n✅ Found class "${classe}" in object structure`;
-    }
-    // If not found, search in nested structures
-    else {
+    } else {
       for (const key in familleData) {
         const subData = familleData[key];
         if (Array.isArray(subData)) {
           const found = subData.find(item => item.classe === classe);
           if (found) {
             classData = found;
-            debugMessage += `\n✅ Found class "${classe}" in sub-key "${key}" (array)`;
             break;
           }
         } else if (typeof subData === 'object' && subData[classe]) {
           classData = subData[classe];
-          debugMessage += `\n✅ Found class "${classe}" in sub-key "${key}" (object)`;
           break;
         } else if (typeof subData === 'object' && (subData.limit_inf || subData.limitInf)) {
-          // Direct limits object
           classData = subData;
-          debugMessage += `\n✅ Found direct limits in sub-key "${key}"`;
           break;
         }
       }
     }
 
     if (!classData) {
-      debugMessage += `\n❌ No data found for class "${classe}" in famille "${finalFamilleCode}"`;
-      debugMessage += `\n📋 Available keys in famille data: ${Object.keys(familleData).join(', ')}`;
-      addDebugLog(debugMessage);
       return { li: null, ls: null, lg: null };
     }
 
@@ -258,18 +267,8 @@ export default function DonneesGraphiques({
       lg: parseLimit(classData.garantie ?? classData.garantieValue),
     };
 
-    debugMessage += `\n✅ Limits found for class "${classe}": LI=${limits.li}, LS=${limits.ls}, LG=${limits.lg}`;
-    addDebugLog(debugMessage);
-
     return limits;
   };
-
-  // Update debug info only when needed
-  useEffect(() => {
-    if (debugLogRef.current.length > 0) {
-      setDebugInfo(debugLogRef.current.join('\n'));
-    }
-  }, [filteredTableData, selectedProductType, finalFamilleCode]);
 
   // Parameters list
   let parameters = [
@@ -308,51 +307,83 @@ export default function DonneesGraphiques({
     return getLimitsByClass(selectedClass, selectedParameter);
   }, [selectedParameter, selectedClass, limitsData, finalFamilleCode, selectedProductType]);
 
-  const chartData = useMemo(() => {
-    if (!selectedParameter) return [];
-    return (filteredTableData || []).map((row, i) => ({
-      x: i + 1,
-      y: safeParse(row[selectedParameter]),
-      raw: row,
-    }));
-  }, [filteredTableData, selectedParameter]);
-
+  // Utiliser calculateStats pour calculer les statistiques
   const derivedStats = useMemo(() => {
-    if (!selectedParameter) return {};
+    if (!selectedParameter || !filteredTableData.length) {
+      return { 
+        count: 0, 
+        min: "-", 
+        max: "-", 
+        mean: "-", 
+        std: "-",
+        belowLI: "-", 
+        aboveLS: "-", 
+        belowLG: "-", 
+        percentLI: "-", 
+        percentLS: "-", 
+        percentLG: "-" 
+      };
+    }
 
-    // take Y values from chartData (already parsed)
-    const vals = chartData.map((p) => p.y);
-
-    // ✅ totalSamples = filteredTableData.length (even if some values NaN)
-    const basic = computeBasicStats(vals, filteredTableData.length);
-
-    const li = typeof currentLimits.li === "number" ? currentLimits.li : null;
-    const ls = typeof currentLimits.ls === "number" ? currentLimits.ls : null;
-    const lg = typeof currentLimits.lg === "number" ? currentLimits.lg : null;
-
-    const countBelow = (limit) =>
-      limit != null ? vals.filter((v) => v < limit).length : 0;
-    const countAbove = (limit) =>
-      limit != null ? vals.filter((v) => v > limit).length : 0;
-    const percent = (n) =>
-      filteredTableData.length
-        ? Math.round((n / filteredTableData.length) * 100)
-        : 0;
+    // Calculer les statistiques de base
+    const basicStats = calculateStats(filteredTableData, selectedParameter);
+    
+    // Évaluer les limites
+    const limitStats = evaluateLimits(
+      filteredTableData, 
+      selectedParameter, 
+      currentLimits.li, 
+      currentLimits.ls, 
+      currentLimits.lg
+    );
 
     return {
-      ...basic,
-      moyenne: basic.mean != null ? Number(basic.mean.toFixed(2)) : null,
-      limiteInf: li,
-      limiteSup: ls,
-      limiteGarantie: lg,
-      countBelowInf: countBelow(li),
-      countAboveSup: countAbove(ls),
-      countBelowGarantie: countBelow(lg),
-      percentBelowInf: percent(countBelow(li)),
-      percentAboveSup: percent(countAbove(ls)),
-      percentBelowGarantie: percent(countBelow(lg)),
+      ...basicStats,
+      ...limitStats,
+      // Assurer la compatibilité avec le code existant
+      moyenne: basicStats.mean !== "-" ? Number(basicStats.mean) : null,
+      limiteInf: currentLimits.li,
+      limiteSup: currentLimits.ls,
+      limiteGarantie: currentLimits.lg,
+      // Mapper les noms pour la compatibilité
+      countBelowInf: limitStats.belowLI !== "-" ? limitStats.belowLI : 0,
+      countAboveSup: limitStats.aboveLS !== "-" ? limitStats.aboveLS : 0,
+      countBelowGarantie: limitStats.belowLG !== "-" ? limitStats.belowLG : 0,
+      percentBelowInf: limitStats.percentLI !== "-" ? parseFloat(limitStats.percentLI) : 0,
+      percentAboveSup: limitStats.percentLS !== "-" ? parseFloat(limitStats.percentLS) : 0,
+      percentBelowGarantie: limitStats.percentLG !== "-" ? parseFloat(limitStats.percentLG) : 0,
     };
-  }, [chartData, currentLimits, selectedParameter, filteredTableData.length]);
+  }, [filteredTableData, selectedParameter, currentLimits]);
+
+  // Préparer les données pour le graphique
+  const chartData = useMemo(() => {
+    if (!selectedParameter) return [];
+    
+    return filteredTableData.map((row, i) => {
+      const value = row[selectedParameter];
+      let numericValue = NaN;
+      
+      // Utiliser la même logique de parsing que calculateStats
+      if (value !== null && value !== undefined && value !== "" && value !== " " && 
+          value !== "NULL" && value !== "null" && value !== "undefined") {
+        try {
+          const stringValue = String(value).trim().replace(',', '.');
+          numericValue = parseFloat(stringValue);
+          if (isNaN(numericValue) || !isFinite(numericValue)) {
+            numericValue = NaN;
+          }
+        } catch (error) {
+          numericValue = NaN;
+        }
+      }
+      
+      return {
+        x: i + 1,
+        y: numericValue,
+        raw: row,
+      };
+    });
+  }, [filteredTableData, selectedParameter]);
 
   if (loading) return <p className="no-data">Chargement des limites...</p>;
   if (!filteredTableData?.length)
@@ -374,43 +405,6 @@ export default function DonneesGraphiques({
               </p>
             )}
           </>
-        )}
-      </div>
-
-      {/* Debug information */}
-      <div style={{ 
-        backgroundColor: '#f0f8ff', 
-        padding: '15px', 
-        marginBottom: '15px', 
-        border: '1px solid #ccc',
-        borderRadius: '5px',
-        fontSize: '14px'
-      }}>
-        <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>🔧 Debug Information</h4>
-        <div style={{ marginBottom: '10px' }}>
-          <strong>Selected Product:</strong> {selectedProductType || "None"}<br/>
-          <strong>Selected Famille from DB:</strong> {selectedProductFamilleName} ({selectedProductFamille || "NULL"})<br/>
-          <strong>Final Famille Used:</strong> {finalFamilleName} ({finalFamilleCode})<br/>
-          <strong>Client Type Cement ID:</strong> {clientTypeCimentId || "None"}
-        </div>
-        
-        {debugInfo && (
-          <div style={{ marginTop: '10px' }}>
-            <strong>Search Logs:</strong>
-            <pre style={{ 
-              backgroundColor: '#fff', 
-              padding: '10px', 
-              border: '1px solid #ddd',
-              borderRadius: '3px',
-              fontSize: '12px',
-              whiteSpace: 'pre-wrap',
-              marginTop: '5px',
-              maxHeight: '150px',
-              overflowY: 'auto'
-            }}>
-              {debugInfo}
-            </pre>
-          </div>
         )}
       </div>
 
@@ -474,15 +468,15 @@ export default function DonneesGraphiques({
               <Legend />
               <Scatter
                 name="Mesures"
-                data={chartData}
+                data={chartData.filter(point => !isNaN(point.y))}
                 fill="#FFC107"
                 shape="circle"
                 size={5}
               />
 
-              {typeof derivedStats.moyenne === "number" && !isNaN(derivedStats.moyenne) && (
+              {derivedStats.mean !== "-" && !isNaN(derivedStats.mean) && (
                 <ReferenceLine
-                  y={derivedStats.moyenne}
+                  y={parseFloat(derivedStats.mean)}
                   stroke="#800020"
                   strokeWidth={2}
                   strokeDasharray="5 5"
@@ -524,7 +518,7 @@ export default function DonneesGraphiques({
             <h3>Statistiques</h3>
             <div className="dg-stat-row">
               <span>Moyenne</span>
-              <strong>{derivedStats.moyenne ?? "-"}</strong>
+              <strong>{derivedStats.mean !== "-" ? derivedStats.mean : "-"}</strong>
             </div>
             <div className="dg-divider" />
             <div className="dg-limit-row">
@@ -553,21 +547,21 @@ export default function DonneesGraphiques({
             {currentLimits.li !== null && (
               <div className="dg-stat-row">
                 <span>En dessous de LI</span>
-                <strong>{derivedStats.countBelowInf} ({derivedStats.percentBelowInf}%)</strong>
+                <strong>{derivedStats.belowLI} {derivedStats.percentLI !== "-" ? `(${derivedStats.percentLI}%)` : ""}</strong>
               </div>
             )}
 
             {currentLimits.ls !== null && (
               <div className="dg-stat-row">
                 <span>Au dessus de LS</span>
-                <strong>{derivedStats.countAboveSup} ({derivedStats.percentAboveSup}%)</strong>
+                <strong>{derivedStats.aboveLS} {derivedStats.percentLS !== "-" ? `(${derivedStats.percentLS}%)` : ""}</strong>
               </div>
             )}
 
             {currentLimits.lg !== null && (
               <div className="dg-stat-row">
                 <span>En dessous de LG</span>
-                <strong>{derivedStats.countBelowGarantie} ({derivedStats.percentBelowGarantie}%)</strong>
+                <strong>{derivedStats.belowLG} {derivedStats.percentLG !== "-" ? `(${derivedStats.percentLG}%)` : ""}</strong>
               </div>
             )}
           </div>
