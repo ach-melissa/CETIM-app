@@ -7,14 +7,49 @@ import ControleConformite from "../../components/ControleConformite/ControleConf
 import TableConformite from "../../components/TableConformite/TableConformite";
 import DonneesGraphiques from "../../components/DonneesGraphiques/DonneesGraphiques";
 import * as XLSX from "xlsx";
- const formatExcelDate = (excelDate) => {
-  if (!excelDate || isNaN(excelDate)) return "";
-  // Convert Excel serial date to JS Date
-  const utc_days = Math.floor(excelDate - 25569);
-  const utc_value = utc_days * 86400; 
-  const date_info = new Date(utc_value * 1000);
-  return date_info.toISOString().split("T")[0]; // YYYY-MM-DD
-};
+
+function formatExcelDateTime(dateStr, timeStr) {
+  let date = null;
+  let time = null;
+
+  if (dateStr) {
+    if (typeof dateStr === "number") {
+      // Excel serial date
+      const excelDate = XLSX.SSF.parse_date_code(dateStr);
+      if (excelDate) {
+        const y = excelDate.y;
+        const m = String(excelDate.m).padStart(2, "0");
+        const d = String(excelDate.d).padStart(2, "0");
+        date = `${y}-${m}-${d}`;
+      }
+    } else if (typeof dateStr === "string") {
+      const parts = dateStr.split(/[\/-]/);
+      if (parts.length === 3) {
+        // ✅ Always interpret as JJ-MM-AAAA (French style)
+        const [p1, p2, p3] = parts;
+        const d = p1.padStart(2, "0");
+        const m = p2.padStart(2, "0");
+        const y = p3.length === 2 ? `20${p3}` : p3; // handle 2-digit years
+        date = `${y}-${m}-${d}`;
+      }
+    }
+  }
+
+  if (timeStr) {
+    if (typeof timeStr === "number") {
+      const totalSeconds = Math.round(timeStr * 24 * 60 * 60);
+      const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+      const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+      const seconds = String(totalSeconds % 60).padStart(2, "0");
+      time = `${hours}:${minutes}:${seconds}`;
+    } else {
+      const t = String(timeStr).trim();
+      time = t.length === 5 ? `${t}:00` : t;
+    }
+  }
+
+  return { date, time };
+}
 
 
 
@@ -112,15 +147,15 @@ const TraitDonnes = () => {
 
     try {
       await fetch("http://localhost:5000/api/client_types_ciment", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    clientId: selectedClient,
-    typeCimentId: newCement,
-  }),
-});
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          clientId: selectedClient,
+          typeCimentId: newCement,
+        }),
+      });
 
       setSuccess("Ciment ajouté au client avec succès !");
       setError(""); // Clear any previous errors
@@ -141,8 +176,7 @@ const TraitDonnes = () => {
   };
 
   // Handle file import
-  
-const handleFileImport = async (e) => {
+  const handleFileImport = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
@@ -158,42 +192,50 @@ const handleFileImport = async (e) => {
   const reader = new FileReader();
   reader.onload = async (evt) => {
     try {
-      const bstr = evt.target.result;
-      const wb = XLSX.read(bstr, { type: "binary" });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const importedData = XLSX.utils.sheet_to_json(ws);
+      let importedData = [];
+      const data = evt.target.result;
 
+      if (file.name.endsWith(".csv")) {
+        // 📌 Parse CSV as text
+        const wb = XLSX.read(data, { type: "string" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        importedData = XLSX.utils.sheet_to_json(ws);
+      } else {
+        // 📌 Parse Excel (xls/xlsx)
+        const wb = XLSX.read(data, { type: "binary" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        importedData = XLSX.utils.sheet_to_json(ws);
+      }
 
+      // 👉 Now format your rows as you already do
+      const formattedRows = importedData.map((row, index) => {
+  const { date, time } = formatExcelDateTime(row["Date"], row["heure"]);
+  return {
+    id: Date.now() + index,
+    num_ech: row["N° ech"] || row["Ech"] || "",
+    date_test: date,
+    heure_test: time,
+    rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
+    rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
+    rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
+          prise: row["Début prise(min)"] || "",
+          stabilite: row["Stabilité (mm)"] || "",
+          hydratation: row["Chaleur hydratation (J/g)"] || "",
+          pfeu: row["Perte au feu (%)"] || "",
+          r_insoluble: row["Résidu insoluble (%)"] || "",
+          so3: row["SO3 (%)"] || "",
+          chlorure: row["Cl (%)"] || "",
+          c3a: row["C3A"] || "",
+          ajout_percent: row["Taux d'Ajouts (%)"] || "",
+          type_ajout: row["Type ajout"] || "",
+          source: row["SILO N°"] || "",
+        };
+      });
 
-const formattedRows = importedData.map((row, index) => ({
-  id: Date.now() + index,
+      // Reset input
+      e.target.value = "";
 
-  num_ech: row["N° ech"] || row["Ech"] || "",
-  date_test: formatExcelDate(row["Date"] || row.date_test || ""),
-  rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
-  rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
-  rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
-
-  // Excel → DB
-  prise: row["Début prise(min)"] || "",
-  stabilite: row["Stabilité (mm)"] || "",
-  hydratation: row["Hydratation"] || "",
-
-  pfeu: row["Perte au feu (%)"] || "",
-  r_insoluble: row["Résidu insoluble (%)"] || "",
-  so3: row["SO3 (%)"] || "",
-  chlorure: row["Cl (%)"] || "",
-  c3a: row["C3A"] || "",
-  ajout_percent: row["Taux d'Ajouts (%)"] || "",
-  type_ajout: row["Type ajout"] || "",
-  source: row["SILO N°"] || "",
-}));
-
-
-
-
-      // Sending data to the backend
+      // Send to backend
       const res = await fetch("http://localhost:5000/api/echantillons/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -201,10 +243,8 @@ const formattedRows = importedData.map((row, index) => ({
           clientId: selectedClient,
           produitId: clientTypeCimentId,
           rows: formattedRows,
-          
         }),
       });
- console.log("Imported data with date_test:", importedData);
 
       if (!res.ok) {
         const error = await res.json();
@@ -213,31 +253,22 @@ const formattedRows = importedData.map((row, index) => ({
         return;
       }
 
-      setSuccess("Fichier Excel importé et enregistré en base !");
-      setError(""); // Clear any errors
-      tableRef.current?.refresh(); // Refresh data table
+      setSuccess("Fichier importé et enregistré en base !");
+      setError("");
+      tableRef.current?.refresh();
     } catch (err) {
       console.error("Erreur import:", err);
       setError("Impossible d'importer les données.");
-      setSuccess(""); // Clear success message
+      setSuccess("");
     }
   };
 
-  reader.onerror = (err) => {
-    console.error("FileReader error:", err);
-    setError("Erreur lors de la lecture du fichier.");
-  };
-
-  reader.readAsBinaryString(file);
+  if (file.name.endsWith(".csv")) {
+    reader.readAsText(file, "utf-8"); // read CSV as text
+  } else {
+    reader.readAsBinaryString(file);  // read Excel as binary
+  }
 };
-
-
-
-
-
-
-
-
 
 
   // Define handleTableDataChange
@@ -253,7 +284,8 @@ const formattedRows = importedData.map((row, index) => ({
       <h1 className="trait-donnees-title">Traitement Données</h1>
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
-       <div className="tabs-container">
+      
+      <div className="tabs-container">
         <button className={activeTab === "donnees" ? "active-tab" : "tab"} onClick={() => setActiveTab("donnees")}>
           Données Traitées
         </button>
@@ -266,13 +298,14 @@ const formattedRows = importedData.map((row, index) => ({
         <button className={activeTab === "conformite" ? "active-tab" : "tab"} onClick={() => setActiveTab("conformite")}>
           Contrôle de Conformité
         </button>
-         <button
+        <button
           className={activeTab === "tabconform" ? "active-tab" : "tab"}
           onClick={() => setActiveTab("tabconform")}
         >
           Table Conformité
         </button>
       </div>
+      
       <div className="selectors">
         <label>
           Client:
@@ -319,19 +352,20 @@ const formattedRows = importedData.map((row, index) => ({
             >
               Nouveau Type Produit
             </button>
-                {clientTypeCimentId && (
+            
+            {clientTypeCimentId && (
               <div className="import-section">
                 <label>
                   Importer un fichier Excel:
                   <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleFileImport}
-                  />
+  type="file"
+  accept=".xlsx,.xls,.csv"
+  onChange={handleFileImport}
+/>
+
                 </label>
               </div>
             )}
-            
           </>
         )}
       </div>
@@ -373,7 +407,6 @@ const formattedRows = importedData.map((row, index) => ({
           </div>
         </div>
       )}
-
 
       {activeTab === "donnees" && (
         <EchantillonsTable
@@ -453,25 +486,26 @@ const formattedRows = importedData.map((row, index) => ({
           }}
         />
       )}
+      
       {activeTab === 'contConform' && (
-          <ControleConformite
-            ref={tableRef}
-            clientId={selectedClient}
-            clientTypeCimentId={clientTypeCimentId}
-            initialStart={startDate}
-            initialEnd={endDate}
-            produitDescription={produitDescription}
-            clients={clients}
-            produits={produits}
-            onTableDataChange={(data, s, e) => {
-              setTableData(data);
-              setStartDate(s);
-              setEndDate(e);
-            }}
-          />
-        )}
+        <ControleConformite
+          ref={tableRef}
+          clientId={selectedClient}
+          clientTypeCimentId={clientTypeCimentId}
+          initialStart={startDate}
+          initialEnd={endDate}
+          produitDescription={produitDescription}
+          clients={clients}
+          produits={produits}
+          onTableDataChange={(data, s, e) => {
+            setTableData(data);
+            setStartDate(s);
+            setEndDate(e);
+          }}
+        />
+      )}
     </div>
   );
 };
 
-export default TraitDonnes; 
+export default TraitDonnes;
