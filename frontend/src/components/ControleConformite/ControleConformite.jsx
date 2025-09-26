@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import './ControleConformite.css';
 import { useData } from "../../context/DataContext";
 
@@ -158,7 +158,6 @@ const checkEquationSatisfaction = (values, limits, conditionsStatistiques = []) 
     return { satisfied: false, equation: "Conditions non chargées", displayText: "Conditions non chargées" };
   }
 
-  // Ensure values is an array
   if (!Array.isArray(values)) {
     return { satisfied: false, equation: "Données manquantes", displayText: "Données manquantes" };
   }
@@ -185,7 +184,7 @@ const checkEquationSatisfaction = (values, limits, conditionsStatistiques = []) 
   }
 
   const satisfied = cd <= ca;
-   const equationText = `Cd = ${cd} ${satisfied ? '≤' : '≥'} Ca = ${ca}`;
+  const equationText = `Cd = ${cd} ${satisfied ? '≤' : '≥'} Ca = ${ca}`;
   
   return {
     satisfied,
@@ -195,25 +194,22 @@ const checkEquationSatisfaction = (values, limits, conditionsStatistiques = []) 
 };
 
 const ControleConformite = ({
-  clientId,
-  produitId,
-  selectedType,
-  onTableDataChange,
-  initialStart,
-  initialEnd,
-  produitDescription,
-  clients = [],
-  produits = [],
-  selectedCement
+  clientId, 
+  clientTypeCimentId, 
+  produitInfo,
+  produitDescription, 
+  clients = [], 
+  produits = [] 
 }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
   const [conformiteData, setConformiteData] = useState({});
   const [loading, setLoading] = useState(true);
-  const [selectedProductType, setSelectedProductType] = useState("");
   const [selectedProductFamily, setSelectedProductFamily] = useState("");
   const [dataError, setDataError] = useState(null);
   const [conditionsStatistiques, setConditionsStatistiques] = useState([]);
+  const [debugInfo, setDebugInfo] = useState("");
+  const debugLogRef = useRef([]);
 
   const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
   const ajoutProducts = [
@@ -224,56 +220,92 @@ const ControleConformite = ({
     "CEM II/A-M", "CEM II/B-M"
   ];
 
-  // Parameters that switch between mesure/attribut based on temporal coverage
-// C3A should be in timeDependentParams (for temporal coverage check)
-const timeDependentParams = [
-  { key: "prise", label: "Temp debut de prise", jsonKey: "temps_debut_de_prise" },
-  { key: "pfeu", label: "Perte au Feu", jsonKey: "pert_feu" },
-  { key: "r_insoluble", label: "Résidu Insoluble", jsonKey: "residu_insoluble" },
-  { key: "so3", label: "Teneur en sulfate", jsonKey: "sulfat" },
-  { key: "chlorure", label: "Chlorure", jsonKey: "chlore" },
-  { key: "hydratation", label: "Chaleur d'Hydratation", jsonKey: "chaleur_hydratation" },
-  { key: "c3a", label: "C3A", jsonKey: "c3a" }, 
-];
+  // Get product type and famille from produitInfo with fallbacks
+  const selectedProductType = produitInfo?.nom || produitInfo?.code || "";
+  const selectedProductFamille = produitInfo?.famille?.code || "";
+  const selectedProductFamilleName = produitInfo?.famille?.nom || "";
 
-// Ajout should be in a separate array (only for deviations)
-const deviationOnlyParams = [
-  { key: "ajout_percent", label: "Ajout(Calcaire)", jsonKey: "ajout" } 
-];
+  const determineFamilleFromType = (productType) => {
+    if (!productType) return "";
+    const familleMatch = productType.match(/^(CEM [I|II|III|IV|V]+)/);
+    return familleMatch ? familleMatch[1] : "";
+  };
 
+  const finalFamilleCode = selectedProductFamille || determineFamilleFromType(selectedProductType);
+  const finalFamilleName = selectedProductFamilleName || finalFamilleCode;
 
-const showC3A = c3aProducts.includes(selectedProductType);
-const showAjout = ajoutProducts.includes(selectedProductType);
+  // Map front-end keys -> JSON keys
+  const keyMapping = {
+    rc2j: "resistance_2j",
+    rc7j: "resistance_7j",
+    rc28j: "resistance_28j",
+    prise: "temps_debut_prise",
+    stabilite: "stabilite",
+    hydratation: "chaleur_hydratation",
+    pfeu: "pert_au_feu",
+    r_insoluble: "residu_insoluble",
+    so3: "SO3",
+    chlorure: "teneur_chlour",
+    ajt: "ajout",
+    c3a: "C3A",
+  };
 
-  // Parameters that always use contrôle par mesures
+  // Parameters configuration
+  const timeDependentParams = [
+    { key: "prise", label: "Temp debut de prise", jsonKey: "temps_debut_de_prise" },
+    { key: "pfeu", label: "Perte au Feu", jsonKey: "pert_feu" },
+    { key: "r_insoluble", label: "Résidu Insoluble", jsonKey: "residu_insoluble" },
+    { key: "so3", label: "Teneur en sulfate", jsonKey: "sulfat" },
+    { key: "chlorure", label: "Chlorure", jsonKey: "chlore" },
+    { key: "hydratation", label: "Chaleur d'Hydratation", jsonKey: "chaleur_hydratation" },
+  ];
+
+  const deviationOnlyParams = [
+    { key: "ajout_percent", label: "Ajout(Calcaire)", jsonKey: "ajout" } 
+  ];
+
   const alwaysMesureParams = [
     { key: "rc2j", label: "Résistance courante 2 jrs" },
     { key: "rc7j", label: "Résistance courante 7 jrs" },
     { key: "rc28j", label: "Résistance courante 28 jrs" }
   ];
 
-  // Parameters that always use contrôle par attributs
   const alwaysAttributParams = [
     { key: "stabilite", label: "Stabilité" },
     { key: "pouzzolanicite", label: "Pouzzolanicité" }
   ];
 
-  // Combine all parameters
-  const baseParams = [...alwaysMesureParams, ...alwaysAttributParams];
-  
-  // Add C3A and Ajout as time-dependent params ONLY when needed
+  // Add C3A to time-dependent params if needed
+  const allTimeDependentParams = [...timeDependentParams];
   if (c3aProducts.includes(selectedProductType)) {
-    timeDependentParams.push({ key: "c3a", label: "C3A", jsonKey: "c3a" });
+    allTimeDependentParams.push({ key: "c3a", label: "C3A", jsonKey: "c3a" });
   }
 
+  const showC3A = c3aProducts.includes(selectedProductType);
+  const showAjout = ajoutProducts.includes(selectedProductType);
 
+  const baseParams = [...alwaysMesureParams, ...alwaysAttributParams];
+  const allParameters = [...baseParams, ...allTimeDependentParams.filter(p => 
+    !baseParams.some(bp => bp.key === p.key)
+  )];
 
+  const classes = ["32.5 L", "32.5 N", "32.5 R", "42.5 L", "42.5 N", "42.5 R", "52.5 L", "52.5 N", "52.5 R"];
 
-
-    // Combine base parameters (Ajout is NOT included here - it's only for deviations)
-const allParameters = [...baseParams, ...timeDependentParams.filter(p => 
-  !baseParams.some(bp => bp.key === p.key)
-)];
+  // Data fetching effects
+  useEffect(() => {
+    const fetchMockDetails = async () => {
+      try {
+        const response = await fetch("/Data/parnorm.json");
+        if (!response.ok) throw new Error("Erreur lors du chargement des données");
+        const data = await response.json();
+        setMockDetails(data);
+      } catch (error) {
+        console.error("Erreur de chargement des données:", error);
+        setMockDetails({});
+      }
+    };
+    fetchMockDetails();
+  }, []);
 
   useEffect(() => {
     fetch("/Data/conformite.json")
@@ -285,16 +317,6 @@ const allParameters = [...baseParams, ...timeDependentParams.filter(p =>
   }, []);
 
   useEffect(() => {
-    if (produitId && produits.length) {
-      const product = produits.find(p => p.id == produitId);
-      if (product) {
-        setSelectedProductType(product.type_code || "");
-        setSelectedProductFamily(product.famille_code || "");
-      }
-    }
-  }, [produitId, produits]);
-
-  useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -302,6 +324,7 @@ const allParameters = [...baseParams, ...timeDependentParams.filter(p =>
           fetch("/Data/parnorm.json"),
           fetch("/Data/conformite.json"),
         ]);
+        
         if (!parnormRes.ok) throw new Error("Erreur parnorm.json");
         if (!conformiteRes.ok) throw new Error("Erreur conformite.json");
 
@@ -325,95 +348,94 @@ const allParameters = [...baseParams, ...timeDependentParams.filter(p =>
     fetchData();
   }, []);
 
-
-
-  const keyMapping = {
-    rc2j: "resistance_2j",
-    rc7j: "resistance_7j", 
-    rc28j: "resistance_28j",
-    prise: "temps_debut_prise",
-    stabilite: "stabilite",
-    hydratation: "chaleur_hydratation",
-    pfeu: "pert_au_feu",
-    r_insoluble: "residu_insoluble",
-    so3: "SO3",
-    chlorure: "teneur_chlour",
-    pouzzolanicite: "pouzzolanicite",
-    c3a: "C3A",
-    ajout_percent: "ajout"
-  };
-
-
-
-const getLimitsByClass = useCallback((classe, key) => {
-  const mapping = keyMapping[key];
-  if (!mapping || !mockDetails[mapping]) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
-    
-  const parameterData = mockDetails[mapping];
-  if (!parameterData) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
-
-  // Add debugging to see the actual structure
-  console.log(`Parameter data for ${key}:`, parameterData);
-
-  if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
-    const familyData = parameterData[selectedProductFamily];
-    if (familyData[selectedProductType]) {
-      const typeData = familyData[selectedProductType];
-      
-      // FIX: Check if typeData is an array before using .find()
-      if (Array.isArray(typeData)) {
-        const found = typeData.find(item => item.classe === classe);
-        if (found) return { 
-          li: found.limit_inf ?? "-", 
-          ls: found.limit_max ?? "-", 
-          lg: found.garantie ?? "-",
-          limit_inf: found.limit_inf,
-          limit_max: found.limit_max
-        };
-      }
-    }
-  }
-
-  for (const familleKey in parameterData) {
-    const familleData = parameterData[familleKey];
-    for (const typeKey in familleData) {
-      const typeData = familleData[typeKey];
-      
-      // FIX: Check if typeData is an array
-      if (Array.isArray(typeData)) {
-        const found = typeData.find(item => item.classe === classe);
-        if (found) return { 
-          li: found.limit_inf ?? "-", 
-          ls: found.limit_max ?? "-", 
-          lg: found.garantie ?? "-",
-          limit_inf: found.limit_inf,
-          limit_max: found.limit_max
-        };
-      }
-    }
-  }
-
-  return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
-}, [mockDetails, selectedProductFamily, selectedProductType]);
-
-
   const dataToUse = filteredTableData || [];
 
-  const allStats = useMemo(() => 
-    allParameters.reduce((acc, param) => ({ ...acc, [param.key]: calculateStats(dataToUse, param.key) }), {}),
-  [allParameters, dataToUse]);
+  // Debug logging function
+  const addDebugLog = useCallback((message) => {
+    debugLogRef.current.push(`${new Date().toLocaleTimeString()}: ${message}`);
+    if (debugLogRef.current.length > 50) {
+      debugLogRef.current = debugLogRef.current.slice(-50);
+    }
+  }, []);
 
+  const getLimitsByClass = useCallback((classe, key) => {
+    const mockKey = keyMapping[key];
+    if (!mockKey || !mockDetails[mockKey]) {
+      addDebugLog(`❌ Parameter "${mockKey}" not found in JSON`);
+      return { li: "-", ls: "-", lg: "-" };
+    }
 
+    const parameterData = mockDetails[mockKey];
+    
+    if (!parameterData[finalFamilleCode]) {
+      const availableFamilles = Object.keys(parameterData).join(", ");
+      addDebugLog(`❌ Famille "${finalFamilleCode}" not found in ${mockKey}. Available: ${availableFamilles}`);
+      return { li: "-", ls: "-", lg: "-" };
+    }
 
-  const classes = ["32.5 L", "32.5 N", "32.5 R", "42.5 L", "42.5 N", "42.5 R", "52.5 L", "52.5 N", "52.5 R"];
+    const familleData = parameterData[finalFamilleCode];
 
-  // UPDATED: Function to check temporal coverage AND parameter data existence
+    // For "ajout" parameter, the structure is different
+    if (key === "ajt") {
+      const ajoutCode = selectedProductType.split('/').pop()?.split('-').pop()?.trim();
+      if (!ajoutCode || !familleData[ajoutCode]) {
+        const availableAjoutCodes = Object.keys(familleData).join(", ");
+        addDebugLog(`❌ Ajout code "${ajoutCode}" not found. Available: ${availableAjoutCodes}`);
+        return { li: "-", ls: "-", lg: "-" };
+      }
+
+      const ajoutData = familleData[ajoutCode];
+      return {
+        li: ajoutData.limitInf ?? ajoutData.limit_inf ?? "-",
+        ls: ajoutData.limitSup ?? ajoutData.limit_max ?? "-",
+        lg: ajoutData.garantie ?? "-"
+      };
+    }
+
+    // For other parameters, search for the class data
+    let classData = null;
+    
+    if (Array.isArray(familleData)) {
+      classData = familleData.find(item => item.classe === classe);
+    } else if (typeof familleData === 'object' && familleData[classe]) {
+      classData = familleData[classe];
+    } else {
+      for (const key in familleData) {
+        const subData = familleData[key];
+        if (Array.isArray(subData)) {
+          const found = subData.find(item => item.classe === classe);
+          if (found) {
+            classData = found;
+            break;
+          }
+        } else if (typeof subData === 'object' && subData[classe]) {
+          classData = subData[classe];
+          break;
+        } else if (typeof subData === 'object' && (subData.limit_inf || subData.limitInf)) {
+          classData = subData;
+          break;
+        }
+      }
+    }
+
+    if (!classData) {
+      addDebugLog(`❌ No data found for class "${classe}" in famille "${finalFamilleCode}"`);
+      return { li: "-", ls: "-", lg: "-" };
+    }
+
+    return {
+      li: classData.limit_inf ?? classData.limitInf ?? "-",
+      ls: classData.limit_max ?? classData.limitSup ?? classData.limitMax ?? "-",
+      lg: classData.garantie ?? classData.garantieValue ?? "-",
+    };
+  }, [mockDetails, keyMapping, finalFamilleCode, selectedProductType, addDebugLog]);
+
+  // Temporal coverage check
   const checkTemporalCoverage = useCallback((data, paramKeys) => {
     if (!data || data.length === 0) {
       return { status: false, missing: [], hasData: {} };
     }
 
-    // Sort data by date
     const sorted = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
     const startDate = new Date(sorted[0].date);
     const endDate = new Date(sorted[sorted.length - 1].date);
@@ -421,7 +443,6 @@ const getLimitsByClass = useCallback((classe, key) => {
     let currentStart = new Date(startDate);
     const missingWindows = [];
     
-    // Track which parameters actually have data
     const hasData = {};
     paramKeys.forEach(key => {
       hasData[key] = sorted.some(row => 
@@ -431,9 +452,8 @@ const getLimitsByClass = useCallback((classe, key) => {
 
     while (currentStart <= endDate) {
       const currentEnd = new Date(currentStart);
-      currentEnd.setDate(currentEnd.getDate() + 6); // 7-day window
+      currentEnd.setDate(currentEnd.getDate() + 6);
 
-      // Check if at least one record in this window has a result for any of the specified parameters
       const hasResult = sorted.some((row) => {
         const d = new Date(row.date);
         if (d >= currentStart && d <= currentEnd) {
@@ -451,7 +471,7 @@ const getLimitsByClass = useCallback((classe, key) => {
         });
       }
 
-      currentStart.setDate(currentStart.getDate() + 7); // move to next window
+      currentStart.setDate(currentStart.getDate() + 7);
     }
 
     return {
@@ -461,116 +481,110 @@ const getLimitsByClass = useCallback((classe, key) => {
     };
   }, []);
 
-  // UPDATED: Check coverage for time-dependent parameters and track which ones have data
   const timeDependentCoverage = useMemo(() => {
-    const paramKeys = timeDependentParams.map(p => p.jsonKey || p.key);
+    const paramKeys = allTimeDependentParams.map(p => p.jsonKey || p.key);
     return checkTemporalCoverage(dataToUse, paramKeys);
-  }, [dataToUse, timeDependentParams, checkTemporalCoverage]);
+  }, [dataToUse, allTimeDependentParams, checkTemporalCoverage]);
 
+  const allStats = useMemo(() => 
+    allParameters.reduce((acc, param) => ({ ...acc, [param.key]: calculateStats(dataToUse, param.key) }), {}),
+  [allParameters, dataToUse]);
 
   const calculateClassConformity = (classCompliance, statisticalCompliance, conditionsStatistiques) => {
-  // Check statistical compliance for mesure parameters
-  const statisticalResults = Object.values(statisticalCompliance);
-  const allStatisticalSatisfied = statisticalResults.every(result => 
-    result && result.satisfied !== false
-  );
+    const statisticalResults = Object.values(statisticalCompliance);
+    const allStatisticalSatisfied = statisticalResults.every(result => 
+      result && result.satisfied !== false
+    );
 
-  // Check attribute compliance for attribut parameters
-  let allAttributeSatisfied = true;
-  Object.keys(classCompliance).forEach(paramKey => {
-    const compliance = classCompliance[paramKey];
-    if (compliance.values && compliance.values.length > 0) {
-      const attributeResult = checkEquationSatisfaction(
-        compliance.values,
-        compliance.limits,
-        conditionsStatistiques
-      );
-      if (!attributeResult.satisfied) {
-        allAttributeSatisfied = false;
+    let allAttributeSatisfied = true;
+    Object.keys(classCompliance).forEach(paramKey => {
+      const compliance = classCompliance[paramKey];
+      if (compliance.values && compliance.values.length > 0) {
+        const attributeResult = checkEquationSatisfaction(
+          compliance.values,
+          compliance.limits,
+          conditionsStatistiques
+        );
+        if (!attributeResult.satisfied) {
+          allAttributeSatisfied = false;
+        }
       }
-    }
-  });
+    });
 
-  // Check for any deviations in the garantie section
-  const hasGarantieDeviations = Object.keys(classCompliance).some(paramKey => {
-    const compliance = classCompliance[paramKey];
-    return compliance.stats && compliance.stats.percentLG !== "-" && 
-           parseFloat(compliance.stats.percentLG) > 0;
-  });
+    const hasGarantieDeviations = Object.keys(classCompliance).some(paramKey => {
+      const compliance = classCompliance[paramKey];
+      return compliance.stats && compliance.stats.percentLG !== "-" && 
+             parseFloat(compliance.stats.percentLG) > 0;
+    });
 
-  // Class is conform if:
-  // 1. All statistical equations are satisfied
-  // 2. All attribute equations are satisfied  
-  // 3. There are no garantie deviations
-  return allStatisticalSatisfied && allAttributeSatisfied && !hasGarantieDeviations;
-};
+    return allStatisticalSatisfied && allAttributeSatisfied && !hasGarantieDeviations;
+  };
 
+  const renderClassSection = useCallback((classe) => {
+    // Create selectedCement from produitInfo
+    const selectedCement = produitInfo ? {
+      name: produitInfo.nom || produitInfo.description || "Produit non spécifié",
+      type: selectedProductType,
+      class: classe,
+      description: produitInfo.description || "",
+      famille: finalFamilleName
+    } : null;
 
-const renderClassSection = useCallback((classe) => {
-  const classCompliance = {};
-  const statisticalCompliance = {};
-  
-  // Prepare data for ALL parameters (including C3A and Ajout for deviations)
-  const allParamsForDeviations = [...allParameters, ...deviationOnlyParams];
-  
+    const classCompliance = {};
+    const statisticalCompliance = {};
+    
+    const allParamsForDeviations = [...allParameters, ...deviationOnlyParams];
 
-
-  allParamsForDeviations.forEach(param => {
+    allParamsForDeviations.forEach(param => {
       const limits = getLimitsByClass(classe, param.key);
       const values = dataToUse.map(r => parseFloat(r[param.key])).filter(v => !isNaN(v));
       const stats = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
       
       classCompliance[param.key] = { 
-          limits, 
-          stats,
-          values 
+        limits, 
+        stats,
+        values 
       };
       
       if (limits.li !== "-" || limits.ls !== "-") {
-          const category = keyMapping[param.key]?.category;
-          if (limits.li !== "-") statisticalCompliance[`${param.key}_li`] = checkStatisticalCompliance(conformiteData, allStats[param.key], limits, category, "li");
-          if (limits.ls !== "-") statisticalCompliance[`${param.key}_ls`] = checkStatisticalCompliance(conformiteData, allStats[param.key], limits, category, "ls");
+        const category = keyMapping[param.key]?.category;
+        if (limits.li !== "-") statisticalCompliance[`${param.key}_li`] = checkStatisticalCompliance(conformiteData, allStats[param.key], limits, category, "li");
+        if (limits.ls !== "-") statisticalCompliance[`${param.key}_ls`] = checkStatisticalCompliance(conformiteData, allStats[param.key], limits, category, "ls");
       }
-  });
+    });
 
-  // UPDATED: Determine which parameters go in which section
-  const mesureParams = [...alwaysMesureParams];
-  const attributParams = [...alwaysAttributParams];
+    // Determine which parameters go in which section
+    const mesureParams = [...alwaysMesureParams];
+    const attributParams = [...alwaysAttributParams];
 
-  // Handle C3A based on temporal coverage
-  if (showC3A) {
-    const c3aParam = timeDependentParams.find(p => p.key === "c3a");
-    if (c3aParam) {
-      const hasDataForC3A = timeDependentCoverage.hasData[c3aParam.jsonKey || c3aParam.key];
+    // Handle C3A based on temporal coverage
+    if (showC3A) {
+      const c3aParam = allTimeDependentParams.find(p => p.key === "c3a");
+      if (c3aParam) {
+        const hasDataForC3A = timeDependentCoverage.hasData[c3aParam.jsonKey || c3aParam.key];
+        if (timeDependentCoverage.status && hasDataForC3A) {
+          mesureParams.push(c3aParam);
+        } else {
+          attributParams.push(c3aParam);
+        }
+      }
+    }
+
+    // Handle other time-dependent params
+    allTimeDependentParams.forEach(param => {
+      if (param.key === "c3a") return;
       
-      // C3A goes to mesure if good temporal coverage AND has data
-      if (timeDependentCoverage.status && hasDataForC3A) {
-        mesureParams.push(c3aParam);
+      const paramKey = param.jsonKey || param.key;
+      const hasDataForParam = timeDependentCoverage.hasData[paramKey];
+      
+      if (timeDependentCoverage.status && hasDataForParam) {
+        mesureParams.push(param);
       } else {
-        // Poor coverage OR no data → add to attribut section
-        attributParams.push(c3aParam);
+        attributParams.push(param);
       }
-    }
-  }
+    });
 
-  // Handle other time-dependent params (excluding C3A since we handled it above)
-  timeDependentParams.forEach(param => {
-    if (param.key === "c3a") return; // Skip C3A, already handled
-    
-    const paramKey = param.jsonKey || param.key;
-    const hasDataForParam = timeDependentCoverage.hasData[paramKey];
-    
-    if (timeDependentCoverage.status && hasDataForParam) {
-      mesureParams.push(param);
-    } else {
-      attributParams.push(param);
-    }
-  });
-
-    // Calculate isClassConforme based on compliance results
-  const isClassConforme = calculateClassConformity(classCompliance, statisticalCompliance, conditionsStatistiques);
-
-// Ajout is NOT added to mesureParams or attributParams - it only appears in deviations
+    const isClassConforme = calculateClassConformity(classCompliance, statisticalCompliance, conditionsStatistiques);
 
     return (
       <div className="class-section" key={classe}>
@@ -582,250 +596,247 @@ const renderClassSection = useCallback((classe) => {
               </strong>
             </p>
             <h2>Contrôle de conformité / classe de résistance</h2>
-            {selectedCement && (
+            
+            {selectedCement ? (
               <div className="selected-cement-info">
                 <h3>{selectedCement.name}</h3>
-                <p>Type: {selectedCement.type} | Classe: {selectedCement.class}</p>
+                <p>Type: {selectedCement.type} | Classe: {selectedCement.class} | Famille: {selectedCement.famille}</p>
                 {selectedCement.description && (
                   <p><strong>Description:</strong> {selectedCement.description}</p>
                 )}
               </div>
-            )}
-            {!selectedCement && produitDescription && (
+            ) : produitDescription ? (
               <p><strong>{produitDescription}</strong></p>
-            )}
-            {selectedProductFamily && <p><strong>Famille: {selectedProductFamily}</strong></p>}
+            ) : null}
+            
+            {finalFamilleName && <p><strong>Famille: {finalFamilleName}</strong></p>}
             {selectedProductType && <p><strong>Type: {selectedProductType}</strong></p>}
             <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-            
           </div>
+          
           <hr className="strong-hr" />
           <h3>CLASSE {classe}</h3>
-          
-          {/* ... existing header code ... */}
-      
-      {/* Deviations Sections */}
-<div className="sections-horizontal">
-  <div className="section-box">
-    <h4>Déviations Limites inférieures</h4>
-    <div className="parameter-list">
-      <div className="parameter-item">
-        <span>Résistance à court terme à 02 j (RC2J)</span>
-        <span>{classCompliance.rc2j?.stats?.percentLI !== "-" 
-          ? `${classCompliance.rc2j.stats.percentLI}% < ${classCompliance.rc2j.limits.li}` 
-          : "Aucune déviation"}</span>
-        <span>Déviation={classCompliance.rc2j?.stats?.percentLI}%</span>
-      </div>
-      <div className="parameter-item">
-        <span>Résistance courante 28j (RC28J)</span>
-        <span>{classCompliance.rc28j?.stats?.percentLI !== "-" 
-          ? `${classCompliance.rc28j.stats.percentLI}% < ${classCompliance.rc28j.limits.li}` 
-          : "Aucune déviation"}</span>
-        <span>Déviation={classCompliance.rc28j?.stats?.percentLI}%</span>
-      </div>
-      <div className="parameter-item">
-        <span>Temps de début de prise (Prise)</span>
-        <span>{classCompliance.prise?.stats?.percentLI !== "-" 
-          ? `${classCompliance.prise.stats.percentLI}% < ${classCompliance.prise.limits.li}` 
-          : "Aucune déviation"}</span>
-        <span>Déviation={classCompliance.prise?.stats?.percentLI}%</span>
-      </div>
 
-      {/* AJOUT - Only in deviations */}
-      {showAjout && classCompliance.ajout_percent && (
-        <div className="parameter-item">
-          <span>Ajout(Calcaire)</span>
-          <span>
-            {classCompliance.ajout_percent?.stats?.percentLI !== "-" 
-              ? `${classCompliance.ajout_percent.stats.percentLI}% < ${classCompliance.ajout_percent.limits.li}` 
-              : "Aucune déviation"}
-          </span>
-          <span>Déviation={classCompliance.ajout_percent?.stats?.percentLI}%</span>
-        </div>
-      )}
-    </div>
-  </div>
-</div>
+          {/* Deviations Sections */}
+          <div className="sections-horizontal">
+            <div className="section-box">
+              <h4>Déviations Limites inférieures</h4>
+              <div className="parameter-list">
+                <div className="parameter-item">
+                  <span>Résistance à court terme à 02 j (RC2J)</span>
+                  <span>{classCompliance.rc2j?.stats?.percentLI !== "-" 
+                    ? `${classCompliance.rc2j.stats.percentLI}% < ${classCompliance.rc2j.limits.li}` 
+                    : "Aucune déviation"}</span>
+                  <span>Déviation={classCompliance.rc2j?.stats?.percentLI}%</span>
+                </div>
+                <div className="parameter-item">
+                  <span>Résistance courante 28j (RC28J)</span>
+                  <span>{classCompliance.rc28j?.stats?.percentLI !== "-" 
+                    ? `${classCompliance.rc28j.stats.percentLI}% < ${classCompliance.rc28j.limits.li}` 
+                    : "Aucune déviation"}</span>
+                  <span>Déviation={classCompliance.rc28j?.stats?.percentLI}%</span>
+                </div>
+                <div className="parameter-item">
+                  <span>Temps de début de prise (Prise)</span>
+                  <span>{classCompliance.prise?.stats?.percentLI !== "-" 
+                    ? `${classCompliance.prise.stats.percentLI}% < ${classCompliance.prise.limits.li}` 
+                    : "Aucune déviation"}</span>
+                  <span>Déviation={classCompliance.prise?.stats?.percentLI}%</span>
+                </div>
 
-<div className="sections-horizontal">
-  <div className="section-box">
-    <h4>Déviations Limites supérieures</h4>
-    <div className="parameter-list">
-      <div className="parameter-item">
-        <span>Résistance courante 28j (RC28J)</span>
-        <span>{classCompliance.rc28j?.stats?.percentLS !== "-" 
-          ? `${classCompliance.rc28j.stats.percentLS}% > ${classCompliance.rc28j.limits.ls}` 
-          : "Aucune déviation"}</span>
-        <span>Déviation={classCompliance.rc28j?.stats?.percentLS}%</span>
-      </div>
-      <div className="parameter-item">
-        <span>Stabilité (Stabilite)</span>
-        <span>{classCompliance.stabilite?.stats?.percentLS !== "-" 
-          ? `${classCompliance.stabilite.stats.percentLS}% > ${classCompliance.stabilite.limits.ls}` 
-          : "Aucune déviation"}</span>
-        <span>Déviation={classCompliance.stabilite?.stats?.percentLS}%</span>
-      </div>
-      <div className="parameter-item">
-        <span>Sulfate (SO3)</span>
-        <span>{classCompliance.so3?.stats?.percentLS !== "-" 
-          ? `${classCompliance.so3.stats.percentLS}% > ${classCompliance.so3.limits.ls}` 
-          : "Aucune déviation"}</span>
-        <span>Déviation={classCompliance.so3?.stats?.percentLS}%</span>
-      </div>
-      <div className="parameter-item">
-        <span>Chlorure (Chlorure)</span>
-        <span>{classCompliance.chlorure?.stats?.percentLS !== "-" 
-          ? `${classCompliance.chlorure.stats.percentLS}% > ${classCompliance.chlorure.limits.ls}` 
-          : "Aucune déviation"}</span>
-        <span>Déviation={classCompliance.chlorure?.stats?.percentLS}%</span>
-      </div>
-
-      {/* C3A - In deviations sup */}
-      {showC3A && classCompliance.c3a && (
-        <div className="parameter-item">
-          <span>C3A</span>
-          <span>
-            {classCompliance.c3a?.stats?.percentLS !== "-" 
-              ? `${classCompliance.c3a.stats.percentLS}% > ${classCompliance.c3a.limits.ls}` 
-              : "Aucune déviation"}
-          </span>
-          <span>Déviation={classCompliance.c3a?.stats?.percentLS}%</span>
-        </div>
-      )}
-
-      {/* AJOUT - Also in deviations sup */}
-      {showAjout && classCompliance.ajout_percent && (
-        <div className="parameter-item">
-          <span>Ajout(Calcaire)</span>
-          <span>
-            {classCompliance.ajout_percent?.stats?.percentLS !== "-" 
-              ? `${classCompliance.ajout_percent.stats.percentLS}% > ${classCompliance.ajout_percent.limits.ls}` 
-              : "Aucune déviation"}
-          </span>
-          <span>Déviation={classCompliance.ajout_percent?.stats?.percentLS}%</span>
-        </div>
-      )}
-    </div>
-  </div>
-</div>
-
-      <div className="sections-horizontal">
-        <div className="section-box">
-          <h4>Défauts Limites garanties</h4>
-          <div className="parameter-list">
-            <div className="parameter-item">
-              <span>Résistance à court terme à 02 j (RC2J)</span>
-              <span>{classCompliance.rc2j.stats.percentLG !== "-" 
-                ? `${classCompliance.rc2j.stats.percentLG}% < ${classCompliance.rc2j.limits.lg}` 
-                : "Aucun défaut"}</span>
-              <span>Défaut={classCompliance.rc2j.stats.percentLG}%</span>
-            </div>
-            <div className="parameter-item">
-              <span>Résistance courante 28j (RC28J)</span>
-              <span>{classCompliance.rc28j.stats.percentLG !== "-" 
-                ? `${classCompliance.rc28j.stats.percentLG}% < ${classCompliance.rc28j.limits.lg}` 
-                : "Aucun défaut"}</span>
-              <span>Défaut={classCompliance.rc28j.stats.percentLG}%</span>
-            </div>
-            <div className="parameter-item">
-              <span>Temps de début de prise (Prise)</span>
-              <span>{classCompliance.prise.stats.percentLG !== "-" 
-                ? `${classCompliance.prise.stats.percentLG}% < ${classCompliance.prise.limits.lg}` 
-                : "Aucun défaut"}</span>
-              <span>Défaut={classCompliance.prise.stats.percentLG}%</span>
-            </div>
-            <div className="parameter-item">
-              <span>Stabilité (Stabilite)</span>
-              <span>{classCompliance.stabilite.stats.percentLG !== "-" 
-                ? `${classCompliance.stabilite.stats.percentLG}% > ${classCompliance.stabilite.limits.lg}` 
-                : "Aucun défaut"}</span>
-              <span>Défaut={classCompliance.stabilite.stats.percentLG}%</span>
-            </div>
-            <div className="parameter-item">
-              <span>Sulfate (SO3)</span>
-              <span>{classCompliance.so3.stats.percentLG !== "-" 
-                ? `${classCompliance.so3.stats.percentLG}% > ${classCompliance.so3.limits.lg}` 
-                : "Aucun défaut"}</span>
-              <span>Défaut={classCompliance.so3.stats.percentLG}%</span>
-            </div>
-            <div className="parameter-item">
-              <span>Chlorure (Chlorure)</span>
-              <span>{classCompliance.chlorure.stats.percentLG !== "-" 
-                ? `${classCompliance.chlorure.stats.percentLG}% > ${classCompliance.chlorure.limits.lg}` 
-                : "Aucun défaut"}</span>
-              <span>Défaut={classCompliance.chlorure.stats.percentLG}%</span>
-            </div>
-
-            {/* C3A - Also in garantie section */}
-            {showC3A && (
-              <div className="parameter-item">
-                <span>C3A</span>
-                <span>
-                  {classCompliance.c3a?.stats?.percentLG !== "-" 
-                    ? `${classCompliance.c3a.stats.percentLG}% < ${classCompliance.c3a.limits.lg}` 
-                    : "Aucun défaut"}
-                </span>
-                <span>Défaut={classCompliance.c3a?.stats?.percentLG}%</span>
+                {showAjout && classCompliance.ajout_percent && (
+                  <div className="parameter-item">
+                    <span>Ajout(Calcaire)</span>
+                    <span>
+                      {classCompliance.ajout_percent?.stats?.percentLI !== "-" 
+                        ? `${classCompliance.ajout_percent.stats.percentLI}% < ${classCompliance.ajout_percent.limits.li}` 
+                        : "Aucune déviation"}
+                    </span>
+                    <span>Déviation={classCompliance.ajout_percent?.stats?.percentLI}%</span>
+                  </div>
+                )}
               </div>
-            )}
-
-            {/* AJOUT is NOT in garantie section */}
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Contrôle par Mesures */}
+          <div className="sections-horizontal">
+            <div className="section-box">
+              <h4>Déviations Limites supérieures</h4>
+              <div className="parameter-list">
+                <div className="parameter-item">
+                  <span>Résistance courante 28j (RC28J)</span>
+                  <span>{classCompliance.rc28j?.stats?.percentLS !== "-" 
+                    ? `${classCompliance.rc28j.stats.percentLS}% > ${classCompliance.rc28j.limits.ls}` 
+                    : "Aucune déviation"}</span>
+                  <span>Déviation={classCompliance.rc28j?.stats?.percentLS}%</span>
+                </div>
+                <div className="parameter-item">
+                  <span>Stabilité (Stabilite)</span>
+                  <span>{classCompliance.stabilite?.stats?.percentLS !== "-" 
+                    ? `${classCompliance.stabilite.stats.percentLS}% > ${classCompliance.stabilite.limits.ls}` 
+                    : "Aucune déviation"}</span>
+                  <span>Déviation={classCompliance.stabilite?.stats?.percentLS}%</span>
+                </div>
+                <div className="parameter-item">
+                  <span>Sulfate (SO3)</span>
+                  <span>{classCompliance.so3?.stats?.percentLS !== "-" 
+                    ? `${classCompliance.so3.stats.percentLS}% > ${classCompliance.so3.limits.ls}` 
+                    : "Aucune déviation"}</span>
+                  <span>Déviation={classCompliance.so3?.stats?.percentLS}%</span>
+                </div>
+                <div className="parameter-item">
+                  <span>Chlorure (Chlorure)</span>
+                  <span>{classCompliance.chlorure?.stats?.percentLS !== "-" 
+                    ? `${classCompliance.chlorure.stats.percentLS}% > ${classCompliance.chlorure.limits.ls}` 
+                    : "Aucune déviation"}</span>
+                  <span>Déviation={classCompliance.chlorure?.stats?.percentLS}%</span>
+                </div>
+
+                {showC3A && classCompliance.c3a && (
+                  <div className="parameter-item">
+                    <span>C3A</span>
+                    <span>
+                      {classCompliance.c3a?.stats?.percentLS !== "-" 
+                        ? `${classCompliance.c3a.stats.percentLS}% > ${classCompliance.c3a.limits.ls}` 
+                        : "Aucune déviation"}
+                    </span>
+                    <span>Déviation={classCompliance.c3a?.stats?.percentLS}%</span>
+                  </div>
+                )}
+
+                {showAjout && classCompliance.ajout_percent && (
+                  <div className="parameter-item">
+                    <span>Ajout(Calcaire)</span>
+                    <span>
+                      {classCompliance.ajout_percent?.stats?.percentLS !== "-" 
+                        ? `${classCompliance.ajout_percent.stats.percentLS}% > ${classCompliance.ajout_percent.limits.ls}` 
+                        : "Aucune déviation"}
+                    </span>
+                    <span>Déviation={classCompliance.ajout_percent?.stats?.percentLS}%</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="sections-horizontal">
+            <div className="section-box">
+              <h4>Défauts Limites garanties</h4>
+              <div className="parameter-list">
+                <div className="parameter-item">
+                  <span>Résistance à court terme à 02 j (RC2J)</span>
+                  <span>{classCompliance.rc2j?.stats?.percentLG !== "-" 
+                    ? `${classCompliance.rc2j.stats.percentLG}% < ${classCompliance.rc2j.limits.lg}` 
+                    : "Aucun défaut"}</span>
+                  <span>Défaut={classCompliance.rc2j?.stats?.percentLG}%</span>
+                </div>
+                <div className="parameter-item">
+                  <span>Résistance courante 28j (RC28J)</span>
+                  <span>{classCompliance.rc28j?.stats?.percentLG !== "-" 
+                    ? `${classCompliance.rc28j.stats.percentLG}% < ${classCompliance.rc28j.limits.lg}` 
+                    : "Aucun défaut"}</span>
+                  <span>Défaut={classCompliance.rc28j?.stats?.percentLG}%</span>
+                </div>
+                <div className="parameter-item">
+                  <span>Temps de début de prise (Prise)</span>
+                  <span>{classCompliance.prise?.stats?.percentLG !== "-" 
+                    ? `${classCompliance.prise.stats.percentLG}% < ${classCompliance.prise.limits.lg}` 
+                    : "Aucun défaut"}</span>
+                  <span>Défaut={classCompliance.prise?.stats?.percentLG}%</span>
+                </div>
+                <div className="parameter-item">
+                  <span>Stabilité (Stabilite)</span>
+                  <span>{classCompliance.stabilite?.stats?.percentLG !== "-" 
+                    ? `${classCompliance.stabilite.stats.percentLG}% > ${classCompliance.stabilite.limits.lg}` 
+                    : "Aucun défaut"}</span>
+                  <span>Défaut={classCompliance.stabilite?.stats?.percentLG}%</span>
+                </div>
+                <div className="parameter-item">
+                  <span>Sulfate (SO3)</span>
+                  <span>{classCompliance.so3?.stats?.percentLG !== "-" 
+                    ? `${classCompliance.so3.stats.percentLG}% > ${classCompliance.so3.limits.lg}` 
+                    : "Aucun défaut"}</span>
+                  <span>Défaut={classCompliance.so3?.stats?.percentLG}%</span>
+                </div>
+                <div className="parameter-item">
+                  <span>Chlorure (Chlorure)</span>
+                  <span>{classCompliance.chlorure?.stats?.percentLG !== "-" 
+                    ? `${classCompliance.chlorure.stats.percentLG}% > ${classCompliance.chlorure.limits.lg}` 
+                    : "Aucun défaut"}</span>
+                  <span>Défaut={classCompliance.chlorure?.stats?.percentLG}%</span>
+                </div>
+
+                {showC3A && (
+                  <div className="parameter-item">
+                    <span>C3A</span>
+                    <span>
+                      {classCompliance.c3a?.stats?.percentLG !== "-" 
+                        ? `${classCompliance.c3a.stats.percentLG}% < ${classCompliance.c3a.limits.lg}` 
+                        : "Aucun défaut"}
+                    </span>
+                    <span>Défaut={classCompliance.c3a?.stats?.percentLG}%</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+{/* Contrôle par Mesures */}
 <div className="sections-horizontal">
   <div className="section-box">
     <h4>Contrôle par Mesures des résistances mécaniques</h4>
     <div className="parameter-list">
       {mesureParams.map(param => {
+        const liCompliance = statisticalCompliance[`${param.key}_li`];
+        const lsCompliance = statisticalCompliance[`${param.key}_ls`];
+        
         if (param.key === 'rc28j') {
-          // Pour 28 jours : afficher LI et LS
           return (
             <div key={param.key}>
               <div className="parameter-item">
                 <span>{param.label} LI</span>
                 <span>
-                  {statisticalCompliance[`${param.key}_li`]
-                    ? statisticalCompliance[`${param.key}_li`].equation 
-                    : "Données insuffisantes"}
+                  {liCompliance?.equation || "Données insuffisantes"}
                 </span>
                 <span>
-                  {statisticalCompliance[`${param.key}_li`]?.satisfied 
-                    ? "Équation satisfaite" 
-                    : "Équation non satisfaite"}
+                  {liCompliance ? 
+                    (liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
+                      "Données insuffisantes" : 
+                      (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
+                    : "Données insuffisantes"
+                  }
                 </span>
               </div>
               <div className="parameter-item">
                 <span>{param.label} LS</span>
                 <span>
-                  {statisticalCompliance[`${param.key}_ls`]
-                    ? statisticalCompliance[`${param.key}_ls`].equation 
-                    : "Données insuffisantes"}
+                  {lsCompliance?.equation || "Données insuffisantes"}
                 </span>
                 <span>
-                  {statisticalCompliance[`${param.key}_ls`]?.satisfied 
-                    ? "Équation satisfaite" 
-                    : "Équation non satisfaite"}
+                  {lsCompliance ? 
+                    (lsCompliance.equation.includes("insuffisantes") || lsCompliance.equation.includes("non disponible") ? 
+                      "Données insuffisantes" : 
+                      (lsCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
+                    : "Données insuffisantes"
+                  }
                 </span>
               </div>
             </div>
           );
         } else {
-          // Pour 2 et 7 jours : afficher uniquement LI
           return (
             <div key={param.key} className="parameter-item">
               <span>{param.label} LI</span>
               <span>
-                {statisticalCompliance[`${param.key}_li`]
-                  ? statisticalCompliance[`${param.key}_li`].equation 
-                  : "Données insuffisantes"}
+                {liCompliance?.equation || "Données insuffisantes"}
               </span>
               <span>
-                {statisticalCompliance[`${param.key}_li`]?.satisfied 
-                  ? "Équation satisfaite" 
-                  : "Équation non satisfaite"}
+                {liCompliance ? 
+                  (liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
+                    "Données insuffisantes" : 
+                    (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
+                  : "Données insuffisantes"
+                }
               </span>
             </div>
           );
@@ -835,62 +846,60 @@ const renderClassSection = useCallback((classe) => {
   </div>
 </div>
 
-      {/* Contrôle par Attributs */}
-      <div className="sections-horizontal">
-        <div className="section-box">
-          <h4>Contrôle par Attributs propriétés physiques & chimiques</h4>
-          <div className="parameter-list">
-            {attributParams.map(param => (
-              <div key={param.key} className="parameter-item">
-                <span>{param.label}</span>
-                <span>
-                  {checkEquationSatisfaction(
-                    classCompliance[param.key]?.values || [],
-                    classCompliance[param.key]?.limits || {},
-                    conditionsStatistiques
-                  ).displayText}
-                </span>
-                <span>
-                  {checkEquationSatisfaction(
-                    classCompliance[param.key]?.values || [],
-                    classCompliance[param.key]?.limits || {},
-                    conditionsStatistiques
-                  ).satisfied ? "Équation satisfaite" : "Équation non satisfaite"}
-                </span>
-              </div>
-            ))}
+{/* Contrôle par Attributs */}
+<div className="sections-horizontal">
+  <div className="section-box">
+    <h4>Contrôle par Attributs propriétés physiques & chimiques</h4>
+    <div className="parameter-list">
+      {attributParams.map(param => {
+        const attributeResult = checkEquationSatisfaction(
+          classCompliance[param.key]?.values || [],
+          classCompliance[param.key]?.limits || {},
+          conditionsStatistiques
+        );
+        
+        return (
+          <div key={param.key} className="parameter-item">
+            <span>{param.label}</span>
+            <span>
+              {attributeResult.displayText}
+            </span>
+            <span>
+              {attributeResult.equation.includes("insuffisantes") || 
+               attributeResult.equation.includes("manquantes") || 
+               attributeResult.equation.includes("non chargées") ? 
+                "Données insuffisantes" : 
+                (attributeResult.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
+              }
+            </span>
           </div>
-        </div>
-      </div>
+        );
+      })}
+    </div>
+  </div>
+</div>
 
-      {/* Class Conclusion */}
-      <div className="conclusion-section">
-        <div className="conformity-summary">
-          <h4>CONCLUSION : {isClassConforme ? 'CONFORME' : 'NON CONFORME'}</h4>
-        </div>
-        <div className={`conformity-box ${isClassConforme ? 'conforme' : 'non-conforme'}`}>
-          <strong>CONFORMITÉ: {isClassConforme ? 'CONFORME' : 'NON CONFORME'}</strong>
-        </div>
-      </div>
-      
-      <hr className="section-divider" />
+          {/* Class Conclusion */}
+          <div className="conclusion-section">
+            <div className="conformity-summary">
+              <h4>CONCLUSION : {isClassConforme ? 'CONFORME' : 'NON CONFORME'}</h4>
+            </div>
+            <div className={`conformity-box ${isClassConforme ? 'conforme' : 'non-conforme'}`}>
+              <strong>CONFORMITÉ: {isClassConforme ? 'CONFORME' : 'NON CONFORME'}</strong>
+            </div>
+          </div>
+          
+          <hr className="section-divider" />
         </div>
       </div>
     );
-  }, [allParameters, dataToUse, keyMapping, conformiteData, allStats, getLimitsByClass,clients, clientId, selectedCement, produitDescription, selectedProductFamily, selectedProductType, filterPeriod, selectedType, conditionsStatistiques, timeDependentCoverage, timeDependentParams, alwaysMesureParams, alwaysAttributParams]);
-
-
-
-
-
-
-
-
-
-
-
-
-
+  }, [
+    produitInfo, selectedProductType, finalFamilleName, clients, clientId, 
+    filterPeriod, produitDescription, allParameters, deviationOnlyParams, 
+    dataToUse, keyMapping, conformiteData, allStats, getLimitsByClass,
+    conditionsStatistiques, timeDependentCoverage, allTimeDependentParams,
+    alwaysMesureParams, alwaysAttributParams, showC3A, showAjout
+  ]);
 
   const handleExport = () => alert("Exporting...");
   const handlePrint = () => alert("Printing...");
@@ -929,10 +938,7 @@ const renderClassSection = useCallback((classe) => {
     );
   }
 
-
-
-
- return (
+  return (
     <div className="cement-report-container">
       {classes.map(classe => renderClassSection(classe))}
       

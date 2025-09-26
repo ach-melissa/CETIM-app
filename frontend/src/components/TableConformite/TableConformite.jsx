@@ -194,16 +194,12 @@ const checkEquationSatisfaction = (values, limits, conditionsStatistiques = []) 
 };
 
 const TableConformite = ({
-  clientId,
-  produitId,
-  selectedType,
-  onTableDataChange,
-  initialStart,
-  initialEnd,
-  produitDescription,
-  clients = [],
-  produits = [],
-  selectedCement
+  clientId, 
+  clientTypeCimentId, 
+  produitInfo,
+  produitDescription, 
+  clients = [], 
+  produits = [] 
 }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
@@ -223,27 +219,29 @@ const TableConformite = ({
     "CEM II/A-M", "CEM II/B-M"
   ];
 
-  const timeDependentParams = [
-    { key: "prise", label: "Temp debut de prise", jsonKey: "temps_debut_de_prise" },
-    { key: "pfeu", label: "Perte au Feu", jsonKey: "pert_feu" },
-    { key: "r_insoluble", label: "Résidu Insoluble", jsonKey: "residu_insoluble" },
-    { key: "so3", label: "Teneur en sulfate", jsonKey: "sulfat" },
-    { key: "chlorure", label: "Chlorure", jsonKey: "chlore" },
-    { key: "hydratation", label: "Chaleur d'Hydratation", jsonKey: "chaleur_hydratation" },
-  ];
+  // Create timeDependentParams dynamically based on product type
+  const getTimeDependentParams = useCallback(() => {
+    const baseParams = [
+      { key: "prise", label: "Temp debut de prise", jsonKey: "temps_debut_de_prise" },
+      { key: "pfeu", label: "Perte au Feu", jsonKey: "pert_feu" },
+      { key: "r_insoluble", label: "Résidu Insoluble", jsonKey: "residu_insoluble" },
+      { key: "so3", label: "Teneur en sulfate", jsonKey: "sulfat" },
+      { key: "chlorure", label: "Chlorure", jsonKey: "chlore" },
+      { key: "hydratation", label: "Chaleur d'Hydratation", jsonKey: "chaleur_hydratation" },
+    ];
 
-  // Only add C3A if the product type requires it
-if (c3aProducts.includes(selectedProductType)) {
-  timeDependentParams.push({ key: "c3a", label: "C3A", jsonKey: "c3a" });
-}
+    if (c3aProducts.includes(selectedProductType)) {
+      baseParams.push({ key: "c3a", label: "C3A", jsonKey: "c3a" });
+    }
 
-// Only add Ajout if the product type requires it  
-if (ajoutProducts.includes(selectedProductType)) {
-  timeDependentParams.push({ key: "ajout_percent", label: "Ajout(Calcaire)", jsonKey: "ajout" });
-}
+    if (ajoutProducts.includes(selectedProductType)) {
+      baseParams.push({ key: "ajout_percent", label: "Ajout(Calcaire)", jsonKey: "ajout" });
+    }
 
+    return baseParams;
+  }, [selectedProductType]);
 
-
+  const timeDependentParams = getTimeDependentParams();
   const showC3A = c3aProducts.includes(selectedProductType);
   const showAjout = ajoutProducts.includes(selectedProductType);
 
@@ -260,27 +258,33 @@ if (ajoutProducts.includes(selectedProductType)) {
 
   const baseParams = [...alwaysMesureParams, ...alwaysAttributParams];
   
+  const allParameters = [...baseParams, ...timeDependentParams.filter(p => 
+    !baseParams.some(bp => bp.key === p.key)
+  )];
 
-// Combine base parameters with time-dependent params (excluding duplicates)
-const allParameters = [...baseParams, ...timeDependentParams.filter(p => 
-  !baseParams.some(bp => bp.key === p.key)
-)];
+  const keyMapping = {
+    rc2j: "resistance_2j",
+    rc7j: "resistance_7j", 
+    rc28j: "resistance_28j",
+    prise: "temps_debut_prise",
+    stabilite: "stabilite",
+    hydratation: "chaleur_hydratation",
+    pfeu: "pert_au_feu",
+    r_insoluble: "residu_insoluble",
+    so3: "SO3",
+    chlorure: "teneur_chlour",
+    pouzzolanicite: "pouzzolanicite",
+    c3a: "C3A",
+    ajout_percent: "ajout"
+  };
 
-const keyMapping = {
-  rc2j: "resistance_2j",
-  rc7j: "resistance_7j", 
-  rc28j: "resistance_28j",
-  prise: "temps_debut_prise",
-  stabilite: "stabilite",
-  hydratation: "chaleur_hydratation",
-  pfeu: "pert_au_feu",
-  r_insoluble: "residu_insoluble",
-  so3: "SO3",
-  chlorure: "teneur_chlour",
-  pouzzolanicite: "pouzzolanicite",
-  c3a: "C3A",
-  ajout_percent: "ajout"
-};
+  // Set product type and family from produitInfo
+  useEffect(() => {
+    if (produitInfo) {
+      setSelectedProductType(produitInfo.nom || produitInfo.code || "");
+      setSelectedProductFamily(produitInfo.famille?.code || "");
+    }
+  }, [produitInfo]);
 
   useEffect(() => {
     fetch("/Data/conformite.json")
@@ -290,16 +294,6 @@ const keyMapping = {
       })
       .catch((err) => console.error("Error loading JSON:", err));
   }, []);
-
-  useEffect(() => {
-    if (produitId && produits.length) {
-      const product = produits.find(p => p.id == produitId);
-      if (product) {
-        setSelectedProductType(product.type_code || "");
-        setSelectedProductFamily(product.famille_code || "");
-      }
-    }
-  }, [produitId, produits]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -332,17 +326,21 @@ const keyMapping = {
     fetchData();
   }, []);
 
-  const getLimitsByClass = useCallback((classe, key) => {
-    const mapping = keyMapping[key];
-    if (!mapping || !mockDetails[mapping]) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
-    
-    const parameterData = mockDetails[mapping];
-    if (!parameterData) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
+const getLimitsByClass = useCallback((classe, key) => {
+  const mapping = keyMapping[key];
+  if (!mapping || !mockDetails[mapping]) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
+  
+  const parameterData = mockDetails[mapping];
+  if (!parameterData) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
 
-    if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
-      const familyData = parameterData[selectedProductFamily];
-      if (familyData[selectedProductType]) {
-        const typeData = familyData[selectedProductType];
+  // First try: Search in selected product family and type
+  if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
+    const familyData = parameterData[selectedProductFamily];
+    if (familyData[selectedProductType]) {
+      const typeData = familyData[selectedProductType];
+      
+      // FIX: Check if typeData is an array or object
+      if (Array.isArray(typeData)) {
         const found = typeData.find(item => item.classe === classe);
         if (found) return { 
           li: found.limit_inf ?? "-", 
@@ -351,13 +349,27 @@ const keyMapping = {
           limit_inf: found.limit_inf,
           limit_max: found.limit_max
         };
+      } else if (typeof typeData === 'object' && typeData.classe === classe) {
+        // If typeData is a direct object (not array)
+        return { 
+          li: typeData.limit_inf ?? "-", 
+          ls: typeData.limit_max ?? "-", 
+          lg: typeData.garantie ?? "-",
+          limit_inf: typeData.limit_inf,
+          limit_max: typeData.limit_max
+        };
       }
     }
+  }
 
-    for (const familleKey in parameterData) {
-      const familleData = parameterData[familleKey];
-      for (const typeKey in familleData) {
-        const typeData = familleData[typeKey];
+  // Second try: Search through all families and types
+  for (const familleKey in parameterData) {
+    const familleData = parameterData[familleKey];
+    for (const typeKey in familleData) {
+      const typeData = familleData[typeKey];
+      
+      // FIX: Handle both array and object cases
+      if (Array.isArray(typeData)) {
         const found = typeData.find(item => item.classe === classe);
         if (found) return { 
           li: found.limit_inf ?? "-", 
@@ -366,12 +378,33 @@ const keyMapping = {
           limit_inf: found.limit_inf,
           limit_max: found.limit_max
         };
+      } else if (typeof typeData === 'object' && typeData.classe === classe) {
+        // If typeData is a direct object (not array)
+        return { 
+          li: typeData.limit_inf ?? "-", 
+          ls: typeData.limit_max ?? "-", 
+          lg: typeData.garantie ?? "-",
+          limit_inf: typeData.limit_inf,
+          limit_max: typeData.limit_max
+        };
+      } else if (typeof typeData === 'object') {
+        // If typeData is an object with classe as keys
+        if (typeData[classe]) {
+          const classData = typeData[classe];
+          return { 
+            li: classData.limit_inf ?? "-", 
+            ls: classData.limit_max ?? "-", 
+            lg: classData.garantie ?? "-",
+            limit_inf: classData.limit_inf,
+            limit_max: classData.limit_max
+          };
+        }
       }
     }
+  }
 
-    return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
-  }, [mockDetails, selectedProductFamily, selectedProductType]);
-
+  return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
+}, [mockDetails, selectedProductFamily, selectedProductType]);
   const dataToUse = filteredTableData || [];
 
   const allStats = useMemo(() => 
@@ -467,34 +500,32 @@ const keyMapping = {
 
   const getCellColor = (deviationPercent, defaultPercent, hasData, limits) => {
     if (!hasData || limits.li === "-" && limits.ls === "-" && limits.lg === "-") {
-      return "grey"; // ND/NS - No data or no limits defined
+      return "grey";
     }
     
     if (defaultPercent >= 5) {
-      return "red"; // Default ≥ 5%
+      return "red";
     }
     
     if (deviationPercent >= 5) {
-      return "red"; // Deviation ≥ 5%
+      return "red";
     }
     
     if (deviationPercent >= 0 && deviationPercent < 5) {
-      return "green"; // OK - Deviation between 0% and 5%
+      return "green";
     }
     
-    return "green"; // Default to green if no issues
+    return "green";
   };
 
   const getControlStatus = (paramKey, limits, values, conditionsStatistiques) => {
     if (!values || values.length === 0 || (limits.li === "-" && limits.ls === "-")) {
-      return { status: "ND", color: "grey" };
+      return { status: "ND/NS", color: "grey" };
     }
 
-    // Check if it's a mesure parameter
     const isMesureParam = alwaysMesureParams.some(p => p.key === paramKey) || 
                          timeDependentParams.some(p => p.key === paramKey);
     
-    // Check if it's an attribut parameter
     const isAttributParam = alwaysAttributParams.some(p => p.key === paramKey);
 
     if (isMesureParam) {
@@ -502,13 +533,27 @@ const keyMapping = {
       const category = keyMapping[paramKey]?.category || "general";
       
       let allSatisfied = true;
+      let hasInsufficientData = false;
+      
       if (limits.li !== "-") {
         const liResult = checkStatisticalCompliance(conformiteData, stats, limits, category, "li");
-        if (!liResult.satisfied) allSatisfied = false;
+        if (liResult.equation.includes("insuffisantes") || liResult.equation.includes("non disponible")) {
+          hasInsufficientData = true;
+        } else if (!liResult.satisfied) {
+          allSatisfied = false;
+        }
       }
       if (limits.ls !== "-") {
         const lsResult = checkStatisticalCompliance(conformiteData, stats, limits, category, "ls");
-        if (!lsResult.satisfied) allSatisfied = false;
+        if (lsResult.equation.includes("insuffisantes") || lsResult.equation.includes("non disponible")) {
+          hasInsufficientData = true;
+        } else if (!lsResult.satisfied) {
+          allSatisfied = false;
+        }
+      }
+      
+      if (hasInsufficientData) {
+        return { status: "Données insuffisantes", color: "grey" };
       }
       
       return { 
@@ -519,6 +564,13 @@ const keyMapping = {
 
     if (isAttributParam) {
       const attributeResult = checkEquationSatisfaction(values, limits, conditionsStatistiques);
+      
+      if (attributeResult.equation.includes("insuffisantes") || 
+          attributeResult.equation.includes("manquantes") || 
+          attributeResult.equation.includes("non chargées")) {
+        return { status: "Données insuffisantes", color: "grey" };
+      }
+      
       return { 
         status: attributeResult.satisfied ? "Satisfait" : "Non Satisfait", 
         color: attributeResult.satisfied ? "green" : "yellow" 
@@ -548,6 +600,9 @@ const keyMapping = {
     return <div className="error">{dataError}</div>;
   }
 
+  if (!dataToUse.length) {
+    return <div className="no-data">Aucune donnée disponible. Veuillez d'abord filtrer des échantillons.</div>;
+  }
 
   return (
     <div className="cement-table-page">
@@ -580,10 +635,18 @@ const keyMapping = {
                   const stats = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
                   
                   classCompliance[param.key] = { limits, stats, values };
+                  
+                  if (limits.li !== "-" || limits.ls !== "-") {
+                    const category = keyMapping[param.key]?.category || "general";
+                    if (limits.li !== "-") statisticalCompliance[`${param.key}_li`] = 
+                      checkStatisticalCompliance(conformiteData, allStats[param.key], limits, category, "li");
+                    if (limits.ls !== "-") statisticalCompliance[`${param.key}_ls`] = 
+                      checkStatisticalCompliance(conformiteData, allStats[param.key], limits, category, "ls");
+                  }
                 });
 
                 const isClassConforme = calculateClassConformity(classCompliance, statisticalCompliance, conditionsStatistiques);
-
+                
                 return (
                   <React.Fragment key={classe}>
                     <tr key={`${classe}-name`}>
@@ -622,7 +685,13 @@ const keyMapping = {
                         }
 
                         return (
-                          <td key={param.key} style={{ color, fontWeight: "bold", backgroundColor: color === "green" ? "#e8f5e8" : color === "red" ? "#ffe8e8" : color === "grey" ? "#f0f0f0" : "transparent" }}>
+                          <td key={param.key} style={{ 
+                            color, 
+                            fontWeight: "bold", 
+                            backgroundColor: color === "green" ? "#e8f5e8" : 
+                                          color === "red" ? "#ffe8e8" : 
+                                          color === "grey" ? "#f0f0f0" : "transparent" 
+                          }}>
                             {displayValue}
                           </td>
                         );
@@ -651,7 +720,13 @@ const keyMapping = {
                         }
 
                         return (
-                          <td key={param.key} style={{ color, fontWeight: "bold", backgroundColor: color === "green" ? "#e8f5e8" : color === "red" ? "#ffe8e8" : color === "grey" ? "#f0f0f0" : "transparent" }}>
+                          <td key={param.key} style={{ 
+                            color, 
+                            fontWeight: "bold", 
+                            backgroundColor: color === "green" ? "#e8f5e8" : 
+                                          color === "red" ? "#ffe8e8" : 
+                                          color === "grey" ? "#f0f0f0" : "transparent" 
+                          }}>
                             {displayValue}
                           </td>
                         );
@@ -693,7 +768,7 @@ const keyMapping = {
           <p><span className="green-box"></span> Déviation/Défaut % &lt; 5%</p>
           <p><span className="yellow-box"></span> Contrôle statistique non satisfait</p>
           <p><span className="red-box"></span> Déviation/Défaut % ≥ 5%</p>
-          <p><span className="grey-box"></span> Données ND/NS</p>
+          <p><span className="grey-box"></span> Données insuffisantes/ND/NS</p>
         </div>
       </div>
 
