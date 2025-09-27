@@ -21,6 +21,32 @@ const formatExcelDate = (excelDate) => {
   return `${year}-${month}-${day}`;
 };
 
+const formatExcelTime = (excelTime) => {
+  if (!excelTime) return "";
+
+  // If it's already a string like "14:30" or "14:30:00"
+  if (typeof excelTime === "string") {
+    const parts = excelTime.split(":");
+    if (parts.length >= 2) {
+      const hours = String(parts[0]).padStart(2, "0");
+      const minutes = String(parts[1]).padStart(2, "0");
+      const seconds = parts[2] ? String(parts[2]).padStart(2, "0") : "00";
+      return `${hours}:${minutes}:${seconds}`;
+    }
+    return excelTime; // fallback
+  }
+
+  // If it's a number (Excel serial time)
+  if (!isNaN(excelTime)) {
+    const totalSeconds = Math.floor(excelTime * 86400);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return "";
+};
 
 const TraitDonnes = () => {
   const [clients, setClients] = useState([]);
