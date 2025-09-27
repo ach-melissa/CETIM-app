@@ -1,5 +1,6 @@
 import React, { useEffect, useState, forwardRef, useImperativeHandle } from "react"; 
 import axios from "axios";
+import "./EchantillonsTable.css";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -8,9 +9,14 @@ import { useData } from "../../context/DataContext";
 const formatExcelDate = (excelDate) => {
   if (!excelDate || isNaN(excelDate)) return "";
   const utc_days = Math.floor(excelDate - 25569);
-  const utc_value = utc_days * 86400; 
+  const utc_value = utc_days * 86400;
   const date_info = new Date(utc_value * 1000);
-  return date_info.toISOString().split("T")[0];
+
+  // Retourne YYYY-MM-DD en heure locale (pas UTC)
+  const year = date_info.getFullYear();
+  const month = String(date_info.getMonth() + 1).padStart(2, "0");
+  const day = String(date_info.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 const EchantillonsTable = forwardRef(
@@ -27,6 +33,8 @@ const EchantillonsTable = forwardRef(
       clients = [],
       produits = [],
       hasData,
+      ajoutsData ,
+
     },
     ref
   ) => {
@@ -47,7 +55,29 @@ const EchantillonsTable = forwardRef(
     const [editStartDate, setEditStartDate] = useState("");
     const [editEndDate, setEditEndDate] = useState("");
     const [isEditing, setIsEditing] = useState(false);
+    const [deleteType, setDeleteType] = useState("single");
+    const [editType, setEditType] = useState("single");
+    const [rowsToEdit, setRowsToEdit] = useState([]);
     const { updateFilteredData } = useData();
+
+    // Liste des produits qui nécessitent C3A
+    const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
+    
+    // Liste des produits qui nécessitent Ajout
+    const ajoutProducts = [
+      "CEM II/A-S", "CEM II/B-S", "CEM II/A-D", "CEM II/A-P", "CEM II/B-P",
+      "CEM II/A-Q", "CEM II/B-Q", "CEM II/A-V", "CEM II/B-V",
+      "CEM II/A-W", "CEM II/B-W", "CEM II/A-T", "CEM II/B-T",
+      "CEM II/A-L", "CEM II/B-L", "CEM II/A-LL", "CEM II/B-LL",
+      "CEM II/A-M", "CEM II/B-M"
+    ];
+
+    // Déterminer quelles colonnes afficher
+    const showC3A =
+  produitInfo &&
+  (produitInfo.famille?.code === "CEM I" || c3aProducts.includes(produitInfo.nom));
+
+    const showAjoutFields = produitInfo && ajoutProducts.includes(produitInfo.nom);
 
     const fetchRows = async () => {
       if (!clientId) return;
@@ -68,19 +98,26 @@ const EchantillonsTable = forwardRef(
         }
 
         const resp = await axios.get("http://localhost:5000/api/echantillons", { params });
-        setRows(resp.data || []);
+        const formattedData = (resp.data || []).map(item => ({
+         
+          ...item, // garde toutes les colonnes, dont id
+  date_test: item.date_test
+    ? new Date(item.date_test).toLocaleDateString("fr-CA")
+    : item.date_test, }));
+        
+        setRows(formattedData);
         setSelected(new Set());
 
-        updateFilteredData(resp.data || [], start, end);
+        updateFilteredData(formattedData, start, end);
         if (onTableDataChange) {
-          onTableDataChange(resp.data || [], start, end);
+          onTableDataChange(formattedData, start, end);
         }
       } catch (err) {
         console.error("Erreur fetch echantillons", err);
         setRows([]);
         updateFilteredData([], start, end);
         if (onTableDataChange) {
-          onTableDataChange([], start, end);
+          onTableDataChange([], "", "");
         }
       } finally {
         setLoading(false);
@@ -163,21 +200,6 @@ const EchantillonsTable = forwardRef(
       fetchCements();
     }, []);
 
-    const toggleRow = (id) => {
-      const s = new Set(selected);
-      if (s.has(id)) s.delete(id);
-      else s.add(id);
-      setSelected(s);
-    };
-
-    const toggleAll = () => {
-      if (selected.size === filteredRows.length) {
-        setSelected(new Set());
-      } else {
-        setSelected(new Set(filteredRows.map((r) => r.id)));
-      }
-    };
-
     const handleEdit = (id, field, value) => {
       setRows((prev) =>
         prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
@@ -187,10 +209,11 @@ const EchantillonsTable = forwardRef(
     const handleSave = async () => {
       try {
         const response = await axios.post("http://localhost:5000/api/echantillons/save", {
-          rows,
+          rows: rowsToEdit.length > 0 ? rowsToEdit : rows,
         });
         alert("Données sauvegardées avec succès !");
         setIsEditing(false);
+        setRowsToEdit([]);
         fetchRows();
       } catch (error) {
         console.error("Erreur sauvegarde:", error);
@@ -199,8 +222,13 @@ const EchantillonsTable = forwardRef(
     };
 
     const handleDeleteByDate = async () => {
-      if (!deleteStartDate && !deleteEndDate) {
-        alert("Veuillez spécifier au moins une date.");
+      if (deleteType === "single" && !deleteStartDate) {
+        alert("Veuillez spécifier une date.");
+        return;
+      }
+
+      if (deleteType === "range" && (!deleteStartDate || !deleteEndDate)) {
+        alert("Veuillez spécifier les deux dates pour la période.");
         return;
       }
 
@@ -209,18 +237,15 @@ const EchantillonsTable = forwardRef(
       }
 
       try {
-        // Get IDs to delete based on date range
         const rowsToDelete = rows.filter(row => {
           const rowDate = new Date(row.date_test);
           const start = deleteStartDate ? new Date(deleteStartDate) : null;
-          const end = deleteEndDate ? new Date(deleteEndDate) : null;
+          const end = deleteType === "single" ? start : (deleteEndDate ? new Date(deleteEndDate) : null);
           
-          if (start && end) {
+          if (deleteType === "single" && start) {
+            return rowDate.toDateString() === start.toDateString();
+          } else if (deleteType === "range" && start && end) {
             return rowDate >= start && rowDate <= end;
-          } else if (start) {
-            return rowDate >= start;
-          } else if (end) {
-            return rowDate <= end;
           }
           return false;
         });
@@ -252,36 +277,50 @@ const EchantillonsTable = forwardRef(
     };
 
     const handleEditByDate = async () => {
-      if (!editStartDate && !editEndDate) {
-        alert("Veuillez spécifier au moins une date.");
+      if (editType === "single" && !editStartDate) {
+        alert("Veuillez spécifier une date.");
+        return;
+      }
+
+      if (editType === "range" && (!editStartDate || !editEndDate)) {
+        alert("Veuillez spécifier les deux dates pour la période.");
         return;
       }
 
       // Filter rows by date range for editing
-      const rowsToEdit = rows.filter(row => {
+      const filteredRowsToEdit = rows.filter(row => {
         const rowDate = new Date(row.date_test);
         const start = editStartDate ? new Date(editStartDate) : null;
-        const end = editEndDate ? new Date(editEndDate) : null;
+        const end = editType === "single" ? start : (editEndDate ? new Date(editEndDate) : null);
         
-        if (start && end) {
+        if (editType === "single" && start) {
+          return rowDate.toDateString() === start.toDateString();
+        } else if (editType === "range" && start && end) {
           return rowDate >= start && rowDate <= end;
-        } else if (start) {
-          return rowDate >= start;
-        } else if (end) {
-          return rowDate <= end;
         }
         return false;
       });
 
-      if (rowsToEdit.length === 0) {
+      if (filteredRowsToEdit.length === 0) {
         alert("Aucun échantillon trouvé dans la période spécifiée.");
         return;
       }
 
+      // Set the rows to edit and enable editing mode
+      setRowsToEdit(filteredRowsToEdit);
       setIsEditing(true);
       setShowEditForm(false);
-      setEditStartDate("");
-      setEditEndDate("");
+      
+      // Select the rows to edit
+      const idsToEdit = filteredRowsToEdit.map(row => row.id);
+      setSelected(new Set(idsToEdit));
+    };
+
+    const handleCancelEdit = () => {
+      setIsEditing(false);
+      setRowsToEdit([]);
+      setSelected(new Set());
+      fetchRows(); // Refresh to get original data
     };
 
     const handleImportExcel = (e) => {
@@ -303,6 +342,7 @@ const EchantillonsTable = forwardRef(
           id: Date.now() + index,
           num_ech: row["N° ech"] || row["Ech"] || "",
           date_test: formatExcelDate(row["Date"] || row.date_test || ""),
+          heure_test: row["Heure"] || row["Heure essai"] || "",
           rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
           rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
           rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
@@ -332,7 +372,10 @@ const EchantillonsTable = forwardRef(
           .post("http://localhost:5000/api/echantillons/import", {
             clientId: clientId,
             produitId: clientTypeCimentId,
-            rows: formattedRows,
+            rows: formattedRows.map(r => ({
+    ...r,
+    heure_test: r.heure_test || null, // <- important
+  })),
           })
           .then((res) => {
             alert("Fichier importé avec succès !");
@@ -351,42 +394,56 @@ const EchantillonsTable = forwardRef(
     };
 
     const exportToExcel = () => {
-      const ws = XLSX.utils.json_to_sheet(filteredRows);
+      const dataToExport = rowsToEdit.length > 0 ? rowsToEdit : filteredRows;
+      const ws = XLSX.utils.json_to_sheet(dataToExport);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Echantillons");
       XLSX.writeFile(wb, "echantillons.xlsx");
     };
 
-    const exportToCSV = () => {
-      const ws = XLSX.utils.json_to_sheet(filteredRows);
-      const csv = XLSX.utils.sheet_to_csv(ws);
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "echantillons.csv";
-      link.click();
-    };
-
     const exportToPDF = () => {
+      const dataToExport = rowsToEdit.length > 0 ? rowsToEdit : filteredRows;
+      
+      // Déterminer les colonnes à exporter en fonction du type de produit
+      const headers = ["Ech", "Date", "RC2J", "RC7J", "RC28J", "Prise", "Stabilité", "Hydratation", "P. Feu", "R. Insoluble", "SO3", "Chlorure"];
+      
+      if (showC3A) {
+        headers.push("C3A");
+      }
+      
+      if (showAjoutFields) {
+        headers.push("Type Ajout");
+      }
+
       const doc = new jsPDF();
       doc.autoTable({
-        head: [
-          ["Ech", "Date", "RC2J", "RC7J", "RC28J", "Prise", "Stabilité", "Hydratation", "P. Feu", "R. Insoluble", "SO3", "Chlorure"]
-        ],
-        body: filteredRows.map(row => [
-          row.num_ech,
-          row.date_test,
-          row.rc2j,
-          row.rc7j,
-          row.rc28j,
-          row.prise,
-          row.stabilite,
-          row.hydratation,
-          row.pfeu,
-          row.r_insoluble,
-          row.so3,
-          row.chlorure
-        ])
+        head: [headers],
+        body: dataToExport.map(row => {
+          const baseRow = [
+            row.num_ech,
+            row.date_test,
+            row.rc2j,
+            row.rc7j,
+            row.rc28j,
+            row.prise,
+            row.stabilite,
+            row.hydratation,
+            row.pfeu,
+            row.r_insoluble,
+            row.so3,
+            row.chlorure
+          ];
+          
+          if (showC3A) {
+            baseRow.push(row.c3a);
+          }
+          
+          if (showAjoutFields) {
+            baseRow.push(row.type_ajout);
+          }
+          
+          return baseRow;
+        })
       });
       doc.save("echantillons.pdf");
     };
@@ -407,9 +464,27 @@ const EchantillonsTable = forwardRef(
       setShowDateFilter(false);
     };
 
-    // Determine which fields to show based on cement type
-    const showC3A = produitInfo && produitInfo.nom && produitInfo.nom.includes("CEM I");
-    const showAjoutFields = produitInfo && produitInfo.nom && !produitInfo.nom.includes("CEM I");
+    // Use rowsToEdit when in editing mode, otherwise use filteredRows
+    const displayRows = isEditing && rowsToEdit.length > 0 ? rowsToEdit : filteredRows;
+
+    // Calculer le nombre de colonnes pour le colspan
+    const colSpanCount = 12 + (showC3A ? 1 : 0) + (showAjoutFields ? 1 : 0);
+ 
+const getAjoutDescription = (codeAjout) => {
+  if (!codeAjout || !ajoutsData) return "";
+
+  // Découper en parties (ex: "S-L" → ["S","L"])
+  const parts = codeAjout.split("-");
+
+  // Remplacer chaque partie par sa description
+  const descriptions = parts.map((part) => {
+    const ajout = ajoutsData[part];
+    return ajout ? ajout.description : part; // fallback au code brut
+  });
+
+  // Assembler
+  return descriptions.join(" + ");
+};
 
     return (
       <div>
@@ -422,15 +497,39 @@ const EchantillonsTable = forwardRef(
                 <button onClick={() => setShowDeleteForm(false)}>×</button>
               </div>
               <div className="modal-body">
+                <div className="date-selection">
+                  <label>
+                    <input 
+                      type="radio" 
+                      name="deleteType" 
+                      value="single" 
+                      checked={deleteType === "single"}
+                      onChange={(e) => setDeleteType(e.target.value)}
+                    />
+                    Une seule date
+                  </label>
+                  <label>
+                    <input 
+                      type="radio" 
+                      name="deleteType" 
+                      value="range" 
+                      checked={deleteType === "range"}
+                      onChange={(e) => setDeleteType(e.target.value)}
+                    />
+                    Par période
+                  </label>
+                </div>
                 <label>
-                  Date de début:
+                  Date {deleteType === "single" ? "" : "de début"}:
                   <input type="date" value={deleteStartDate} onChange={(e) => setDeleteStartDate(e.target.value)} />
                 </label>
-                <label>
-                  Date de fin:
-                  <input type="date" value={deleteEndDate} onChange={(e) => setDeleteEndDate(e.target.value)} />
-                </label>
-                <p>Laissez un champ vide pour supprimer à partir de/ jusqu'à une date spécifique.</p>
+                {deleteType === "range" && (
+                  <label>
+                    Date de fin:
+                    <input type="date" value={deleteEndDate} onChange={(e) => setDeleteEndDate(e.target.value)} />
+                  </label>
+                )}
+                <p>Les échantillons correspondant à la sélection seront supprimés définitivement.</p>
               </div>
               <div className="modal-footer">
                 <button onClick={() => setShowDeleteForm(false)}>Annuler</button>
@@ -449,15 +548,39 @@ const EchantillonsTable = forwardRef(
                 <button onClick={() => setShowEditForm(false)}>×</button>
               </div>
               <div className="modal-body">
+                <div className="date-selection">
+                  <label>
+                    <input 
+                      type="radio" 
+                      name="editType" 
+                      value="single" 
+                      checked={editType === "single"}
+                      onChange={(e) => setEditType(e.target.value)}
+                    />
+                    Une seule date
+                  </label>
+                  <label>
+                    <input 
+                      type="radio" 
+                      name="editType" 
+                      value="range" 
+                      checked={editType === "range"}
+                      onChange={(e) => setEditType(e.target.value)}
+                    />
+                    Par période
+                  </label>
+                </div>
                 <label>
-                  Date de début:
+                  Date {editType === "single" ? "" : "de début"}:
                   <input type="date" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)} />
                 </label>
-                <label>
-                  Date de fin:
-                  <input type="date" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)} />
-                </label>
-                <p>Laissez un champ vide pour modifier à partir de/ jusqu'à une date spécifique.</p>
+                {editType === "range" && (
+                  <label>
+                    Date de fin:
+                    <input type="date" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)} />
+                  </label>
+                )}
+                <p>Les échantillons correspondant à la sélection seront modifiables.</p>
               </div>
               <div className="modal-footer">
                 <button onClick={() => setShowEditForm(false)}>Annuler</button>
@@ -476,6 +599,25 @@ const EchantillonsTable = forwardRef(
                 <button onClick={() => setShowDateFilter(false)}>×</button>
               </div>
               <div className="modal-body">
+                <div className="date-selection">
+                  <label>
+                    <input 
+                      type="radio" 
+                      name="filterType" 
+                      value="single" 
+                      defaultChecked 
+                    />
+                    Une seule date
+                  </label>
+                  <label>
+                    <input 
+                      type="radio" 
+                      name="filterType" 
+                      value="range" 
+                    />
+                    Par période
+                  </label>
+                </div>
                 <label>
                   Du:
                   <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
@@ -499,15 +641,24 @@ const EchantillonsTable = forwardRef(
             <>
               <button onClick={() => setShowEditForm(true)}>Modifier</button>
               <button onClick={() => setShowDeleteForm(true)}>Supprimer</button>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleImportExcel}
+                style={{ display: "none" }}
+                id="import-excel"
+              />
+              <button onClick={() => document.getElementById("import-excel").click()}>
+                Importer Excel
+              </button>
               <button onClick={exportToExcel}>Export Excel</button>
-              <button onClick={exportToCSV}>Export CSV</button>
               <button onClick={exportToPDF}>Export PDF</button>
               <button onClick={handlePrint}>Imprimer</button>
             </>
           ) : (
             <>
               <button onClick={handleSave}>Sauvegarder</button>
-              <button onClick={() => setIsEditing(false)}>Annuler</button>
+              <button onClick={handleCancelEdit}>Annuler</button>
             </>
           )}
         </div>
@@ -529,20 +680,23 @@ const EchantillonsTable = forwardRef(
           </p>
           <h2>Données à traiter</h2>
           <h2>Période du {start || "......"} au {end || "..........."}</h2>
-          {produitInfo && <h3>{produitInfo.description}</h3>}
+          {produitInfo && (
+            <>
+              <h3>{produitInfo.description}</h3>
+              <p><strong>Type: {produitInfo.nom}</strong></p>
+            </>
+          )}
+          {isEditing && rowsToEdit.length > 0 && (
+            <div style={{ backgroundColor: "#e6f7ff", padding: "10px", borderRadius: "5px", marginTop: "10px" }}>
+              <strong>Mode édition :</strong> Vous modifiez {rowsToEdit.length} échantillon(s)
+            </div>
+          )}
         </div>
 
         <div className="table-container">
           <table className="table">
             <thead>
               <tr>
-                <th>
-                  <input
-                    type="checkbox"
-                    onChange={toggleAll}
-                    checked={filteredRows.length > 0 && selected.size === filteredRows.length}
-                  />
-                </th>
                 <th>Ech</th>
                 <th>Date</th>
                 <th>RC2J</th>
@@ -556,20 +710,15 @@ const EchantillonsTable = forwardRef(
                 <th>SO3</th>
                 <th>Chlorure</th>
                 {showC3A && <th>C3A</th>}
-                {showAjoutFields && <th>Taux Ajout</th>}
-                {showAjoutFields && <th>Type Ajout</th>}
+                {showAjoutFields &&  <>
+    <th>Type Ajout</th>
+    <th>Description Ajout</th>
+  </>}
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((row) => (
-                <tr key={row.id} className={selected.has(row.id) ? "selected" : ""}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={selected.has(row.id)}
-                      onChange={() => toggleRow(row.id)}
-                    />
-                  </td>
+              {displayRows.map((row) => (
+                <tr key={row.id}>
                   <td>{row.num_ech}</td>
                   <td>{row.date_test}</td>
                   <td>
@@ -663,30 +812,24 @@ const EchantillonsTable = forwardRef(
                     </td>
                   )}
                   {showAjoutFields && (
-                    <td>
-                      <input
-                        type="number"
-                        value={row.ajout_percent || ""}
-                        onChange={(e) => handleEdit(row.id, "ajout_percent", e.target.value)}
-                        disabled={!isEditing}
-                      />
-                    </td>
-                  )}
-                  {showAjoutFields && (
-                    <td>
-                      <input
-                        type="text"
-                        value={row.type_ajout || ""}
-                        onChange={(e) => handleEdit(row.id, "type_ajout", e.target.value)}
-                        disabled={!isEditing}
-                      />
-                    </td>
-                  )}
+  <>
+    <td>
+      <input
+        type="text"
+        value={row.type_ajout || ""}
+        onChange={(e) => handleEdit(row.id, "type_ajout", e.target.value)}
+        disabled={!isEditing}
+      />
+    </td>
+    <td>{getAjoutDescription(row.type_ajout)}</td>
+  </>
+)}
+
                 </tr>
               ))}
-              {filteredRows.length === 0 && (
+              {displayRows.length === 0 && (
                 <tr>
-                  <td colSpan={13 + (showC3A ? 1 : 0) + (showAjoutFields ? 2 : 0)}>Aucune donnée</td>
+                  <td colSpan={colSpanCount}>Aucune donnée</td>
                 </tr>
               )}
             </tbody>

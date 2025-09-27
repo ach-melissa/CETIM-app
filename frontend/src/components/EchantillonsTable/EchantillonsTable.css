@@ -1,0 +1,280 @@
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.3rem;
+}
+
+.modal-header button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.modal-header button:hover {
+  color: #333;
+}
+
+.modal-body {
+  margin-bottom: 20px;
+}
+
+.modal-body label {
+  display: block;
+  margin-bottom: 15px;
+  font-weight: 500;
+  color: #34495e;
+}
+
+.modal-body input {
+  width: 100%;
+  padding: 8px 12px;
+  margin-top: 5px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+
+.modal-body p {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  margin-top: 10px;
+  font-style: italic;
+}
+
+.date-selection {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.date-selection label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 0;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.modal-footer button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.modal-footer button:first-child {
+  background-color: #95a5a6;
+  color: white;
+}
+
+.modal-footer button:first-child:hover {
+  background-color: #7f8c8d;
+}
+
+.modal-footer button:last-child {
+  background-color: #3498db;
+  color: white;
+}
+
+.modal-footer button:last-child:hover {
+  background-color: #2980b9;
+}
+
+/* Action Buttons Top */
+.action-buttons-top {
+  margin-bottom: 1.5rem;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.action-buttons-top button {
+  padding: 8px 16px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.action-buttons-top button:hover {
+  background-color: #2980b9;
+}
+
+/* Table Container with Horizontal Scroll ONLY for table */
+.table-container {
+  overflow-x: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  background-color: white;
+  max-width: 100%;
+}
+
+/* Table Styles */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1200px;
+  font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+  border: 1px solid #dee2e6;
+  padding: 10px 12px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.table th {
+  background-color: #f8f9fa;
+  color: #2c3e50;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.table tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.table tr:hover {
+  background-color: #f1f9ff;
+}
+
+/* Input fields in table */
+.table input[type="number"],
+.table input[type="text"] {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+/* Enable inputs only when editing and selected */
+.table input:not(:disabled) {
+  border: 1px solid #ced4da;
+  background-color: white;
+}
+
+.table input:not(:disabled):focus {
+  border-color: #3498db;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.table input:disabled {
+  background-color: transparent;
+  cursor: default;
+  color: inherit;
+  border: none;
+}
+
+/* Highlight selected rows for editing */
+.table tr.selected-row {
+  background-color: #e3f2fd;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .action-buttons-top {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .action-buttons-top button {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .modal-content {
+    width: 95%;
+    margin: 10px;
+  }
+  
+  .table-container {
+    font-size: 0.8rem;
+  }
+  
+  .table th,
+  .table td {
+    padding: 6px 8px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .action-buttons-top,
+  .modal-overlay {
+    display: none !important;
+  }
+  
+  .table-container {
+    overflow-x: visible;
+  }
+  
+  .table {
+    min-width: auto;
+    width: 100%;
+  }
+  
+  .table input {
+    border: none !important;
+    background: transparent !important;
+  }
+}
