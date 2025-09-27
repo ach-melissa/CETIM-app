@@ -107,34 +107,55 @@ const calculateStats = (data, key) => {
 
 
 const evaluateLimits = (data, key, li, ls, lg) => {
-  // Fonction helper pour parser correctement
-  const safeParse = (val) => {
-    if (val === null || val === undefined || val === "" || val === "-") return NaN;
-    return parseFloat(String(val).replace(',', '.'));
-  };
-
-  const values = data.map((row) => safeParse(row[key])).filter((v) => !isNaN(v));
-  
-  if (!values.length) {
-    return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
+  const values = data.map(v => parseFloat(v[key])).filter(v => !isNaN(v));
+  if (values.length === 0) {
+    return {
+      count: 0,
+      mean: "-",
+      stdDev: "-",
+      countLI: "-",
+      percentLI: "-",
+      countLS: "-",
+      percentLS: "-",
+      countLG: "-",
+      percentLG: "-"
+    };
   }
 
-  const liNum = safeParse(li);
-  const lsNum = safeParse(ls);
-  const lgNum = safeParse(lg);
+  const count = values.length;
+  const mean = values.reduce((a, b) => a + b, 0) / count;
+  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / count;
+  const stdDev = Math.sqrt(variance);
 
-  const belowLI = !isNaN(liNum) ? values.filter((v) => v < liNum).length : 0;
-  const aboveLS = !isNaN(lsNum) ? values.filter((v) => v > lsNum).length : 0;
-  const belowLG = !isNaN(lgNum) ? values.filter((v) => v < lgNum).length : 0;
-  const total = values.length;
+  const countLI = (li !== null && li !== "-") ? values.filter(v => v < parseFloat(li)).length : 0;
+  const countLS = (ls !== null && ls !== "-") ? values.filter(v => v > parseFloat(ls)).length : 0;
+  
+  // ✅ CORRECTION : Logique améliorée pour countLG selon le type de paramètre
+  let countLG = 0;
+  
+  if (lg !== null && lg !== "-") {
+    const lgValue = parseFloat(lg);
+    
+    // Paramètres de résistance et temps de début de prise : valeurs INFÉRIEURES à la limite garantie
+    if (key === 'rc2j' || key === 'rc7j' || key === 'rc28j' || key === 'prise') {
+      countLG = values.filter(v => v < lgValue).length;
+    } 
+    // Autres paramètres (stabilité, SO3, chlorure, etc.) : valeurs SUPÉRIEURES à la limite garantie
+    else {
+      countLG = values.filter(v => v > lgValue).length;
+    }
+  }
 
   return {
-    belowLI: belowLI > 0 ? belowLI : "-",
-    aboveLS: aboveLS > 0 ? aboveLS : "-",
-    belowLG: belowLG > 0 ? belowLG : "-",
-    percentLI: belowLI > 0 ? ((belowLI / total) * 100).toFixed(1) : "-",
-    percentLS: aboveLS > 0 ? ((aboveLS / total) * 100).toFixed(1) : "-",
-    percentLG: belowLG > 0 ? ((belowLG / total) * 100).toFixed(1) : "-",
+    count,
+    mean: mean.toFixed(2),
+    stdDev: stdDev.toFixed(2),
+    countLI,
+    percentLI: countLI > 0 ? ((countLI / count) * 100).toFixed(2) : "0.00",
+    countLS,
+    percentLS: countLS > 0 ? ((countLS / count) * 100).toFixed(2) : "0.00",
+    countLG,
+    percentLG: countLG > 0 ? ((countLG / count) * 100).toFixed(2) : "0.00",
   };
 };
 
