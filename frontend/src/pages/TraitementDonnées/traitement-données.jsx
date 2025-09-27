@@ -22,7 +22,7 @@ const TraitDonnes = () => {
   const [produits, setProduits] = useState([]);
   const [clientTypeCimentId, setClientTypeCimentId] = useState("");
   const [produitDescription, setProduitDescription] = useState("");
-  const [produitFamille, setProduitFamille] = useState(""); // New state for famille
+  const [produitFamille, setProduitFamille] = useState("");
   const [phase, setPhase] = useState("");
   const [tableData, setTableData] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
@@ -100,9 +100,8 @@ const TraitDonnes = () => {
     const produit = produits.find((p) => p.id == clientTypeCimentId);
     if (produit) {
       setProduitDescription(produit.description);
-      // Set famille information
       if (produit.famille) {
-        setProduitFamille(produit.famille.nom); // or produit.famille.code depending on what you need
+        setProduitFamille(produit.famille.nom);
       }
     }
   }, [clientTypeCimentId, produits]);
@@ -110,7 +109,7 @@ const TraitDonnes = () => {
   // Add cement for selected client
   const addCementForClient = async () => {
     if (!newCement) {
-      setError("Veuillez sélectionner un ciment.");
+      alert("Veuillez sélectionner un ciment.");
       return;
     }
 
@@ -126,7 +125,7 @@ const TraitDonnes = () => {
         }),
       });
 
-      setSuccess("Ciment ajouté au client avec succès !");
+      alert("Ciment ajouté au client avec succès !");
       setError("");
       setNewCement("");
       setShowNewTypeForm(false);
@@ -139,8 +138,7 @@ const TraitDonnes = () => {
         });
     } catch (err) {
       console.error("Erreur ajout ciment:", err);
-      setError("Erreur lors de l'ajout du ciment.");
-      setSuccess("");
+      alert("Erreur lors de l'ajout du ciment.");
     }
   };
 
@@ -150,7 +148,7 @@ const TraitDonnes = () => {
     if (!file) return;
 
     if (!selectedClient || !clientTypeCimentId) {
-      setError("Veuillez sélectionner un client et un produit avant d'importer.");
+      alert("Veuillez sélectionner un client et un produit avant d'importer.");
       return;
     }
 
@@ -200,23 +198,24 @@ const TraitDonnes = () => {
         if (!res.ok) {
           const error = await res.json();
           console.error("Import failed:", error);
-          setError("Erreur lors de l'importation des données.");
+          alert("Erreur lors de l'importation des données.");
           return;
         }
 
-        setSuccess("Fichier Excel importé et enregistré en base !");
+        alert("Fichier Excel importé et enregistré en base !");
         setError("");
         tableRef.current?.refresh();
+        // Reset file input to allow importing another file
+        e.target.value = "";
       } catch (err) {
         console.error("Erreur import:", err);
-        setError("Impossible d'importer les données.");
-        setSuccess("");
+        alert("Impossible d'importer les données.");
       }
     };
 
     reader.onerror = (err) => {
       console.error("FileReader error:", err);
-      setError("Erreur lors de la lecture du fichier.");
+      alert("Erreur lors de la lecture du fichier.");
     };
 
     reader.readAsBinaryString(file);
@@ -249,8 +248,6 @@ const TraitDonnes = () => {
     <div className="trait-donnees-container">
       <Header />
       <h1 className="trait-donnees-title">Traitement Données</h1>
-      {error && <div className="error-message">{error}</div>}
-      {success && <div className="success-message">{success}</div>}
       
       <div className="tabs-container">
         <button className={activeTab === "donnees" ? "active-tab" : "tab"} onClick={() => setActiveTab("donnees")}>
@@ -349,11 +346,15 @@ const TraitDonnes = () => {
           ref={tableRef}
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
-          produitInfo={selectedProduitInfo} // Pass the complete produit info
+          produitInfo={selectedProduitInfo}
           phase={phase}
           tableData={tableData}
           selectedRows={selectedRows}
-          handleTableDataChange={handleTableDataChange}
+          onTableDataChange={(data, s, e) => {
+            setTableData(data);
+            setStartDate(s);
+            setEndDate(e);
+          }}
         />
       )}
 
@@ -362,7 +363,7 @@ const TraitDonnes = () => {
           ref={tableRef}
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
-          produitInfo={selectedProduitInfo} // Pass the complete produit info
+          produitInfo={selectedProduitInfo}
           initialStart={startDate}
           initialEnd={endDate}
           clients={clients}
@@ -380,7 +381,7 @@ const TraitDonnes = () => {
           ref={tableRef}
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
-          produitInfo={selectedProduitInfo} // Pass the complete produit info
+          produitInfo={selectedProduitInfo}
           initialStart={startDate}
           initialEnd={endDate}
           clients={clients}
@@ -393,7 +394,7 @@ const TraitDonnes = () => {
           ref={tableRef}
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
-          produitInfo={selectedProduitInfo} // Pass the complete produit info
+          produitInfo={selectedProduitInfo}
           initialStart={startDate}
           initialEnd={endDate}
           clients={clients}
@@ -411,7 +412,7 @@ const TraitDonnes = () => {
           ref={tableRef}
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
-          produitInfo={selectedProduitInfo} // Pass the complete produit info
+          produitInfo={selectedProduitInfo}
           initialStart={startDate}
           initialEnd={endDate}
           clients={clients}

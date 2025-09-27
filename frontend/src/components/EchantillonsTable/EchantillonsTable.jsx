@@ -7,13 +7,11 @@ import { useData } from "../../context/DataContext";
 
 const formatExcelDate = (excelDate) => {
   if (!excelDate || isNaN(excelDate)) return "";
-  // Convert Excel serial date to JS Date
   const utc_days = Math.floor(excelDate - 25569);
   const utc_value = utc_days * 86400; 
   const date_info = new Date(utc_value * 1000);
-  return date_info.toISOString().split("T")[0]; // YYYY-MM-DD
+  return date_info.toISOString().split("T")[0];
 };
-
 
 const EchantillonsTable = forwardRef(
   (
@@ -25,7 +23,7 @@ const EchantillonsTable = forwardRef(
       onTableDataChange,
       initialStart,
       initialEnd,
-      produitDescription,
+      produitInfo,
       clients = [],
       produits = [],
       hasData,
@@ -42,8 +40,13 @@ const EchantillonsTable = forwardRef(
     const [newCement, setNewCement] = useState(null);
     const [cementList, setCementList] = useState([]);
     const [showDateFilter, setShowDateFilter] = useState(false);
+    const [showDeleteForm, setShowDeleteForm] = useState(false);
+    const [showEditForm, setShowEditForm] = useState(false);
+    const [deleteStartDate, setDeleteStartDate] = useState("");
+    const [deleteEndDate, setDeleteEndDate] = useState("");
+    const [editStartDate, setEditStartDate] = useState("");
+    const [editEndDate, setEditEndDate] = useState("");
     const [isEditing, setIsEditing] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
     const { updateFilteredData } = useData();
 
     const fetchRows = async () => {
@@ -118,13 +121,12 @@ const EchantillonsTable = forwardRef(
         }
 
         alert("Ciment ajouté au client avec succès !");
-        setNewCement(""); // Clear the selected cement
-        setShowNewTypeForm(false); // Close the form
+        setNewCement("");
+        setShowNewTypeForm(false);
         
-        // Refresh the product list
         fetch(`http://localhost:5000/api/produits/${clientId}`)
           .then((res) => res.json())
-          .then((data) => setProduits(data))
+          .then((data) => produits = data)
           .catch((err) => alert("Erreur lors du chargement des produits."));
         
       } catch (err) {
@@ -157,7 +159,6 @@ const EchantillonsTable = forwardRef(
       }
     }, [rows, selectedType]);
 
-    // Fetch cements on component mount
     useEffect(() => {
       fetchCements();
     }, []);
@@ -186,55 +187,108 @@ const EchantillonsTable = forwardRef(
     const handleSave = async () => {
       try {
         const response = await axios.post("http://localhost:5000/api/echantillons/save", {
-          rows, // The data to be saved
+          rows,
         });
-        console.log("Saved successfully:", response.data);
-        alert("Data saved successfully!");
+        alert("Données sauvegardées avec succès !");
         setIsEditing(false);
+        fetchRows();
       } catch (error) {
-        console.error("Error saving data:", error);
-        alert("Error while saving data.");
+        console.error("Erreur sauvegarde:", error);
+        alert("Erreur lors de la sauvegarde des données.");
       }
     };
 
-    const handleDelete = async () => {
-      if (selected.size === 0) {
-        alert("Veuillez sélectionner au moins un échantillon à supprimer.");
+    const handleDeleteByDate = async () => {
+      if (!deleteStartDate && !deleteEndDate) {
+        alert("Veuillez spécifier au moins une date.");
         return;
       }
 
-      if (!window.confirm("Êtes-vous sûr de vouloir supprimer les échantillons sélectionnés ? Cette action est irréversible.")) {
+      if (!window.confirm("Êtes-vous sûr de vouloir supprimer les échantillons dans cette période ? Cette action est irréversible.")) {
         return;
       }
 
       try {
+        // Get IDs to delete based on date range
+        const rowsToDelete = rows.filter(row => {
+          const rowDate = new Date(row.date_test);
+          const start = deleteStartDate ? new Date(deleteStartDate) : null;
+          const end = deleteEndDate ? new Date(deleteEndDate) : null;
+          
+          if (start && end) {
+            return rowDate >= start && rowDate <= end;
+          } else if (start) {
+            return rowDate >= start;
+          } else if (end) {
+            return rowDate <= end;
+          }
+          return false;
+        });
+
+        const idsToDelete = rowsToDelete.map(row => row.id);
+
+        if (idsToDelete.length === 0) {
+          alert("Aucun échantillon trouvé dans la période spécifiée.");
+          return;
+        }
+
         const response = await axios.post("http://localhost:5000/api/echantillons/delete", {
-          ids: Array.from(selected),
+          ids: idsToDelete,
         });
 
         if (response.data.success) {
-          alert("Échantillons supprimés avec succès !");
-          fetchRows(); // Refresh the data
-          setIsDeleting(false);
-          setSelected(new Set());
+          alert(`${idsToDelete.length} échantillon(s) supprimé(s) avec succès !`);
+          setShowDeleteForm(false);
+          setDeleteStartDate("");
+          setDeleteEndDate("");
+          fetchRows();
         } else {
           alert("Erreur lors de la suppression des échantillons.");
         }
       } catch (error) {
-        console.error("Error deleting data:", error);
+        console.error("Erreur suppression:", error);
         alert("Erreur lors de la suppression des échantillons.");
       }
+    };
+
+    const handleEditByDate = async () => {
+      if (!editStartDate && !editEndDate) {
+        alert("Veuillez spécifier au moins une date.");
+        return;
+      }
+
+      // Filter rows by date range for editing
+      const rowsToEdit = rows.filter(row => {
+        const rowDate = new Date(row.date_test);
+        const start = editStartDate ? new Date(editStartDate) : null;
+        const end = editEndDate ? new Date(editEndDate) : null;
+        
+        if (start && end) {
+          return rowDate >= start && rowDate <= end;
+        } else if (start) {
+          return rowDate >= start;
+        } else if (end) {
+          return rowDate <= end;
+        }
+        return false;
+      });
+
+      if (rowsToEdit.length === 0) {
+        alert("Aucun échantillon trouvé dans la période spécifiée.");
+        return;
+      }
+
+      setIsEditing(true);
+      setShowEditForm(false);
+      setEditStartDate("");
+      setEditEndDate("");
     };
 
     const handleImportExcel = (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      if (
-        !window.confirm(
-          "Êtes-vous sûr de vouloir importer ce fichier ? Les données seront ajoutées à la base de données."
-        )
-      ) {
+      if (!window.confirm("Êtes-vous sûr de vouloir importer ce fichier ? Les données seront ajoutées à la base de données.")) {
         return;
       }
 
@@ -245,31 +299,25 @@ const EchantillonsTable = forwardRef(
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-   const formattedRows = jsonData.map((row, index) => ({
-  id: Date.now() + index,
-
-  num_ech: row["N° ech"] || row["Ech"] || "",
-  date_test: formatExcelDate(row["Date"] || row.date_test || ""),
-  rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
-  rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
-  rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
-
-  // Excel → DB
-  prise: row["Début prise(min)"] || "",
-  stabilite: row["Stabilité (mm)"] || "",
-  hydratation: row["Hydratation"] || "",
-
-  pfeu: row["Perte au feu (%)"] || "",
-  r_insoluble: row["Résidu insoluble (%)"] || "",
-  so3: row["SO3 (%)"] || "",
-  chlorure: row["Cl (%)"] || "",
-  c3a: row["C3A"] || "",
-  ajout_percent: row["Taux d'Ajouts (%)"] || "",
-  type_ajout: row["Type ajout"] || "",
-  source: row["SILO N°"] || "",
-}));
-
-
+        const formattedRows = jsonData.map((row, index) => ({
+          id: Date.now() + index,
+          num_ech: row["N° ech"] || row["Ech"] || "",
+          date_test: formatExcelDate(row["Date"] || row.date_test || ""),
+          rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
+          rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
+          rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
+          prise: row["Début prise(min)"] || "",
+          stabilite: row["Stabilité (mm)"] || "",
+          hydratation: row["Hydratation"] || "",
+          pfeu: row["Perte au feu (%)"] || "",
+          r_insoluble: row["Résidu insoluble (%)"] || "",
+          so3: row["SO3 (%)"] || "",
+          chlorure: row["Cl (%)"] || "",
+          c3a: row["C3A"] || "",
+          ajout_percent: row["Taux d'Ajouts (%)"] || "",
+          type_ajout: row["Type ajout"] || "",
+          source: row["SILO N°"] || "",
+        }));
 
         setRows((prevRows) => {
           const updated = [...prevRows, ...formattedRows];
@@ -283,16 +331,17 @@ const EchantillonsTable = forwardRef(
         axios
           .post("http://localhost:5000/api/echantillons/import", {
             clientId: clientId,
-            produitId: clientTypeCimentId, // This is the product ID
+            produitId: clientTypeCimentId,
             rows: formattedRows,
           })
           .then((res) => {
-            console.log("✅ Imported to DB:", res.data);
             alert("Fichier importé avec succès !");
+            e.target.value = ""; // Reset file input
+            fetchRows();
           })
           .catch((err) => {
             console.error("❌ Import error:", err);
-            alert("Erreur lors de l'importation. Voir console.");
+            alert("Erreur lors de l'importation.");
           });
 
         setSelected(new Set());
@@ -301,24 +350,16 @@ const EchantillonsTable = forwardRef(
       reader.readAsArrayBuffer(file);
     };
 
-    // Define exportToExcel outside of handleImportExcel to make it accessible
     const exportToExcel = () => {
-      // Convert the filtered rows to Excel format using XLSX
       const ws = XLSX.utils.json_to_sheet(filteredRows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Echantillons");
-
-      // Save the file as an Excel file
       XLSX.writeFile(wb, "echantillons.xlsx");
     };
 
-    // Define exportToCSV function to handle exporting data as CSV
     const exportToCSV = () => {
-      // Convert the filtered rows to CSV format using XLSX
       const ws = XLSX.utils.json_to_sheet(filteredRows);
       const csv = XLSX.utils.sheet_to_csv(ws);
-
-      // Create a blob from the CSV data and trigger download
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -326,7 +367,6 @@ const EchantillonsTable = forwardRef(
       link.click();
     };
 
-    // Define exportToPDF function to handle exporting data as PDF
     const exportToPDF = () => {
       const doc = new jsPDF();
       doc.autoTable({
@@ -348,13 +388,10 @@ const EchantillonsTable = forwardRef(
           row.chlorure
         ])
       });
-
       doc.save("echantillons.pdf");
     };
 
-    // Define handlePrint function
     const handlePrint = () => {
-      // Open the print dialog for the page content
       window.print();
     };
 
@@ -370,85 +407,115 @@ const EchantillonsTable = forwardRef(
       setShowDateFilter(false);
     };
 
+    // Determine which fields to show based on cement type
+    const showC3A = produitInfo && produitInfo.nom && produitInfo.nom.includes("CEM I");
+    const showAjoutFields = produitInfo && produitInfo.nom && !produitInfo.nom.includes("CEM I");
+
     return (
       <div>
-        {/* Date Filter Modal */}
-        {showDateFilter && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000
-          }}>
-            <div style={{
-              backgroundColor: 'white',
-              padding: '20px',
-              borderRadius: '8px',
-              width: '400px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3>Filtrer par date</h3>
-                <button 
-                  onClick={() => setShowDateFilter(false)}
-                  style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}
-                >
-                  ×
-                </button>
+        {/* Delete Form Modal */}
+        {showDeleteForm && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h3>Supprimer par date</h3>
+                <button onClick={() => setShowDeleteForm(false)}>×</button>
               </div>
-              
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
+              <div className="modal-body">
                 <label>
-                  Du{" "}
-                  <input 
-                    type="date" 
-                    value={start} 
-                    onChange={(e) => setStart(e.target.value)} 
-                    style={{ padding: '5px', width: '100%' }}
-                  />
+                  Date de début:
+                  <input type="date" value={deleteStartDate} onChange={(e) => setDeleteStartDate(e.target.value)} />
                 </label>
                 <label>
-                  Au{" "}
-                  <input 
-                    type="date" 
-                    value={end} 
-                    onChange={(e) => setEnd(e.target.value)} 
-                    style={{ padding: '5px', width: '100%' }}
-                  />
+                  Date de fin:
+                  <input type="date" value={deleteEndDate} onChange={(e) => setDeleteEndDate(e.target.value)} />
                 </label>
+                <p>Laissez un champ vide pour supprimer à partir de/ jusqu'à une date spécifique.</p>
               </div>
-              
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <button 
-                  onClick={handleClearDateFilter}
-                  style={{ padding: '8px 16px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                >
-                  Annuler
-                </button>
-                <button 
-                  onClick={handleApplyDateFilter}
-                  disabled={loading || !clientId}
-                  style={{ padding: '8px 16px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                >
-                  Traiter
-                </button>
+              <div className="modal-footer">
+                <button onClick={() => setShowDeleteForm(false)}>Annuler</button>
+                <button onClick={handleDeleteByDate}>Supprimer</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Date Filter Button - Only show when produit is selected */}
+        {/* Edit Form Modal */}
+        {showEditForm && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h3>Modifier par date</h3>
+                <button onClick={() => setShowEditForm(false)}>×</button>
+              </div>
+              <div className="modal-body">
+                <label>
+                  Date de début:
+                  <input type="date" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)} />
+                </label>
+                <label>
+                  Date de fin:
+                  <input type="date" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)} />
+                </label>
+                <p>Laissez un champ vide pour modifier à partir de/ jusqu'à une date spécifique.</p>
+              </div>
+              <div className="modal-footer">
+                <button onClick={() => setShowEditForm(false)}>Annuler</button>
+                <button onClick={handleEditByDate}>Modifier</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Date Filter Modal */}
+        {showDateFilter && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h3>Filtrer par date</h3>
+                <button onClick={() => setShowDateFilter(false)}>×</button>
+              </div>
+              <div className="modal-body">
+                <label>
+                  Du:
+                  <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+                </label>
+                <label>
+                  Au:
+                  <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+                </label>
+              </div>
+              <div className="modal-footer">
+                <button onClick={handleClearDateFilter}>Annuler</button>
+                <button onClick={handleApplyDateFilter}>Traiter</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons - Above the table */}
+        <div className="action-buttons-top">
+          {!isEditing ? (
+            <>
+              <button onClick={() => setShowEditForm(true)}>Modifier</button>
+              <button onClick={() => setShowDeleteForm(true)}>Supprimer</button>
+              <button onClick={exportToExcel}>Export Excel</button>
+              <button onClick={exportToCSV}>Export CSV</button>
+              <button onClick={exportToPDF}>Export PDF</button>
+              <button onClick={handlePrint}>Imprimer</button>
+            </>
+          ) : (
+            <>
+              <button onClick={handleSave}>Sauvegarder</button>
+              <button onClick={() => setIsEditing(false)}>Annuler</button>
+            </>
+          )}
+        </div>
+
+        {/* Date Filter Button */}
         {clientTypeCimentId && (
           <div style={{ marginBottom: "1rem" }}>
-            <button 
-              onClick={() => setShowDateFilter(true)}
-              style={{ padding: '8px 16px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-            >
+            <button onClick={() => setShowDateFilter(true)}>
               Commencer traitement
             </button>
           </div>
@@ -461,14 +528,12 @@ const EchantillonsTable = forwardRef(
             </strong>
           </p>
           <h2>Données à traiter</h2>
-          <h2>
-            Période du {start || "......"} au {end || "..........."}{" "}
-          </h2>
-          {clientTypeCimentId && <h3>{produitDescription}</h3>}
+          <h2>Période du {start || "......"} au {end || "..........."}</h2>
+          {produitInfo && <h3>{produitInfo.description}</h3>}
         </div>
 
         <div className="table-container">
-          <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
+          <table className="table">
             <thead>
               <tr>
                 <th>
@@ -490,6 +555,9 @@ const EchantillonsTable = forwardRef(
                 <th>R. Insoluble</th>
                 <th>SO3</th>
                 <th>Chlorure</th>
+                {showC3A && <th>C3A</th>}
+                {showAjoutFields && <th>Taux Ajout</th>}
+                {showAjoutFields && <th>Type Ajout</th>}
               </tr>
             </thead>
             <tbody>
@@ -584,44 +652,45 @@ const EchantillonsTable = forwardRef(
                       disabled={!isEditing}
                     />
                   </td>
+                  {showC3A && (
+                    <td>
+                      <input
+                        type="number"
+                        value={row.c3a || ""}
+                        onChange={(e) => handleEdit(row.id, "c3a", e.target.value)}
+                        disabled={!isEditing}
+                      />
+                    </td>
+                  )}
+                  {showAjoutFields && (
+                    <td>
+                      <input
+                        type="number"
+                        value={row.ajout_percent || ""}
+                        onChange={(e) => handleEdit(row.id, "ajout_percent", e.target.value)}
+                        disabled={!isEditing}
+                      />
+                    </td>
+                  )}
+                  {showAjoutFields && (
+                    <td>
+                      <input
+                        type="text"
+                        value={row.type_ajout || ""}
+                        onChange={(e) => handleEdit(row.id, "type_ajout", e.target.value)}
+                        disabled={!isEditing}
+                      />
+                    </td>
+                  )}
                 </tr>
               ))}
               {filteredRows.length === 0 && (
                 <tr>
-                  <td colSpan={13}>Aucune donnée</td>
+                  <td colSpan={13 + (showC3A ? 1 : 0) + (showAjoutFields ? 2 : 0)}>Aucune donnée</td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
-
-        <div style={{ marginBottom: 10 }}>
-          {!isEditing && !isDeleting && (
-            <>
-              <button onClick={() => setIsEditing(true)}>Modifier</button>
-              <button onClick={() => setIsDeleting(true)}>Supprimer</button>
-              <button onClick={exportToExcel}>Export Excel</button>
-              <button onClick={exportToCSV}>Export CSV</button>
-              <button onClick={exportToPDF}>Export PDF</button>
-              <button onClick={handlePrint}>Imprimer</button>
-            </>
-          )}
-          
-          {isEditing && (
-            <>
-              <button onClick={handleSave}>Sauvegarder</button>
-              <button onClick={() => setIsEditing(false)}>Annuler</button>
-            </>
-          )}
-          
-          {isDeleting && (
-            <>
-              <button onClick={handleDelete} disabled={selected.size === 0}>
-                Confirmer suppression
-              </button>
-              <button onClick={() => setIsDeleting(false)}>Annuler</button>
-            </>
-          )}
         </div>
 
         {/* New Cement Type Form */}
@@ -630,13 +699,10 @@ const EchantillonsTable = forwardRef(
             <h3>Ajouter un Nouveau Type de Ciment</h3>
             <label>
               Sélectionner le type de ciment:
-              <select
-                value={newCement}
-                onChange={(e) => setNewCement(e.target.value)}
-              >
+              <select value={newCement} onChange={(e) => setNewCement(e.target.value)}>
                 <option value="">-- Choisir ciment --</option>
                 {cementList
-                  .filter((cement) => !produits.some((p) => p.id === cement.id)) // Filter out cements the client already has
+                  .filter((cement) => !produits.some((p) => p.id === cement.id))
                   .map((cement) => (
                     <option key={cement.id} value={cement.id}>
                       {cement.nom}
