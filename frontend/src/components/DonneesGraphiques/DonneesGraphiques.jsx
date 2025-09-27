@@ -17,65 +17,153 @@ import {
 /* ---------- utils ---------- */
 const normalize = (s) => String(s ?? "").replace(/\s+/g, "").toUpperCase();
 
-const safeParse = (v) => {
-  if (v === null || v === undefined || v === "") return NaN;
-  if (typeof v === "number") return v;
-  const n = parseFloat(String(v).toString().replace(",", "."));
-  return Number.isFinite(n) ? n : NaN;
+const calculateStats = (data, key) => {
+  const missingValues = [];
+  const values = [];
+  
+  data.forEach((row, index) => {
+    const value = row[key];
+    
+    const isMissing = 
+      value === null || 
+      value === undefined || 
+      value === "" || 
+      value === " " || 
+      value === "NULL" || 
+      value === "null" ||
+      value === "undefined" ||
+      String(value).trim() === "" ||
+      String(value).toLowerCase() === "null" ||
+      String(value).toLowerCase() === "undefined";
+    
+    if (isMissing) {
+      missingValues.push({ line: index + 1, value: value, type: typeof value });
+    } else {
+      try {
+        const stringValue = String(value).trim().replace(',', '.');
+        const numericValue = parseFloat(stringValue);
+        
+        if (!isNaN(numericValue) && isFinite(numericValue)) {
+          values.push(numericValue);
+        } else {
+          missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "NaN or Infinite" });
+        }
+      } catch (error) {
+        missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "Conversion error" });
+      }
+    }
+  });
+
+  if (values.length === 0) {
+    return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
+  }
+
+  const count = values.length;
+  const min = values.reduce((a, b) => Math.min(a, b), values[0]);
+  const max = values.reduce((a, b) => Math.max(a, b), values[0]);
+  const sum = values.reduce((a, b) => a + b, 0);
+  const mean = sum / count;
+  
+  const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
+  const std = Math.sqrt(variance);
+  
+  return {
+    count,
+    min: min.toFixed(2),
+    max: max.toFixed(2),
+    mean: mean.toFixed(2),
+    std: std.toFixed(2),
+  };
+};
+
+const evaluateLimits = (data, key, li, ls, lg) => {
+  const safeParse = (val) => {
+    if (val === null || val === undefined || val === "" || val === "-") return NaN;
+    return parseFloat(String(val).replace(',', '.'));
+  };
+
+  const values = data.map((row) => safeParse(row[key])).filter((v) => !isNaN(v));
+  
+  if (!values.length) {
+    return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
+  }
+
+  const liNum = safeParse(li);
+  const lsNum = safeParse(ls);
+  const lgNum = safeParse(lg);
+
+  const belowLI = !isNaN(liNum) ? values.filter((v) => v < liNum).length : 0;
+  const aboveLS = !isNaN(lsNum) ? values.filter((v) => v > lsNum).length : 0;
+  const belowLG = !isNaN(lgNum) ? values.filter((v) => v < lgNum).length : 0;
+  const total = values.length;
+
+  return {
+    belowLI: belowLI > 0 ? belowLI : "-",
+    aboveLS: aboveLS > 0 ? aboveLS : "-",
+    belowLG: belowLG > 0 ? belowLG : "-",
+    percentLI: belowLI > 0 ? ((belowLI / total) * 100).toFixed(1) : "-",
+    percentLS: aboveLS > 0 ? ((aboveLS / total) * 100).toFixed(1) : "-",
+    percentLG: belowLG > 0 ? ((belowLG / total) * 100).toFixed(1) : "-",
+  };
 };
 
 const parseLimit = (val) => {
   if (val === null || val === undefined) return null;
-  const num = safeParse(val);
+  
+  if (val === "" || val === "-") return null;
+  
+  const num = parseFloat(String(val).replace(',', '.'));
   if (!isNaN(num)) return num;
+  
   const str = String(val).trim();
   return str === "" ? null : str;
 };
 
-const computeBasicStats = (vals = [], totalSamples = vals.length) => {
-  const numbers = vals.map(safeParse).filter((n) => !isNaN(n));
-  if (!numbers.length) {
-    return { count: 0, mean: null, min: null, max: null };
-  }
-
-  const sum = numbers.reduce((a, b) => a + b, 0);
-
-  return {
-    count: numbers.length,              // valid results
-    mean: sum / totalSamples,           // ✅ divided by total échantillons
-    min: Math.min(...numbers),
-    max: Math.max(...numbers),
-  };
-};
-
-
 /* ---------- component ---------- */
-export default function DonneesGraphiques({ selectedType, selectedCement }) {
+export default function DonneesGraphiques({ 
+  clientId, 
+  clientTypeCimentId, 
+  produitInfo,
+  produitDescription, 
+  clients = [], 
+  produits = [] 
+}) {
   const { filteredTableData = [], filterPeriod = {} } = useData();
 
   const [limitsData, setLimitsData] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedParameter, setSelectedParameter] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
-  const [selectedProductFamily, setSelectedProductFamily] = useState("");
-  const [selectedProductType, setSelectedProductType] = useState("");
 
+  const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
+  const ajoutProducts = [
+    "CEM II/A-S", "CEM II/B-S", "CEM II/A-D", "CEM II/A-P", "CEM II/B-P",
+    "CEM II/A-Q", "CEM II/B-Q", "CEM II/A-V", "CEM II/B-V",
+    "CEM II/A-W", "CEM II/B-W", "CEM II/A-T", "CEM II/B-T",
+    "CEM II/A-L", "CEM II/B-L", "CEM II/A-LL", "CEM II/B-LL",
+    "CEM II/A-M", "CEM II/B-M"
+  ];
 
-const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
-const ajoutProducts = [
-  "CEM II/A-S", "CEM II/B-S", "CEM II/A-D", "CEM II/A-P", "CEM II/B-P",
-  "CEM II/A-Q", "CEM II/B-Q", "CEM II/A-V", "CEM II/B-V",
-  "CEM II/A-W", "CEM II/B-W", "CEM II/A-T", "CEM II/B-T",
-  "CEM II/A-L", "CEM II/B-L", "CEM II/A-LL", "CEM II/B-LL",
-  "CEM II/A-M", "CEM II/B-M"
-];
+  // Get product type and famille from produitInfo with fallbacks
+  const selectedProductType = produitInfo?.nom || produitInfo?.code || "";
+  const selectedProductFamille = produitInfo?.famille?.code || "";
+  const selectedProductFamilleName = produitInfo?.famille?.nom || "";
 
-  useEffect(() => {
-    if (selectedCement) {
-      setSelectedProductFamily(selectedCement.famille_code || "");
-      setSelectedProductType(selectedCement.type_code || "");
+  // Determine famille from product type if not available in produitInfo
+  const determineFamilleFromType = (productType) => {
+    if (!productType) return "";
+    
+    const familleMatch = productType.match(/^(CEM [I|II|III|IV|V]+)/);
+    if (familleMatch) {
+      return familleMatch[1];
     }
-  }, [selectedCement]);
+    
+    return "";
+  };
+
+  // Final famille values with fallback
+  const finalFamilleCode = selectedProductFamille || determineFamilleFromType(selectedProductType);
+  const finalFamilleName = selectedProductFamilleName || finalFamilleCode;
 
   useEffect(() => {
     const fetchLimits = async () => {
@@ -94,7 +182,7 @@ const ajoutProducts = [
     fetchLimits();
   }, []);
 
-  // Map parameter keys to match your JSON structure (same as DonneesStatistiques)
+  // Map parameter keys to match your JSON structure
   const keyMapping = {
     rc2j: "resistance_2j",
     rc7j: "resistance_7j",
@@ -106,103 +194,84 @@ const ajoutProducts = [
     r_insoluble: "residu_insoluble",
     so3: "SO3",
     chlorure: "teneur_chlour",
-    ajt : "Ajout",
+    ajt: "ajout",
     c3a: "C3A",
   };
 
-  // Use the same getLimitsByClass function 
   const getLimitsByClass = (classe, key) => {
     const mockKey = keyMapping[key];
-    if (!mockKey || !limitsData[mockKey]) return { li: null, ls: null, lg: null };
+    if (!mockKey || !limitsData[mockKey]) {
+      return { li: null, ls: null, lg: null };
+    }
 
-    // Navigate the nested structure: parameter -> family -> type -> classes
     const parameterData = limitsData[mockKey];
     
-    // If we have both family and type, try to find the exact match
-    if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
-      const familyData = parameterData[selectedProductFamily];
-      
-      if (familyData[selectedProductType]) {
-        const typeData = familyData[selectedProductType];
-        const found = typeData.find(item => item.classe === classe);
-        if (found) {
-          return {
-            li: parseLimit(found.limit_inf),
-            ls: parseLimit(found.limit_max),
-            lg: parseLimit(found.garantie),
-          };
-        }
-      }
+    if (!parameterData[finalFamilleCode]) {
+      return { li: null, ls: null, lg: null };
     }
-    
-    // If exact match not found, try to find in the general family section
-    if (selectedProductFamily && parameterData[selectedProductFamily]) {
-      const familyData = parameterData[selectedProductFamily];
-      
-      // Look for a general type (like "CEM I" without specific subtype)
-      if (familyData[selectedProductFamily]) {
-        const generalTypeData = familyData[selectedProductFamily];
-        const found = generalTypeData.find(item => item.classe === classe);
-        if (found) {
-          return {
-            li: parseLimit(found.limit_inf),
-            ls: parseLimit(found.limit_max),
-            lg: parseLimit(found.garantie),
-          };
-        }
-      }
-      
-      // If still not found, try any type in the family
-      for (const typeKey in familyData) {
-        const typeData = familyData[typeKey];
-        const found = typeData.find(item => item.classe === classe);
-        if (found) {
-          return {
-            li: parseLimit(found.limit_inf),
-            ls: parseLimit(found.limit_max),
-            lg: parseLimit(found.garantie),
-          };
-        }
-      }
-    }
-    
-    // If still not found, try any family and type
-    for (const familyKey in parameterData) {
-      const familyData = parameterData[familyKey];
-      for (const typeKey in familyData) {
-        const typeData = familyData[typeKey];
-        const found = typeData.find(item => item.classe === classe);
-        if (found) {
-          return {
-            li: parseLimit(found.limit_inf),
-            ls: parseLimit(found.limit_max),
-            lg: parseLimit(found.garantie),
-          };
-        }
-      }
-    }
-    
 
-    if (key === "c3a") {
-  if (parameterData[selectedProductFamily]?.[selectedProductType]) {
-    const found = parameterData[selectedProductFamily][selectedProductType].find(item => item.classe === classe);
-    if (found) return { li: parseLimit(found.limit_inf), ls: parseLimit(found.limit_max), lg: parseLimit(found.garantie) };
-  }
-} else if (key === "ajt") {
-  if (parameterData[selectedProductType]) {
-    return {
-      li: parseLimit(parameterData[selectedProductType].limitInf ?? null),
-      ls: parseLimit(parameterData[selectedProductType].limitSup ?? null),
-      lg: null
+    const familleData = parameterData[finalFamilleCode];
+
+    // For "ajout" parameter, the structure is different
+    if (key === "ajt") {
+      const ajoutCode = selectedProductType.split('/').pop()?.split('-').pop()?.trim();
+      
+      if (!ajoutCode || !familleData[ajoutCode]) {
+        return { li: null, ls: null, lg: null };
+      }
+
+      const ajoutData = familleData[ajoutCode];
+      
+      const limits = {
+        li: parseLimit(ajoutData.limitInf ?? ajoutData.limit_inf),
+        ls: parseLimit(ajoutData.limitSup ?? ajoutData.limit_max),
+        lg: parseLimit(ajoutData.garantie)
+      };
+      
+      return limits;
+    }
+
+    // For other parameters, search for the class data
+    let classData = null;
+    
+    if (Array.isArray(familleData)) {
+      classData = familleData.find(item => item.classe === classe);
+    } else if (typeof familleData === 'object' && familleData[classe]) {
+      classData = familleData[classe];
+    } else {
+      for (const key in familleData) {
+        const subData = familleData[key];
+        if (Array.isArray(subData)) {
+          const found = subData.find(item => item.classe === classe);
+          if (found) {
+            classData = found;
+            break;
+          }
+        } else if (typeof subData === 'object' && subData[classe]) {
+          classData = subData[classe];
+          break;
+        } else if (typeof subData === 'object' && (subData.limit_inf || subData.limitInf)) {
+          classData = subData;
+          break;
+        }
+      }
+    }
+
+    if (!classData) {
+      return { li: null, ls: null, lg: null };
+    }
+
+    const limits = {
+      li: parseLimit(classData.limit_inf ?? classData.limitInf),
+      ls: parseLimit(classData.limit_max ?? classData.limitSup ?? classData.limitMax),
+      lg: parseLimit(classData.garantie ?? classData.garantieValue),
     };
-  }
-}
 
-    // Default fallback
-    return { li: null, ls: null, lg: null };
+    return limits;
   };
 
-  const parameters = [
+  // Parameters list
+  let parameters = [
     { key: "rc2j", label: "Résistance courante 2 jrs" },
     { key: "rc7j", label: "Résistance courante 7 jrs" },
     { key: "rc28j", label: "Résistance courante 28 jrs" },
@@ -213,15 +282,16 @@ const ajoutProducts = [
     { key: "r_insoluble", label: "Résidu Insoluble" },
     { key: "so3", label: "Teneur en sulfate" },
     { key: "chlorure", label: "Chlorure" },
-    
   ];
-  
+
+  // Add C3A if selected product is in c3aProducts
   if (c3aProducts.includes(selectedProductType)) {
-    baseParams.push({ key: "c3a", label: "C3A" });
+    parameters.push({ key: "c3a", label: "C3A" });
   }
 
+  // Add Ajout if selected product is in ajoutProducts
   if (ajoutProducts.includes(selectedProductType)) {
-    baseParams.push({ key: "ajt", label: "ajout" });
+    parameters.push({ key: "ajt", label: "Ajout" });
   }
 
   const classes = [
@@ -235,68 +305,101 @@ const ajoutProducts = [
       return { li: null, ls: null, lg: null };
     }
     return getLimitsByClass(selectedClass, selectedParameter);
-  }, [selectedParameter, selectedClass, limitsData, selectedProductFamily, selectedProductType]);
+  }, [selectedParameter, selectedClass, limitsData, finalFamilleCode, selectedProductType]);
 
+  // Utiliser calculateStats pour calculer les statistiques
+  const derivedStats = useMemo(() => {
+    if (!selectedParameter || !filteredTableData.length) {
+      return { 
+        count: 0, 
+        min: "-", 
+        max: "-", 
+        mean: "-", 
+        std: "-",
+        belowLI: "-", 
+        aboveLS: "-", 
+        belowLG: "-", 
+        percentLI: "-", 
+        percentLS: "-", 
+        percentLG: "-" 
+      };
+    }
+
+    // Calculer les statistiques de base
+    const basicStats = calculateStats(filteredTableData, selectedParameter);
+    
+    // Évaluer les limites
+    const limitStats = evaluateLimits(
+      filteredTableData, 
+      selectedParameter, 
+      currentLimits.li, 
+      currentLimits.ls, 
+      currentLimits.lg
+    );
+
+    return {
+      ...basicStats,
+      ...limitStats,
+      // Assurer la compatibilité avec le code existant
+      moyenne: basicStats.mean !== "-" ? Number(basicStats.mean) : null,
+      limiteInf: currentLimits.li,
+      limiteSup: currentLimits.ls,
+      limiteGarantie: currentLimits.lg,
+      // Mapper les noms pour la compatibilité
+      countBelowInf: limitStats.belowLI !== "-" ? limitStats.belowLI : 0,
+      countAboveSup: limitStats.aboveLS !== "-" ? limitStats.aboveLS : 0,
+      countBelowGarantie: limitStats.belowLG !== "-" ? limitStats.belowLG : 0,
+      percentBelowInf: limitStats.percentLI !== "-" ? parseFloat(limitStats.percentLI) : 0,
+      percentAboveSup: limitStats.percentLS !== "-" ? parseFloat(limitStats.percentLS) : 0,
+      percentBelowGarantie: limitStats.percentLG !== "-" ? parseFloat(limitStats.percentLG) : 0,
+    };
+  }, [filteredTableData, selectedParameter, currentLimits]);
+
+  // Préparer les données pour le graphique
   const chartData = useMemo(() => {
     if (!selectedParameter) return [];
-    return (filteredTableData || []).map((row, i) => ({
-      x: i + 1,
-      y: safeParse(row[selectedParameter]),
-      raw: row,
-    }));
+    
+    return filteredTableData.map((row, i) => {
+      const value = row[selectedParameter];
+      let numericValue = NaN;
+      
+      // Utiliser la même logique de parsing que calculateStats
+      if (value !== null && value !== undefined && value !== "" && value !== " " && 
+          value !== "NULL" && value !== "null" && value !== "undefined") {
+        try {
+          const stringValue = String(value).trim().replace(',', '.');
+          numericValue = parseFloat(stringValue);
+          if (isNaN(numericValue) || !isFinite(numericValue)) {
+            numericValue = NaN;
+          }
+        } catch (error) {
+          numericValue = NaN;
+        }
+      }
+      
+      return {
+        x: i + 1,
+        y: numericValue,
+        raw: row,
+      };
+    });
   }, [filteredTableData, selectedParameter]);
-
-const derivedStats = useMemo(() => {
-  if (!selectedParameter) return {};
-
-  // take Y values from chartData (already parsed)
-  const vals = chartData.map((p) => p.y);
-
-  // ✅ totalSamples = filteredTableData.length (even if some values NaN)
-  const basic = computeBasicStats(vals, filteredTableData.length);
-
-  const li = typeof currentLimits.li === "number" ? currentLimits.li : null;
-  const ls = typeof currentLimits.ls === "number" ? currentLimits.ls : null;
-  const lg = typeof currentLimits.lg === "number" ? currentLimits.lg : null;
-
-  const countBelow = (limit) =>
-    limit != null ? vals.filter((v) => v < limit).length : 0;
-  const countAbove = (limit) =>
-    limit != null ? vals.filter((v) => v > limit).length : 0;
-  const percent = (n) =>
-    filteredTableData.length
-      ? Math.round((n / filteredTableData.length) * 100)
-      : 0;
-
-  return {
-    ...basic,
-    moyenne: basic.mean != null ? Number(basic.mean.toFixed(2)) : null,
-    limiteInf: li,
-    limiteSup: ls,
-    limiteGarantie: lg,
-    countBelowInf: countBelow(li),
-    countAboveSup: countAbove(ls),
-    countBelowGarantie: countBelow(lg),
-    percentBelowInf: percent(countBelow(li)),
-    percentAboveSup: percent(countAbove(ls)),
-    percentBelowGarantie: percent(countBelow(lg)),
-  };
-}, [chartData, currentLimits, selectedParameter, filteredTableData.length]);
-
 
   if (loading) return <p className="no-data">Chargement des limites...</p>;
   if (!filteredTableData?.length)
     return <p className="no-data">Veuillez d'abord filtrer des échantillons.</p>;
 
   return (
-    <div className="dg-root">
-      <div className="dg-header">
+    <div className="dg-root">  
+      <div style={{ marginBottom: "1rem" }}>
+        <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
         <h2>Données Graphiques</h2>
-        <p>
-          Période: {filterPeriod.start} à {filterPeriod.end}
-        </p>
-        {selectedProductFamily && <p><strong>Famille: {selectedProductFamily}</strong></p>}
-        {selectedProductType && <p><strong>Type: {selectedProductType}</strong></p>}
+        {produitInfo && (
+          <>
+            <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
+          </>
+        )}
+        <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
       </div>
 
       <div className="dg-top-controls">
@@ -357,25 +460,23 @@ const derivedStats = useMemo(() => {
                 }
               />
               <Legend />
-<Scatter
-  name="Mesures"
-  data={chartData}
-  fill="#FFC107"
-  shape="circle"
-  size={5}   // 👉 try smaller values: 20, 15, 10, 5
-/>
+              <Scatter
+                name="Mesures"
+                data={chartData.filter(point => !isNaN(point.y))}
+                fill="#FFC107"
+                shape="circle"
+                size={5}
+              />
 
-
-              {typeof derivedStats.moyenne === "number" && !isNaN(derivedStats.moyenne) && (
-  <ReferenceLine
-    y={derivedStats.moyenne}
-    stroke="#800020"       // Burgundy color
-    strokeWidth={2}
-    strokeDasharray="5 5"  // optional: dashed line
-    label={{ value: "Moyenne", position: "right", fill: "#800020" }}
-  />
-)}
-
+              {derivedStats.mean !== "-" && !isNaN(derivedStats.mean) && (
+                <ReferenceLine
+                  y={parseFloat(derivedStats.mean)}
+                  stroke="#800020"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  label={{ value: "Moyenne", position: "right", fill: "#800020" }}
+                />
+              )}
               
               {/* Reference Lines with proper validation */}
               {typeof currentLimits.li === "number" && !isNaN(currentLimits.li) && (
@@ -411,7 +512,7 @@ const derivedStats = useMemo(() => {
             <h3>Statistiques</h3>
             <div className="dg-stat-row">
               <span>Moyenne</span>
-              <strong>{derivedStats.moyenne ?? "-"}</strong>
+              <strong>{derivedStats.mean !== "-" ? derivedStats.mean : "-"}</strong>
             </div>
             <div className="dg-divider" />
             <div className="dg-limit-row">
@@ -440,24 +541,23 @@ const derivedStats = useMemo(() => {
             {currentLimits.li !== null && (
               <div className="dg-stat-row">
                 <span>En dessous de LI</span>
-                <strong>{derivedStats.countBelowInf} ({derivedStats.percentBelowInf}%)</strong>
+                <strong>{derivedStats.belowLI} {derivedStats.percentLI !== "-" ? `(${derivedStats.percentLI}%)` : ""}</strong>
               </div>
             )}
 
             {currentLimits.ls !== null && (
               <div className="dg-stat-row">
                 <span>Au dessus de LS</span>
-                <strong>{derivedStats.countAboveSup} ({derivedStats.percentAboveSup}%)</strong>
+                <strong>{derivedStats.aboveLS} {derivedStats.percentLS !== "-" ? `(${derivedStats.percentLS}%)` : ""}</strong>
               </div>
             )}
 
             {currentLimits.lg !== null && (
               <div className="dg-stat-row">
                 <span>En dessous de LG</span>
-                <strong>{derivedStats.countBelowGarantie} ({derivedStats.percentBelowGarantie}%)</strong>
+                <strong>{derivedStats.belowLG} {derivedStats.percentLG !== "-" ? `(${derivedStats.percentLG}%)` : ""}</strong>
               </div>
             )}
-
           </div>
         </aside>
       </div>

@@ -5,73 +5,14 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { useData } from "../../context/DataContext";
 
-function formatExcelDateTime(dateStr, timeStr) {
-  let date = null;
-  let time = null;
-
-  if (dateStr) {
-    if (typeof dateStr === "number") {
-      // Excel serial date
-      const excelDate = XLSX.SSF.parse_date_code(dateStr);
-      if (excelDate) {
-        const y = excelDate.y;
-        const m = String(excelDate.m).padStart(2, "0");
-        const d = String(excelDate.d).padStart(2, "0");
-        date = `${y}-${m}-${d}`;
-      }
-    } else if (typeof dateStr === "string") {
-      const parts = dateStr.split(/[\/-]/);
-      if (parts.length === 3) {
-        // ✅ Always interpret as JJ-MM-AAAA (French style)
-        const [p1, p2, p3] = parts;
-        const d = p1.padStart(2, "0");
-        const m = p2.padStart(2, "0");
-        const y = p3.length === 2 ? `20${p3}` : p3; // handle 2-digit years
-        date = `${y}-${m}-${d}`;
-      }
-    }
-  }
-
-  if (timeStr) {
-    if (typeof timeStr === "number") {
-      const totalSeconds = Math.round(timeStr * 24 * 60 * 60);
-      const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
-      const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
-      const seconds = String(totalSeconds % 60).padStart(2, "0");
-      time = `${hours}:${minutes}:${seconds}`;
-    } else {
-      const t = String(timeStr).trim();
-      time = t.length === 5 ? `${t}:00` : t;
-    }
-  }
-
-  return { date, time };
-}
-
-
-
-
-
-const formatDisplayDate = (dateString) => {
-  if (!dateString) return "";
-
-  let d, m, y;
-
-  // Cas YYYY-MM-DD (DB)
-  if (dateString.includes("-")) {
-    [y, m, d] = dateString.split("-");
-  }
-
-  // Cas DD/MM/YYYY (Excel)
-  else if (dateString.includes("/")) {
-    [d, m, y] = dateString.split("/");
-  }
-
-  return `${d.padStart(2, "0")}-${m.padStart(2, "0")}-${y}`;
+const formatExcelDate = (excelDate) => {
+  if (!excelDate || isNaN(excelDate)) return "";
+  // Convert Excel serial date to JS Date
+  const utc_days = Math.floor(excelDate - 25569);
+  const utc_value = utc_days * 86400; 
+  const date_info = new Date(utc_value * 1000);
+  return date_info.toISOString().split("T")[0]; // YYYY-MM-DD
 };
-
-
-
 
 
 const EchantillonsTable = forwardRef(
@@ -103,13 +44,6 @@ const EchantillonsTable = forwardRef(
     const [showDateFilter, setShowDateFilter] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [showDeleteForm, setShowDeleteForm] = useState(false);
-    const [showEditForm, setShowEditForm] = useState(false);
-    const [selectedDate, setSelectedDate] = useState("");
-    const [selectedStartDate, setSelectedStartDate] = useState("");
-    const [selectedEndDate, setSelectedEndDate] = useState("");
-    const [deleteMode, setDeleteMode] = useState("single"); // "single" or "range"
-    const [selectedEditDate, setSelectedEditDate] = useState("");
     const { updateFilteredData } = useData();
 
     const fetchRows = async () => {
@@ -123,17 +57,15 @@ const EchantillonsTable = forwardRef(
         }
 
         if (phase) params.phase = phase;
-        if (start) params.start = start;
+        if (start) params.start = new Date(start).toISOString().split("T")[0];
         if (end) {
           const endDate = new Date(end);
           endDate.setDate(endDate.getDate() + 1);
-          params.end = end;
-
+          params.end = endDate.toISOString().split("T")[0];
         }
 
-       const resp = await axios.get("http://localhost:5000/api/echantillons", { params });
-setRows(resp.data || []);
-
+        const resp = await axios.get("http://localhost:5000/api/echantillons", { params });
+        setRows(resp.data || []);
         setSelected(new Set());
 
         updateFilteredData(resp.data || [], start, end);
@@ -186,9 +118,10 @@ setRows(resp.data || []);
         }
 
         alert("Ciment ajouté au client avec succès !");
-        setNewCement("");
-        setShowNewTypeForm(false);
+        setNewCement(""); // Clear the selected cement
+        setShowNewTypeForm(false); // Close the form
         
+        // Refresh the product list
         fetch(`http://localhost:5000/api/produits/${clientId}`)
           .then((res) => res.json())
           .then((data) => setProduits(data))
@@ -224,6 +157,7 @@ setRows(resp.data || []);
       }
     }, [rows, selectedType]);
 
+    // Fetch cements on component mount
     useEffect(() => {
       fetchCements();
     }, []);
@@ -252,51 +186,37 @@ setRows(resp.data || []);
     const handleSave = async () => {
       try {
         const response = await axios.post("http://localhost:5000/api/echantillons/save", {
-          rows,
+          rows, // The data to be saved
         });
         console.log("Saved successfully:", response.data);
         alert("Data saved successfully!");
         setIsEditing(false);
-        fetchRows(); // Refresh data
       } catch (error) {
         console.error("Error saving data:", error);
         alert("Error while saving data.");
       }
     };
 
-    const handleDeleteByDate = async () => {
-      if (deleteMode === "single" && !selectedDate) {
-        alert("Veuillez saisir une date.");
+    const handleDelete = async () => {
+      if (selected.size === 0) {
+        alert("Veuillez sélectionner au moins un échantillon à supprimer.");
         return;
       }
 
-      if (deleteMode === "range" && (!selectedStartDate || !selectedEndDate)) {
-        alert("Veuillez saisir une plage de dates.");
-        return;
-      }
-
-      const startDateToDelete = deleteMode === "single" ? selectedDate : selectedStartDate;
-      const endDateToDelete = deleteMode === "single" ? selectedDate : selectedEndDate;
-
-      if (!window.confirm(`Êtes-vous sûr de vouloir supprimer tous les échantillons du ${startDateToDelete} au ${endDateToDelete} ? Cette action est irréversible.`)) {
+      if (!window.confirm("Êtes-vous sûr de vouloir supprimer les échantillons sélectionnés ? Cette action est irréversible.")) {
         return;
       }
 
       try {
-        const response = await axios.post("http://localhost:5000/api/echantillons/delete-by-date", {
-          client_id: clientId,
-          client_type_ciment_id: clientTypeCimentId,
-          start_date: startDateToDelete,
-          end_date: endDateToDelete
+        const response = await axios.post("http://localhost:5000/api/echantillons/delete", {
+          ids: Array.from(selected),
         });
 
         if (response.data.success) {
-          alert(`Échantillons du ${startDateToDelete} au ${endDateToDelete} supprimés avec succès !`);
-          fetchRows(); // Refresh data
-          setShowDeleteForm(false);
-          setSelectedDate("");
-          setSelectedStartDate("");
-          setSelectedEndDate("");
+          alert("Échantillons supprimés avec succès !");
+          fetchRows(); // Refresh the data
+          setIsDeleting(false);
+          setSelected(new Set());
         } else {
           alert("Erreur lors de la suppression des échantillons.");
         }
@@ -306,172 +226,99 @@ setRows(resp.data || []);
       }
     };
 
-    const handleEditByDate = async () => {
-      if (!selectedEditDate) {
-        alert("Veuillez saisir une date.");
+    const handleImportExcel = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (
+        !window.confirm(
+          "Êtes-vous sûr de vouloir importer ce fichier ? Les données seront ajoutées à la base de données."
+        )
+      ) {
         return;
       }
 
-      try {
-        // Get samples for the selected date
-        const response = await axios.get("http://localhost:5000/api/echantillons/by-date", {
-          params: {
-            client_id: clientId,
-            client_type_ciment_id: clientTypeCimentId,
-            date: selectedEditDate
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+   const formattedRows = jsonData.map((row, index) => ({
+  id: Date.now() + index,
+
+  num_ech: row["N° ech"] || row["Ech"] || "",
+  date_test: formatExcelDate(row["Date"] || row.date_test || ""),
+  rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
+  rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
+  rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
+
+  // Excel → DB
+  prise: row["Début prise(min)"] || "",
+  stabilite: row["Stabilité (mm)"] || "",
+  hydratation: row["Hydratation"] || "",
+
+  pfeu: row["Perte au feu (%)"] || "",
+  r_insoluble: row["Résidu insoluble (%)"] || "",
+  so3: row["SO3 (%)"] || "",
+  chlorure: row["Cl (%)"] || "",
+  c3a: row["C3A"] || "",
+  ajout_percent: row["Taux d'Ajouts (%)"] || "",
+  type_ajout: row["Type ajout"] || "",
+  source: row["SILO N°"] || "",
+}));
+
+
+
+        setRows((prevRows) => {
+          const updated = [...prevRows, ...formattedRows];
+          updateFilteredData(updated, start, end);
+          if (onTableDataChange) {
+            onTableDataChange(updated, start, end);
           }
+          return updated;
         });
 
-        if (response.data.length === 0) {
-          alert("Aucun échantillon trouvé pour cette date.");
-          return;
-        }
+        axios
+          .post("http://localhost:5000/api/echantillons/import", {
+            clientId: clientId,
+            produitId: clientTypeCimentId, // This is the product ID
+            rows: formattedRows,
+          })
+          .then((res) => {
+            console.log("✅ Imported to DB:", res.data);
+            alert("Fichier importé avec succès !");
+          })
+          .catch((err) => {
+            console.error("❌ Import error:", err);
+            alert("Erreur lors de l'importation. Voir console.");
+          });
 
-        // Update local state with the samples for editing
-        setRows(response.data);
-        setIsEditing(true);
-        setShowEditForm(false);
-      } catch (error) {
-        console.error("Error fetching samples by date:", error);
-        alert("Erreur lors de la récupération des échantillons.");
-      }
+        setSelected(new Set());
+      };
+
+      reader.readAsArrayBuffer(file);
     };
 
- const handleImportExcel = (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-
-  if (file.name.endsWith(".csv")) {
-    reader.onload = (evt) => {
-      const text = evt.target.result;
-      
-      // Parse CSV with proper semicolon delimiter
-      const lines = text.split('\n').filter(line => line.trim() !== '');
-      if (lines.length < 2) return; // No data
-      
-      const headers = lines[0].split(';').map(h => h.trim());
-      
-      const jsonData = [];
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(';');
-        const row = {};
-        
-        headers.forEach((header, index) => {
-          let value = values[index] ? values[index].trim() : '';
-          
-          // Handle French number format (comma as decimal separator)
-          if (value && !isNaN(value.replace(',', '.')) && value !== '') {
-            value = parseFloat(value.replace(',', '.'));
-          }
-          
-          row[header] = value;
-        });
-        
-        if (Object.keys(row).length > 0) {
-          jsonData.push(row);
-        }
-      }
-
-      // ✅ Fix date parsing for CSV files
-      const parsedData = jsonData.map((row) => {
-        // Handle French date format DD/MM/YYYY
-        let date = null;
-        if (row["Date"]) {
-          const dateStr = String(row["Date"]).trim();
-          if (dateStr.includes("/")) {
-            const [d, m, y] = dateStr.split("/");
-            if (d && m && y) {
-              // Ensure 4-digit year and proper formatting
-              const year = y.length === 2 ? `20${y}` : y;
-              date = `${year}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-            }
-          } else if (dateStr.includes("-")) {
-            // Already in YYYY-MM-DD format (from previous imports)
-            date = dateStr;
-          }
-        }
-
-        // Handle time (ensure it's properly formatted)
-        let time = row["heure"] || "10:00";
-        if (time && time.length === 5) {
-          time = `${time}:00`; // Add seconds if missing
-        }
-
-        // Convert numbers with commas to floats
-        const normalize = (val) => {
-          if (typeof val === "string" && val.includes(",")) {
-            return parseFloat(val.replace(",", "."));
-          }
-          return val;
-        };
-
-        return {
-          num_ech: row["N° ech"] || row["Ech"] || "",
-          date_test: date,
-          heure_test: time,
-          rc2j: normalize(row["RC 2j (Mpa)"] || row["RC2J"]),
-          rc7j: normalize(row["RC 7j (Mpa)"] || row["RC7J"]),
-          rc28j: normalize(row["RC 28 j (Mpa)"] || row["RC28J"]),
-          prise: normalize(row["Début prise(min)"] || row["Prise"]),
-          stabilite: normalize(row["Stabilité (mm)"] || row["Stabilité"]),
-          hydratation: normalize(row["Chaleur hydratation (J/g)"] || row["Hydratation"]),
-          pfeu: normalize(row["Perte au feu (%)"] || row["P. Feu"]),
-          r_insoluble: normalize(row["Résidu insoluble (%)"] || row["R. Insoluble"]),
-          so3: normalize(row["SO3 (%)"] || row["SO3"]),
-          chlorure: normalize(row["Cl (%)"] || row["Chlorure"]),
-          c3a: normalize(row["C3A"]),
-          ajout_percent: normalize(row["Taux d'Ajouts (%)"] || row["Taux Ajouts"]),
-          type_ajout: row["Type ajout"] || row["Type Ajout"] || "",
-        };
-      });
-
-      console.log("✅ Clean CSV data:", parsedData);
-      setRows(parsedData);
-    };
-    reader.readAsText(file, 'ISO-8859-1');
-  } else {
-    // Excel processing (keep your existing code)
-    reader.onload = (evt) => {
-      const data = new Uint8Array(evt.target.result);
-      const workbook = XLSX.read(data, { type: "array" });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-      const parsedData = jsonData.map((row) => {
-        const { date, time } = formatExcelDateTime(row["Date"], row["Heure"]);
-        return {
-          ...row,
-          date_test: date,
-          heure_test: time,
-        };
-      });
-
-      console.log("✅ Clean Excel data:", parsedData);
-      setRows(parsedData);
-    };
-    reader.readAsArrayBuffer(file);
-  }
-};
-
-
+    // Define exportToExcel outside of handleImportExcel to make it accessible
     const exportToExcel = () => {
-      const ws = XLSX.utils.json_to_sheet(filteredRows.map(row => ({
-        ...row,
-        date_test: formatDisplayDate(row.date_test)
-      })));
+      // Convert the filtered rows to Excel format using XLSX
+      const ws = XLSX.utils.json_to_sheet(filteredRows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Echantillons");
+
+      // Save the file as an Excel file
       XLSX.writeFile(wb, "echantillons.xlsx");
     };
 
+    // Define exportToCSV function to handle exporting data as CSV
     const exportToCSV = () => {
-      const ws = XLSX.utils.json_to_sheet(filteredRows.map(row => ({
-        ...row,
-        date_test: formatDisplayDate(row.date_test)
-      })));
+      // Convert the filtered rows to CSV format using XLSX
+      const ws = XLSX.utils.json_to_sheet(filteredRows);
       const csv = XLSX.utils.sheet_to_csv(ws);
+
+      // Create a blob from the CSV data and trigger download
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -479,16 +326,16 @@ setRows(resp.data || []);
       link.click();
     };
 
+    // Define exportToPDF function to handle exporting data as PDF
     const exportToPDF = () => {
       const doc = new jsPDF();
       doc.autoTable({
         head: [
-          ["Ech", "Date", "Heure", "RC2J", "RC7J", "RC28J", "Prise", "Stabilité", "Hydratation", "P. Feu", "R. Insoluble", "SO3", "Chlorure", "C3A", "Taux Ajouts", "Type Ajout"]
+          ["Ech", "Date", "RC2J", "RC7J", "RC28J", "Prise", "Stabilité", "Hydratation", "P. Feu", "R. Insoluble", "SO3", "Chlorure"]
         ],
         body: filteredRows.map(row => [
           row.num_ech,
-          formatDisplayDate(row.date_test),
-          row.heure_test,
+          row.date_test,
           row.rc2j,
           row.rc7j,
           row.rc28j,
@@ -498,16 +345,16 @@ setRows(resp.data || []);
           row.pfeu,
           row.r_insoluble,
           row.so3,
-          row.chlorure,
-          row.c3a,
-          row.ajout_percent,
-          row.type_ajout
+          row.chlorure
         ])
       });
+
       doc.save("echantillons.pdf");
     };
 
+    // Define handlePrint function
     const handlePrint = () => {
+      // Open the print dialog for the page content
       window.print();
     };
 
@@ -525,167 +372,6 @@ setRows(resp.data || []);
 
     return (
       <div>
-        {/* Delete Form Modal */}
-        {showDeleteForm && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000
-          }}>
-            <div style={{
-              backgroundColor: 'white',
-              padding: '20px',
-              borderRadius: '8px',
-              width: '500px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3>Supprimer par date</h3>
-                <button 
-                  onClick={() => setShowDeleteForm(false)}
-                  style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}
-                >
-                  ×
-                </button>
-              </div>
-              
-              <div style={{ marginBottom: "15px" }}>
-                <label>
-                  Mode de suppression:
-                  <select 
-                    value={deleteMode} 
-                    onChange={(e) => setDeleteMode(e.target.value)}
-                    style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-                  >
-                    <option value="single">Supprimer une seule date</option>
-                    <option value="range">Supprimer une plage de dates</option>
-                  </select>
-                </label>
-              </div>
-              
-              {deleteMode === "single" ? (
-                <div style={{ marginBottom: "20px" }}>
-                  <label>
-                    Saisir la date à supprimer (YYYY-MM-DD):
-                    <input 
-                      type="date" 
-                      value={selectedDate} 
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-                    />
-                  </label>
-                </div>
-              ) : (
-                <div style={{ marginBottom: "20px" }}>
-                  <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                    <label style={{ flex: 1 }}>
-                      Date de début:
-                      <input 
-                        type="date" 
-                        value={selectedStartDate} 
-                        onChange={(e) => setSelectedStartDate(e.target.value)}
-                        style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-                      />
-                    </label>
-                    <label style={{ flex: 1 }}>
-                      Date de fin:
-                      <input 
-                        type="date" 
-                        value={selectedEndDate} 
-                        onChange={(e) => setSelectedEndDate(e.target.value)}
-                        style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-                      />
-                    </label>
-                  </div>
-                </div>
-              )}
-              
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <button 
-                  onClick={() => setShowDeleteForm(false)}
-                  style={{ padding: '8px 16px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                >
-                  Annuler
-                </button>
-                <button 
-                  onClick={handleDeleteByDate}
-                  disabled={deleteMode === "single" ? !selectedDate : (!selectedStartDate || !selectedEndDate)}
-                  style={{ padding: '8px 16px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                >
-                  Confirmer suppression
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Edit Form Modal */}
-        {showEditForm && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000
-          }}>
-            <div style={{
-              backgroundColor: 'white',
-              padding: '20px',
-              borderRadius: '8px',
-              width: '400px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3>Modifier par date</h3>
-                <button 
-                  onClick={() => setShowEditForm(false)}
-                  style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}
-                >
-                  ×
-                </button>
-              </div>
-              
-              <div style={{ marginBottom: "20px" }}>
-                <label>
-                  Saisir la date à modifier (YYYY-MM-DD):
-                  <input 
-                    type="date" 
-                    value={selectedEditDate} 
-                    onChange={(e) => setSelectedEditDate(e.target.value)}
-                    style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-                  />
-                </label>
-              </div>
-              
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <button 
-                  onClick={() => setShowEditForm(false)}
-                  style={{ padding: '8px 16px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                >
-                  Annuler
-                </button>
-                <button 
-                  onClick={handleEditByDate}
-                  disabled={!selectedEditDate}
-                  style={{ padding: '8px 16px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                >
-                  Modifier
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Date Filter Modal */}
         {showDateFilter && (
           <div style={{
@@ -756,41 +442,7 @@ setRows(resp.data || []);
           </div>
         )}
 
-        {/* Action Buttons - Moved ABOVE the table */}
-        <div style={{ marginBottom: "1rem", display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {!isEditing && (
-            <>
-              <button onClick={() => setShowEditForm(true)}>Modifier</button>
-              <button onClick={() => setShowDeleteForm(true)}>Supprimer</button>
-             <input
-  type="file"
-  accept=".xlsx,.xls,.csv"  // Add .csv here
-  onChange={handleImportExcel}
-  style={{ display: 'none' }}
-  id="excel-import"
-/>
-              <button onClick={() => document.getElementById('excel-import').click()}>
-                Importer Excel
-              </button>
-              <button onClick={exportToExcel}>Export Excel</button>
-              <button onClick={exportToCSV}>Export CSV</button>
-              <button onClick={exportToPDF}>Export PDF</button>
-              <button onClick={handlePrint}>Imprimer</button>
-            </>
-          )}
-          
-          {isEditing && (
-            <>
-              <button onClick={handleSave}>Sauvegarder</button>
-              <button onClick={() => {
-                setIsEditing(false);
-                fetchRows(); // Refresh to discard changes
-              }}>Annuler</button>
-            </>
-          )}
-        </div>
-
-        {/* Date Filter Button */}
+        {/* Date Filter Button - Only show when produit is selected */}
         {clientTypeCimentId && (
           <div style={{ marginBottom: "1rem" }}>
             <button 
@@ -810,7 +462,7 @@ setRows(resp.data || []);
           </p>
           <h2>Données à traiter</h2>
           <h2>
-            Période du {formatDisplayDate(start) || "......"} au {formatDisplayDate(end) || "..........."}{" "}
+            Période du {start || "......"} au {end || "..........."}{" "}
           </h2>
           {clientTypeCimentId && <h3>{produitDescription}</h3>}
         </div>
@@ -828,7 +480,6 @@ setRows(resp.data || []);
                 </th>
                 <th>Ech</th>
                 <th>Date</th>
-                <th>Heure</th>
                 <th>RC2J</th>
                 <th>RC7J</th>
                 <th>RC28J</th>
@@ -839,9 +490,6 @@ setRows(resp.data || []);
                 <th>R. Insoluble</th>
                 <th>SO3</th>
                 <th>Chlorure</th>
-                <th>C3A</th>
-                <th>Taux Ajouts</th>
-                <th>Type Ajout</th>
               </tr>
             </thead>
             <tbody>
@@ -855,8 +503,7 @@ setRows(resp.data || []);
                     />
                   </td>
                   <td>{row.num_ech}</td>
-                 <td>{row.date_test ? formatDisplayDate(row.date_test) : ""}</td>
-                  <td>{row.heure_test}</td>
+                  <td>{row.date_test}</td>
                   <td>
                     <input
                       type="number"
@@ -937,39 +584,44 @@ setRows(resp.data || []);
                       disabled={!isEditing}
                     />
                   </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.c3a || ""}
-                      onChange={(e) => handleEdit(row.id, "c3a", e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={row.ajout_percent || ""}
-                      onChange={(e) => handleEdit(row.id, "ajout_percent", e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={row.type_ajout || ""}
-                      onChange={(e) => handleEdit(row.id, "type_ajout", e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </td>
                 </tr>
               ))}
               {filteredRows.length === 0 && (
                 <tr>
-                  <td colSpan={17}>Aucune donnée</td>
+                  <td colSpan={13}>Aucune donnée</td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+
+        <div style={{ marginBottom: 10 }}>
+          {!isEditing && !isDeleting && (
+            <>
+              <button onClick={() => setIsEditing(true)}>Modifier</button>
+              <button onClick={() => setIsDeleting(true)}>Supprimer</button>
+              <button onClick={exportToExcel}>Export Excel</button>
+              <button onClick={exportToCSV}>Export CSV</button>
+              <button onClick={exportToPDF}>Export PDF</button>
+              <button onClick={handlePrint}>Imprimer</button>
+            </>
+          )}
+          
+          {isEditing && (
+            <>
+              <button onClick={handleSave}>Sauvegarder</button>
+              <button onClick={() => setIsEditing(false)}>Annuler</button>
+            </>
+          )}
+          
+          {isDeleting && (
+            <>
+              <button onClick={handleDelete} disabled={selected.size === 0}>
+                Confirmer suppression
+              </button>
+              <button onClick={() => setIsDeleting(false)}>Annuler</button>
+            </>
+          )}
         </div>
 
         {/* New Cement Type Form */}
@@ -984,7 +636,7 @@ setRows(resp.data || []);
               >
                 <option value="">-- Choisir ciment --</option>
                 {cementList
-                  .filter((cement) => !produits.some((p) => p.id === cement.id))
+                  .filter((cement) => !produits.some((p) => p.id === cement.id)) // Filter out cements the client already has
                   .map((cement) => (
                     <option key={cement.id} value={cement.id}>
                       {cement.nom}

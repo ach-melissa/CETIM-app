@@ -8,52 +8,13 @@ import TableConformite from "../../components/TableConformite/TableConformite";
 import DonneesGraphiques from "../../components/DonneesGraphiques/DonneesGraphiques";
 import * as XLSX from "xlsx";
 
-function formatExcelDateTime(dateStr, timeStr) {
-  let date = null;
-  let time = null;
-
-  if (dateStr) {
-    if (typeof dateStr === "number") {
-      // Excel serial date
-      const excelDate = XLSX.SSF.parse_date_code(dateStr);
-      if (excelDate) {
-        const y = excelDate.y;
-        const m = String(excelDate.m).padStart(2, "0");
-        const d = String(excelDate.d).padStart(2, "0");
-        date = `${y}-${m}-${d}`;
-      }
-    } else if (typeof dateStr === "string") {
-      const parts = dateStr.split(/[\/-]/);
-      if (parts.length === 3) {
-        // ✅ Always interpret as JJ-MM-AAAA (French style)
-        const [p1, p2, p3] = parts;
-        const d = p1.padStart(2, "0");
-        const m = p2.padStart(2, "0");
-        const y = p3.length === 2 ? `20${p3}` : p3; // handle 2-digit years
-        date = `${y}-${m}-${d}`;
-      }
-    }
-  }
-
-  if (timeStr) {
-    if (typeof timeStr === "number") {
-      const totalSeconds = Math.round(timeStr * 24 * 60 * 60);
-      const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
-      const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
-      const seconds = String(totalSeconds % 60).padStart(2, "0");
-      time = `${hours}:${minutes}:${seconds}`;
-    } else {
-      const t = String(timeStr).trim();
-      time = t.length === 5 ? `${t}:00` : t;
-    }
-  }
-
-  return { date, time };
-}
-
-
-
-
+const formatExcelDate = (excelDate) => {
+  if (!excelDate || isNaN(excelDate)) return "";
+  const utc_days = Math.floor(excelDate - 25569);
+  const utc_value = utc_days * 86400; 
+  const date_info = new Date(utc_value * 1000);
+  return date_info.toISOString().split("T")[0];
+};
 
 const TraitDonnes = () => {
   const [clients, setClients] = useState([]);
@@ -61,6 +22,7 @@ const TraitDonnes = () => {
   const [produits, setProduits] = useState([]);
   const [clientTypeCimentId, setClientTypeCimentId] = useState("");
   const [produitDescription, setProduitDescription] = useState("");
+  const [produitFamille, setProduitFamille] = useState(""); // New state for famille
   const [phase, setPhase] = useState("");
   const [tableData, setTableData] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
@@ -106,12 +68,13 @@ const TraitDonnes = () => {
       });
   }, []);
 
-  // Fetch produits based on selected client
+  // Fetch produits with famille information based on selected client
   useEffect(() => {
     if (!selectedClient) {
       setProduits([]);
       setClientTypeCimentId("");
       setProduitDescription("");
+      setProduitFamille("");
       return;
     }
 
@@ -126,15 +89,21 @@ const TraitDonnes = () => {
       });
   }, [selectedClient]);
 
-  // Set description for selected produit
+  // Set description and famille for selected produit
   useEffect(() => {
     if (!clientTypeCimentId) {
       setProduitDescription("");
+      setProduitFamille("");
       return;
     }
+    
     const produit = produits.find((p) => p.id == clientTypeCimentId);
     if (produit) {
       setProduitDescription(produit.description);
+      // Set famille information
+      if (produit.famille) {
+        setProduitFamille(produit.famille.nom); // or produit.famille.code depending on what you need
+      }
     }
   }, [clientTypeCimentId, produits]);
 
@@ -158,9 +127,9 @@ const TraitDonnes = () => {
       });
 
       setSuccess("Ciment ajouté au client avec succès !");
-      setError(""); // Clear any previous errors
-      setNewCement(""); // Clear the selected cement
-      setShowNewTypeForm(false); // Close the form
+      setError("");
+      setNewCement("");
+      setShowNewTypeForm(false);
       
       // Refresh the products list
       fetch(`http://localhost:5000/api/produits/${selectedClient}`)
@@ -171,56 +140,43 @@ const TraitDonnes = () => {
     } catch (err) {
       console.error("Erreur ajout ciment:", err);
       setError("Erreur lors de l'ajout du ciment.");
-      setSuccess(""); // Clear success message
+      setSuccess("");
     }
   };
 
   // Handle file import
   const handleFileImport = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+    const file = e.target.files[0];
+    if (!file) return;
 
-  if (!selectedClient || !clientTypeCimentId) {
-    setError("Veuillez sélectionner un client et un produit avant d'importer.");
-    return;
-  }
+    if (!selectedClient || !clientTypeCimentId) {
+      setError("Veuillez sélectionner un client et un produit avant d'importer.");
+      return;
+    }
 
-  if (!window.confirm("Êtes-vous sûr de vouloir importer ce fichier ? Les données seront ajoutées à la base de données.")) {
-    return;
-  }
+    if (!window.confirm("Êtes-vous sûr de vouloir importer ce fichier ? Les données seront ajoutées à la base de données.")) {
+      return;
+    }
 
-  const reader = new FileReader();
-  reader.onload = async (evt) => {
-    try {
-      let importedData = [];
-      const data = evt.target.result;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const importedData = XLSX.utils.sheet_to_json(ws);
 
-      if (file.name.endsWith(".csv")) {
-        // 📌 Parse CSV as text
-        const wb = XLSX.read(data, { type: "string" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        importedData = XLSX.utils.sheet_to_json(ws);
-      } else {
-        // 📌 Parse Excel (xls/xlsx)
-        const wb = XLSX.read(data, { type: "binary" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        importedData = XLSX.utils.sheet_to_json(ws);
-      }
-
-      // 👉 Now format your rows as you already do
-      const formattedRows = importedData.map((row, index) => {
-  const { date, time } = formatExcelDateTime(row["Date"], row["heure"]);
-  return {
-    id: Date.now() + index,
-    num_ech: row["N° ech"] || row["Ech"] || "",
-    date_test: date,
-    heure_test: time,
-    rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
-    rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
-    rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
+        const formattedRows = importedData.map((row, index) => ({
+          id: Date.now() + index,
+          num_ech: row["N° ech"] || row["Ech"] || "",
+          date_test: formatExcelDate(row["Date"] || row.date_test || ""),
+          rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
+          rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
+          rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
           prise: row["Début prise(min)"] || "",
           stabilite: row["Stabilité (mm)"] || "",
-          hydratation: row["Chaleur hydratation (J/g)"] || "",
+          hydratation: row["Hydratation"] || "",
           pfeu: row["Perte au feu (%)"] || "",
           r_insoluble: row["Résidu insoluble (%)"] || "",
           so3: row["SO3 (%)"] || "",
@@ -229,54 +185,65 @@ const TraitDonnes = () => {
           ajout_percent: row["Taux d'Ajouts (%)"] || "",
           type_ajout: row["Type ajout"] || "",
           source: row["SILO N°"] || "",
-        };
-      });
+        }));
 
-      // Reset input
-      e.target.value = "";
+        const res = await fetch("http://localhost:5000/api/echantillons/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientId: selectedClient,
+            produitId: clientTypeCimentId,
+            rows: formattedRows,
+          }),
+        });
 
-      // Send to backend
-      const res = await fetch("http://localhost:5000/api/echantillons/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId: selectedClient,
-          produitId: clientTypeCimentId,
-          rows: formattedRows,
-        }),
-      });
+        if (!res.ok) {
+          const error = await res.json();
+          console.error("Import failed:", error);
+          setError("Erreur lors de l'importation des données.");
+          return;
+        }
 
-      if (!res.ok) {
-        const error = await res.json();
-        console.error("Import failed:", error);
-        setError("Erreur lors de l'importation des données.");
-        return;
+        setSuccess("Fichier Excel importé et enregistré en base !");
+        setError("");
+        tableRef.current?.refresh();
+      } catch (err) {
+        console.error("Erreur import:", err);
+        setError("Impossible d'importer les données.");
+        setSuccess("");
       }
+    };
 
-      setSuccess("Fichier importé et enregistré en base !");
-      setError("");
-      tableRef.current?.refresh();
-    } catch (err) {
-      console.error("Erreur import:", err);
-      setError("Impossible d'importer les données.");
-      setSuccess("");
-    }
+    reader.onerror = (err) => {
+      console.error("FileReader error:", err);
+      setError("Erreur lors de la lecture du fichier.");
+    };
+
+    reader.readAsBinaryString(file);
   };
 
-  if (file.name.endsWith(".csv")) {
-    reader.readAsText(file, "utf-8"); // read CSV as text
-  } else {
-    reader.readAsBinaryString(file);  // read Excel as binary
-  }
-};
-
-
-  // Define handleTableDataChange
   const handleTableDataChange = (data, start, end) => {
     setTableData(data);
     setStartDate(start);
     setEndDate(end);
   };
+
+  // Get complete produit info including famille
+  const getSelectedProduitInfo = () => {
+    if (!clientTypeCimentId) return null;
+    
+    const produit = produits.find((p) => p.id == clientTypeCimentId);
+    if (!produit) return null;
+    
+    return {
+      id: produit.id,
+      nom: produit.nom,
+      description: produit.description,
+      famille: produit.famille || null
+    };
+  };
+
+  const selectedProduitInfo = getSelectedProduitInfo();
 
   return (
     <div className="trait-donnees-container">
@@ -298,10 +265,7 @@ const TraitDonnes = () => {
         <button className={activeTab === "conformite" ? "active-tab" : "tab"} onClick={() => setActiveTab("conformite")}>
           Contrôle de Conformité
         </button>
-        <button
-          className={activeTab === "tabconform" ? "active-tab" : "tab"}
-          onClick={() => setActiveTab("tabconform")}
-        >
+        <button className={activeTab === "tabconform" ? "active-tab" : "tab"} onClick={() => setActiveTab("tabconform")}>
           Table Conformité
         </button>
       </div>
@@ -309,10 +273,7 @@ const TraitDonnes = () => {
       <div className="selectors">
         <label>
           Client:
-          <select
-            value={selectedClient}
-            onChange={(e) => setSelectedClient(e.target.value)}
-          >
+          <select value={selectedClient} onChange={(e) => setSelectedClient(e.target.value)}>
             <option value="">-- Choisir client --</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
@@ -326,30 +287,22 @@ const TraitDonnes = () => {
           <>
             <label>
               Produit:
-              <select
-                value={clientTypeCimentId}
-                onChange={(e) => setClientTypeCimentId(e.target.value)}
-              >
+              <select value={clientTypeCimentId} onChange={(e) => setClientTypeCimentId(e.target.value)}>
                 <option value="">-- Tous les produits --</option>
                 {produits.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.nom}
+                    {p.nom} 
                   </option>
                 ))}
               </select>
-              {produitDescription && (
-                <div className="produit-description">
-                  <strong>Description:</strong> {produitDescription}
+              {selectedProduitInfo && (
+                <div className="produit-info">
+                  <div><strong>Description:</strong> {selectedProduitInfo.description}</div>
                 </div>
               )}
             </label>
 
-            {/* Button to trigger new cement form */}
-            <button
-              className="new-type-produit-btn"
-              onClick={() => setShowNewTypeForm(true)}
-              disabled={!selectedClient} // Disable when no client is selected
-            >
+            <button className="new-type-produit-btn" onClick={() => setShowNewTypeForm(true)} disabled={!selectedClient}>
               Nouveau Type Produit
             </button>
             
@@ -357,12 +310,7 @@ const TraitDonnes = () => {
               <div className="import-section">
                 <label>
                   Importer un fichier Excel:
-                  <input
-  type="file"
-  accept=".xlsx,.xls,.csv"
-  onChange={handleFileImport}
-/>
-
+                  <input type="file" accept=".xlsx,.xls" onChange={handleFileImport} />
                 </label>
               </div>
             )}
@@ -376,23 +324,13 @@ const TraitDonnes = () => {
           <h3>Ajouter un Nouveau Type de Ciment</h3>
           <label>
             Sélectionner le type de ciment:
-            <select
-              value={newCement}
-              onChange={(e) => setNewCement(e.target.value)}
-            >
+            <select value={newCement} onChange={(e) => setNewCement(e.target.value)}>
               <option value="">-- Choisir ciment --</option>
               {cementList.map((cement) => {
-                // Check if the client already has this cement
                 const clientHasCement = produits.some(p => p.id === cement.id);
-                
                 return (
-                  <option 
-                    key={cement.id} 
-                    value={cement.id}
-                    disabled={clientHasCement}
-                    style={clientHasCement ? { color: '#ccc' } : {}}
-                  >
-                    {cement.nom || cement.code} {clientHasCement ? "(Déjà associé)" : ""}
+                  <option key={cement.id} value={cement.id} disabled={clientHasCement}>
+                    {cement.code} - {cement.description} {cement.famille ? `(${cement.famille.nom})` : ''} {clientHasCement ? "(Déjà associé)" : ""}
                   </option>
                 );
               })}
@@ -400,19 +338,18 @@ const TraitDonnes = () => {
           </label>
           <div className="form-buttons">
             <button onClick={addCementForClient}>Ajouter</button>
-            <button onClick={() => {
-              setShowNewTypeForm(false);
-              setNewCement("");
-            }}>Annuler</button>
+            <button onClick={() => { setShowNewTypeForm(false); setNewCement(""); }}>Annuler</button>
           </div>
         </div>
       )}
 
+      {/* Pass the produit info to child components */}
       {activeTab === "donnees" && (
         <EchantillonsTable
           ref={tableRef}
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
+          produitInfo={selectedProduitInfo} // Pass the complete produit info
           phase={phase}
           tableData={tableData}
           selectedRows={selectedRows}
@@ -425,9 +362,9 @@ const TraitDonnes = () => {
           ref={tableRef}
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
+          produitInfo={selectedProduitInfo} // Pass the complete produit info
           initialStart={startDate}
           initialEnd={endDate}
-          produitDescription={produitDescription}
           clients={clients}
           produits={produits}
           onTableDataChange={(data, s, e) => {
@@ -443,9 +380,9 @@ const TraitDonnes = () => {
           ref={tableRef}
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
+          produitInfo={selectedProduitInfo} // Pass the complete produit info
           initialStart={startDate}
           initialEnd={endDate}
-          produitDescription={produitDescription}
           clients={clients}
           produits={produits}
         />
@@ -456,9 +393,9 @@ const TraitDonnes = () => {
           ref={tableRef}
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
+          produitInfo={selectedProduitInfo} // Pass the complete produit info
           initialStart={startDate}
           initialEnd={endDate}
-          produitDescription={produitDescription}
           clients={clients}
           produits={produits}
           onTableDataChange={(data, s, e) => {
@@ -474,27 +411,9 @@ const TraitDonnes = () => {
           ref={tableRef}
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
+          produitInfo={selectedProduitInfo} // Pass the complete produit info
           initialStart={startDate}
           initialEnd={endDate}
-          produitDescription={produitDescription}
-          clients={clients}
-          produits={produits}
-          onTableDataChange={(data, s, e) => {
-            setTableData(data);
-            setStartDate(s);
-            setEndDate(e);
-          }}
-        />
-      )}
-      
-      {activeTab === 'contConform' && (
-        <ControleConformite
-          ref={tableRef}
-          clientId={selectedClient}
-          clientTypeCimentId={clientTypeCimentId}
-          initialStart={startDate}
-          initialEnd={endDate}
-          produitDescription={produitDescription}
           clients={clients}
           produits={produits}
           onTableDataChange={(data, s, e) => {

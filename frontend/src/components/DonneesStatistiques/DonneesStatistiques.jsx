@@ -1,211 +1,132 @@
 // src/components/DonneesStatistiques/DonneesStatistiques.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./DonneesStatistiques.css";
 import { useData } from "../../context/DataContext";
 
 // ============================================================
 // Utility functions
 // ============================================================
+
 const calculateStats = (data, key) => {
-  const values = data
-    .map((row) => parseFloat(row[key]))
-    .filter((v) => !isNaN(v));
+  const missingValues = [];
+  const values = [];
+  
+  data.forEach((row, index) => {
+    const value = row[key];
+    
+    const isMissing = 
+      value === null || 
+      value === undefined || 
+      value === "" || 
+      value === " " || 
+      value === "NULL" || 
+      value === "null" ||
+      value === "undefined" ||
+      String(value).trim() === "" ||
+      String(value).toLowerCase() === "null" ||
+      String(value).toLowerCase() === "undefined";
+    
+    if (isMissing) {
+      missingValues.push({ line: index + 1, value: value, type: typeof value });
+    } else {
+      try {
+        const stringValue = String(value).trim().replace(',', '.');
+        const numericValue = parseFloat(stringValue);
+        
+        if (!isNaN(numericValue) && isFinite(numericValue)) {
+          values.push(numericValue);
+        } else {
+          missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "NaN or Infinite" });
+        }
+      } catch (error) {
+        missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "Conversion error" });
+      }
+    }
+  });
 
-  const totalSamples = data.length; // nbr total d'échantillons (filtered table size)
-
-  if (!values.length) {
+  if (values.length === 0) {
     return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
   }
 
   const count = values.length;
-  const min = Math.min(...values).toFixed(2);
-  const max = Math.max(...values).toFixed(2);
-
-  // ✅ mean divided by total number of samples, not just valid ones
-  const mean = (values.reduce((a, b) => a + b, 0) / totalSamples).toFixed(2);
-
-  // std still based on valid results
-  const variance =
-    values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
-  const std = Math.sqrt(variance).toFixed(2);
-
-  return { count, min, max, mean, std };
+  const min = values.reduce((a, b) => Math.min(a, b), values[0]);
+  const max = values.reduce((a, b) => Math.max(a, b), values[0]);
+  const sum = values.reduce((a, b) => a + b, 0);
+  const mean = sum / count;
+  
+  const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
+  const std = Math.sqrt(variance);
+  
+  return {
+    count,
+    min: min.toFixed(2),
+    max: max.toFixed(2),
+    mean: mean.toFixed(2),
+    std: std.toFixed(2),
+  };
 };
 
 const evaluateLimits = (data, key, li, ls, lg) => {
-  const values = data.map((row) => parseFloat(row[key])).filter((v) => !isNaN(v));
+  const safeParse = (val) => {
+    if (val === null || val === undefined || val === "" || val === "-") return NaN;
+    return parseFloat(String(val).replace(',', '.'));
+  };
+
+  const values = data.map((row) => safeParse(row[key])).filter((v) => !isNaN(v));
+  
   if (!values.length) {
     return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
   }
 
-  const liNum = li !== "-" ? parseFloat(li) : null;
-  const lsNum = ls !== "-" ? parseFloat(ls) : null;
-  const lgNum = lg !== "-" ? parseFloat(lg) : null;
+  const liNum = safeParse(li);
+  const lsNum = safeParse(ls);
+  const lgNum = safeParse(lg);
 
-  const belowLI = liNum ? values.filter((v) => v < liNum).length : 0;
-  const aboveLS = lsNum ? values.filter((v) => v > lsNum).length : 0;
-  const belowLG = lgNum ? values.filter((v) => v < lgNum).length : 0;
+  const belowLI = !isNaN(liNum) ? values.filter((v) => v < liNum).length : 0;
+  const aboveLS = !isNaN(lsNum) ? values.filter((v) => v > lsNum).length : 0;
+  
+  // ✅ CORRECTION : belowLG représente maintenant les NON-CONFORMITÉS à LG
+  let belowLG = 0;
+  
+  if (!isNaN(lgNum)) {
+    const resistanceParams = ['rc2j', 'rc7j', 'rc28j', 'prise'];
+    const isResistanceParam = resistanceParams.includes(key);
+    
+    if (isResistanceParam) {
+      // Résistances : belowLG = valeurs TROP BAISSES
+      belowLG = values.filter((v) => v < lgNum).length;
+    } else {
+      // Autres paramètres : belowLG = valeurs TROP ÉLEVÉES
+      belowLG = values.filter((v) => v > lgNum).length;
+    }
+  }
+
   const total = values.length;
 
   return {
-    belowLI: belowLI || "-",
-    aboveLS: aboveLS || "-",
-    belowLG: belowLG || "-",
-    percentLI: total && belowLI ? ((belowLI / total) * 100).toFixed(1) : "-",
-    percentLS: total && aboveLS ? ((aboveLS / total) * 100).toFixed(1) : "-",
-    percentLG: total && belowLG ? ((belowLG / total) * 100).toFixed(1) : "-",
+    belowLI: belowLI > 0 ? belowLI : "-",
+    aboveLS: aboveLS > 0 ? aboveLS : "-",
+    belowLG: belowLG > 0 ? belowLG : "-",
+    percentLI: belowLI > 0 ? ((belowLI / total) * 100).toFixed(1) : "-",
+    percentLS: aboveLS > 0 ? ((aboveLS / total) * 100).toFixed(1) : "-",
+    percentLG: belowLG > 0 ? ((belowLG / total) * 100).toFixed(1) : "-",
   };
-};
-
-// ============================================================
-// Export Modal Component
-// ============================================================
-const ExportModal = ({ isOpen, onClose, onExport, tables }) => {
-  const [selectedTables, setSelectedTables] = useState([]);
-
-  useEffect(() => {
-    if (isOpen) {
-      // Select all tables by default
-      setSelectedTables(tables.map(table => table.id));
-    }
-  }, [isOpen, tables]);
-
-  const handleSelectAll = (checked) => {
-    if (checked) {
-      setSelectedTables(tables.map(table => table.id));
-    } else {
-      setSelectedTables([]);
-    }
-  };
-
-  const handleTableToggle = (tableId, checked) => {
-    if (checked) {
-      setSelectedTables(prev => [...prev, tableId]);
-    } else {
-      setSelectedTables(prev => prev.filter(id => id !== tableId));
-    }
-  };
-
-  const handleExport = () => {
-    onExport(selectedTables);
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h3>Exporter les tables</h3>
-        <p>Sélectionnez les tables à exporter vers Word:</p>
-        
-        <div className="table-selection">
-          <label className="select-all-label">
-            <input
-              type="checkbox"
-              checked={selectedTables.length === tables.length}
-              onChange={(e) => handleSelectAll(e.target.checked)}
-            />
-            Sélectionner toutes les tables
-          </label>
-          
-          <div className="table-list">
-            {tables.map((table) => (
-              <label key={table.id} className="table-checkbox">
-                <input
-                  type="checkbox"
-                  checked={selectedTables.includes(table.id)}
-                  onChange={(e) => handleTableToggle(table.id, e.target.checked)}
-                />
-                {table.name}
-              </label>
-            ))}
-          </div>
-        </div>
-        
-        <div className="modal-actions">
-          <button className="btn-cancel" onClick={onClose}>Annuler</button>
-          <button 
-            className="btn-export" 
-            onClick={handleExport}
-            disabled={selectedTables.length === 0}
-          >
-            Exporter vers Word
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============================================================
-// Word Export Function
-// ============================================================
-const exportToWord = (tablesData, clientName, productDescription, selectedProductFamily, selectedProductType, filterPeriod, selectedTables) => {
-  // Create a simple HTML content for Word
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Données Statistiques</title>
-      <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-        .header h1 { font-size: 18px; margin: 0; color: #2c3e50; }
-        .header h2 { font-size: 16px; margin: 5px 0; color: #34495e; }
-        .info-section { margin-bottom: 20px; font-size: 12px; }
-        .stats-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 10px; }
-        .stats-table th, .stats-table td { border: 1px solid #000; padding: 4px 6px; text-align: center; }
-        .stats-table th { background-color: #f0f0f0; font-weight: bold; }
-        .stats-table td:first-child { text-align: left; font-weight: bold; background-color: #f8f8f8; }
-        .class-section { margin-bottom: 30px; page-break-after: always; }
-        .class-title { background-color: #2c3e50; color: white; padding: 8px; font-weight: bold; text-align: center; margin-bottom: 10px; }
-        .page-break { page-break-after: always; }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        
-        <h2>Données Statistiques</h2>
-        <h1><strong>Client:</strong> ${clientName}</h1>
-       
-      </div>
-      
-      <div class="info-section">
-        
-        ${selectedProductFamily ? `<p><strong>Famille:</strong> ${selectedProductFamily}</p>` : ''}
-        ${selectedProductType ? `<p><strong>Type:</strong> ${selectedProductType}</p>` : ''}
-        <p><strong>Période:</strong> ${filterPeriod.start} à ${filterPeriod.end}</p>
-      </div>
-      
-      ${tablesData.filter(table => selectedTables.includes(table.id)).map(table => table.content).join('')}
-    </body>
-    </html>
-  `;
-
-  // Create blob and download
-  const blob = new Blob([htmlContent], { type: 'application/msword' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `donnees_statistiques_${new Date().toISOString().split('T')[0]}.doc`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 };
 
 // ============================================================
 // DonneesStatistiques Component
 // ============================================================
-const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescription, clients = [], produits = [] }) => {
+const DonneesStatistiques = ({ 
+  clientId, 
+  clientTypeCimentId, 
+  produitInfo,
+  produitDescription, 
+  clients = [], 
+  produits = [] 
+}) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
   const [loading, setLoading] = useState(true);
-  const [selectedProductType, setSelectedProductType] = useState("");
-  const [selectedProductFamily, setSelectedProductFamily] = useState("");
-  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
   const ajoutProducts = [
@@ -216,16 +137,25 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
     "CEM II/A-M", "CEM II/B-M"
   ];
 
-  // Get the selected product type and family
-  useEffect(() => {
-    if (produitId && produits.length) {
-      const product = produits.find(p => p.id == produitId);
-      if (product) {
-        setSelectedProductType(product.type_code || "");
-        setSelectedProductFamily(product.famille_code || "");
-      }
+  // Get product type and famille from produitInfo with fallbacks
+  const selectedProductType = produitInfo?.nom || produitInfo?.code || "";
+  const selectedProductFamille = produitInfo?.famille?.code || "";
+  const selectedProductFamilleName = produitInfo?.famille?.nom || "";
+
+  const determineFamilleFromType = (productType) => {
+    if (!productType) return "";
+    
+    const familleMatch = productType.match(/^(CEM [I|II|III|IV|V]+)/);
+    if (familleMatch) {
+      return familleMatch[1];
     }
-  }, [produitId, produits]);
+    
+    return "";
+  };
+
+  // Final famille values with fallback
+  const finalFamilleCode = selectedProductFamille || determineFamilleFromType(selectedProductType);
+  const finalFamilleName = selectedProductFamilleName || finalFamilleCode;
 
   // Charger les données depuis le fichier JSON
   useEffect(() => {
@@ -257,99 +187,76 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
     r_insoluble: "residu_insoluble",
     so3: "SO3",
     chlorure: "teneur_chlour",
-    ajt : "ajout",
+    ajt: "ajout",
     c3a: "C3A",
   };
 
   const getLimitsByClass = (classe, key) => {
     const mockKey = keyMapping[key];
-    if (!mockKey || !mockDetails[mockKey]) return { li: "-", ls: "-", lg: "-" };
+    if (!mockKey || !mockDetails[mockKey]) {
+      return { li: "-", ls: "-", lg: "-" };
+    }
 
-    // Navigate the nested structure: parameter -> family -> type -> classes
     const parameterData = mockDetails[mockKey];
     
-    // If we have both family and type, try to find the exact match
-    if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
-      const familyData = parameterData[selectedProductFamily];
+    if (!parameterData[finalFamilleCode]) {
+      return { li: "-", ls: "-", lg: "-" };
+    }
+
+    const familleData = parameterData[finalFamilleCode];
+
+    // For "ajout" parameter, the structure is different
+    if (key === "ajt") {
+      const ajoutCode = selectedProductType.split('/').pop()?.split('-').pop()?.trim();
       
-      if (familyData[selectedProductType]) {
-        const typeData = familyData[selectedProductType];
-        const found = typeData.find(item => item.classe === classe);
-        if (found) {
-          return {
-            li: found.limit_inf ?? "-",
-            ls: found.limit_max ?? "-",
-            lg: found.garantie ?? "-",
-          };
-        }
+      if (!ajoutCode || !familleData[ajoutCode]) {
+        return { li: "-", ls: "-", lg: "-" };
       }
-    }
-    
-    // If exact match not found, try to find in the general family section
-    if (selectedProductFamily && parameterData[selectedProductFamily]) {
-      const familyData = parameterData[selectedProductFamily];
+
+      const ajoutData = familleData[ajoutCode];
       
-      // Look for a general type (like "CEM I" without specific subtype)
-      if (familyData[selectedProductFamily]) {
-        const generalTypeData = familyData[selectedProductFamily];
-        const found = generalTypeData.find(item => item.classe === classe);
-        if (found) {
-          return {
-            li: found.limit_inf ?? "-",
-            ls: found.limit_max ?? "-",
-            lg: found.garantie ?? "-",
-          };
-        }
-      }
-      
-      // If still not found, try any type in the family
-      for (const typeKey in familyData) {
-        const typeData = familyData[typeKey];
-        const found = typeData.find(item => item.classe === classe);
-        if (found) {
-          return {
-            li: found.limit_inf ?? "-",
-            ls: found.limit_max ?? "-",
-            lg: found.garantie ?? "-",
-          };
-        }
-      }
-    }
-    
-    // If still not found, try any family and type
-    for (const familyKey in parameterData) {
-      const familyData = parameterData[familyKey];
-      for (const typeKey in familyData) {
-        const typeData = familyData[typeKey];
-        const found = typeData.find(item => item.classe === classe);
-        if (found) {
-          return {
-            li: found.limit_inf ?? "-",
-            ls: found.limit_max ?? "-",
-            lg: found.garantie ?? "-",
-          };
-        }
-      }
-    }
-    
-     if (key === "c3a") {
-    if (parameterData[selectedProductFamily]?.[selectedProductType]) {
-      const found = parameterData[selectedProductFamily][selectedProductType].find(item => item.classe === classe);
-      if (found) return { li: found.limit_inf ?? "-", ls: found.limit_max ?? "-", lg: found.garantie ?? "-" };
-    }
-  } else if (key === "ajt") {
-    // Ajout is simpler, keyed by product type directly
-    if (parameterData[selectedProductType]) {
       return {
-        li: parameterData[selectedProductType].limitInf ?? "-",
-        ls: parameterData[selectedProductType].limitSup ?? "-",
-        lg: "-"
+        li: ajoutData.limitInf ?? ajoutData.limit_inf ?? "-",
+        ls: ajoutData.limitSup ?? ajoutData.limit_max ?? "-",
+        lg: ajoutData.garantie ?? "-"
       };
     }
-  }
 
-    // Default fallback
-    return { li: "-", ls: "-", lg: "-" };
+    // For other parameters, search for the class data
+    let classData = null;
+    
+    if (Array.isArray(familleData)) {
+      classData = familleData.find(item => item.classe === classe);
+    } else if (typeof familleData === 'object' && familleData[classe]) {
+      classData = familleData[classe];
+    } else {
+      for (const key in familleData) {
+        const subData = familleData[key];
+        if (Array.isArray(subData)) {
+          const found = subData.find(item => item.classe === classe);
+          if (found) {
+            classData = found;
+            break;
+          }
+        } else if (typeof subData === 'object' && subData[classe]) {
+          classData = subData[classe];
+          break;
+        } else if (typeof subData === 'object' && (subData.limit_inf || subData.limitInf)) {
+          classData = subData;
+          break;
+        }
+      }
+    }
+
+    if (!classData) {
+      return { li: "-", ls: "-", lg: "-" };
+    }
+
+    return {
+      li: classData.limit_inf ?? classData.limitInf ?? "-",
+      ls: classData.limit_max ?? classData.limitSup ?? classData.limitMax ?? "-",
+      lg: classData.garantie ?? classData.garantieValue ?? "-",
+    };
   };
 
   const dataToUse = filteredTableData || [];
@@ -371,16 +278,14 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
     { key: "chlorure", label: "Chlorure" },
   ];
 
-  if (selectedType === 1) {
-    // Add C3A if selected product is in c3aProducts
-    if (c3aProducts.includes(selectedProductType)) {
-      parameters.push({ key: "c3a", label: "C3A" });
-    }
+  // Add C3A if selected product is in c3aProducts
+  if (c3aProducts.includes(selectedProductType)) {
+    parameters.push({ key: "c3a", label: "C3A" });
+  }
 
-    // Add Ajout if selected product is in ajoutProducts
-    if (ajoutProducts.includes(selectedProductType)) {
-      parameters.push({ key: "ajt", label: "Ajout" });
-    }
+  // Add Ajout if selected product is in ajoutProducts
+  if (ajoutProducts.includes(selectedProductType)) {
+    parameters.push({ key: "ajt", label: "Ajout" });
   }
 
   const allStats = parameters.reduce((acc, param) => {
@@ -396,7 +301,7 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
     { key: "std", label: "Écart type" },
   ];
 
-  const classes = ["32.5 L" , "32.5 N", "32.5 R","42.5 L" , "42.5 N", "42.5 R" , "52.5 L" , "52.5 N", "52.5 R"];
+  const classes = ["32.5 L", "32.5 N", "32.5 R", "42.5 L", "42.5 N", "42.5 R", "52.5 L", "52.5 N", "52.5 R"];
 
   const renderClassSection = (classe) => (
     <div className="class-section" key={classe}>
@@ -405,56 +310,71 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
         <tbody>
           <tr>
             <td>Limite inférieure (LI)</td>
-            {parameters.map((param) => <td key={param.key}>{getLimitsByClass(classe, param.key).li}</td>)}
-          </tr>
-          <tr>
-            <td>N &lt; LI</td>
             {parameters.map((param) => {
               const limits = getLimitsByClass(classe, param.key);
-              return <td key={param.key}>{evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).belowLI}</td>;
+              return <td key={param.key}>{limits.li}</td>;
             })}
           </tr>
           <tr>
-            <td>% &lt; LI</td>
+            <td>N &lt; LI(RC+DP)</td>
             {parameters.map((param) => {
               const limits = getLimitsByClass(classe, param.key);
-              return <td key={param.key}>{evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).percentLI}</td>;
+              const evaluation = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
+              return <td key={param.key}>{evaluation.belowLI}</td>;
+            })}
+          </tr>
+          <tr>
+            <td>% &lt; LI(RC+DP)</td>
+            {parameters.map((param) => {
+              const limits = getLimitsByClass(classe, param.key);
+              const evaluation = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
+              return <td key={param.key}>{evaluation.percentLI}</td>;
             })}
           </tr>
           <tr>
             <td>Limite supérieure (LS)</td>
-            {parameters.map((param) => <td key={param.key}>{getLimitsByClass(classe, param.key).ls}</td>)}
-          </tr>
-          <tr>
-            <td>N &gt; LS</td>
             {parameters.map((param) => {
               const limits = getLimitsByClass(classe, param.key);
-              return <td key={param.key}>{evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).aboveLS}</td>;
+              return <td key={param.key}>{limits.ls}</td>;
             })}
           </tr>
           <tr>
-            <td>% &gt; LS</td>
+            <td>N &lt; LS(RC+DP) ; &gt;[autres] </td>
             {parameters.map((param) => {
               const limits = getLimitsByClass(classe, param.key);
-              return <td key={param.key}>{evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).percentLS}</td>;
+              const evaluation = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
+              return <td key={param.key}>{evaluation.aboveLS}</td>;
+            })}
+          </tr>
+          <tr>
+            <td>% &lt; LS(RC+DP) ; &gt;[autres]</td>
+            {parameters.map((param) => {
+              const limits = getLimitsByClass(classe, param.key);
+              const evaluation = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
+              return <td key={param.key}>{evaluation.percentLS}</td>;
             })}
           </tr>
           <tr>
             <td>Limite garantie (LG)</td>
-            {parameters.map((param) => <td key={param.key}>{getLimitsByClass(classe, param.key).lg}</td>)}
-          </tr>
-          <tr>
-            <td>N &lt; LG</td>
             {parameters.map((param) => {
               const limits = getLimitsByClass(classe, param.key);
-              return <td key={param.key}>{evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).belowLG}</td>;
+              return <td key={param.key}>{limits.lg}</td>;
             })}
           </tr>
           <tr>
-            <td>% &lt; LG</td>
+            <td>N &lt; LG(RC+DP) ; &gt;[autres]</td>
             {parameters.map((param) => {
               const limits = getLimitsByClass(classe, param.key);
-              return <td key={param.key}>{evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).percentLG}</td>;
+              const evaluation = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
+              return <td key={param.key}>{evaluation.belowLG}</td>;
+            })}
+          </tr>
+          <tr>
+            <td>% &lt; LG(RC+DP) ; &gt;[autres]</td>
+            {parameters.map((param) => {
+              const limits = getLimitsByClass(classe, param.key);
+              const evaluation = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
+              return <td key={param.key}>{evaluation.percentLG}</td>;
             })}
           </tr>
         </tbody>
@@ -462,134 +382,17 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
     </div>
   );
 
-  // Prepare tables data for export
-  const prepareTablesForExport = () => {
-    const tables = [];
-    
-    // Global stats table
-    const globalStatsContent = `
-      <div class="class-section">
-        <div class="class-title">STATISTIQUES GLOBALES</div>
-        <table class="stats-table">
-          <thead>
-            <tr>
-              <th>Statistique</th>
-              ${parameters.map((param) => `<th>${param.label}</th>`).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            ${statRows.map((row) => `
-              <tr>
-                <td>${row.label}</td>
-                ${parameters.map((param) => `<td>${allStats[param.key][row.key]}</td>`).join('')}
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    `;
-    
-    tables.push({ id: 'global', name: 'Statistiques Globales', content: globalStatsContent });
-    
-    // Class tables
-    classes.forEach((classe, index) => {
-      const classContent = `
-        <div class="class-section">
-          <div class="class-title">CLASSE ${classe}</div>
-          <table class="stats-table">
-            <tbody>
-              <tr>
-                <td>Limite inférieure (LI)</td>
-                ${parameters.map((param) => `<td>${getLimitsByClass(classe, param.key).li}</td>`).join('')}
-              </tr>
-              <tr>
-                <td>N &lt; LI</td>
-                ${parameters.map((param) => {
-                  const limits = getLimitsByClass(classe, param.key);
-                  return `<td>${evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).belowLI}</td>`;
-                }).join('')}
-              </tr>
-              <tr>
-                <td>% &lt; LI</td>
-                ${parameters.map((param) => {
-                  const limits = getLimitsByClass(classe, param.key);
-                  return `<td>${evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).percentLI}</td>`;
-                }).join('')}
-              </tr>
-              <tr>
-                <td>Limite supérieure (LS)</td>
-                ${parameters.map((param) => `<td>${getLimitsByClass(classe, param.key).ls}</td>`).join('')}
-              </tr>
-              <tr>
-                <td>N &gt; LS</td>
-                ${parameters.map((param) => {
-                  const limits = getLimitsByClass(classe, param.key);
-                  return `<td>${evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).aboveLS}</td>`;
-                }).join('')}
-              </tr>
-              <tr>
-                <td>% &gt; LS</td>
-                ${parameters.map((param) => {
-                  const limits = getLimitsByClass(classe, param.key);
-                  return `<td>${evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).percentLS}</td>`;
-                }).join('')}
-              </tr>
-              <tr>
-                <td>Limite garantie (LG)</td>
-                ${parameters.map((param) => `<td>${getLimitsByClass(classe, param.key).lg}</td>`).join('')}
-              </tr>
-              <tr>
-                <td>N &lt; LG</td>
-                ${parameters.map((param) => {
-                  const limits = getLimitsByClass(classe, param.key);
-                  return `<td>${evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).belowLG}</td>`;
-                }).join('')}
-              </tr>
-              <tr>
-                <td>% &lt; LG</td>
-                ${parameters.map((param) => {
-                  const limits = getLimitsByClass(classe, param.key);
-                  return `<td>${evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg).percentLG}</td>`;
-                }).join('')}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      `;
-      
-      tables.push({ id: `class-${index}`, name: `CLASSE ${classe}`, content: classContent });
-    });
-    
-    return tables;
-  };
-
-  const handleExport = (selectedTableIds) => {
-    const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client";
-    const tablesData = prepareTablesForExport();
-    exportToWord(tablesData, clientName, produitDescription, selectedProductFamily, selectedProductType, filterPeriod, selectedTableIds);
-  };
-
   return (
     <div className="stats-section">
-      
       <div style={{ marginBottom: "1rem" }}>
-        {/* Export Button */}
-        <button 
-          className="export-btn action-btn"
-          onClick={() => setExportModalOpen(true)}
-          style={{ marginTop: '10px' }}
-        >
-          Exporter vers Word
-        </button>
         <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
-       
         <h2>Données Statistiques</h2>
-        
-        <p><strong>{produitDescription}</strong></p>
-        {selectedProductFamily && <p><strong>Famille: {selectedProductFamily}</strong></p>}
-        {selectedProductType && <p><strong>Type: {selectedProductType}</strong></p>}
+        {produitInfo && (
+          <>
+            <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
+          </>
+        )}
         <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-        
       </div>
 
       {/* Global stats */}
@@ -612,14 +415,6 @@ const DonneesStatistiques = ({ clientId, produitId, selectedType, produitDescrip
 
       {/* Limits per class */}
       {classes.map((classe) => renderClassSection(classe))}
-
-      {/* Export Modal */}
-      <ExportModal
-        isOpen={exportModalOpen}
-        onClose={() => setExportModalOpen(false)}
-        onExport={handleExport}
-        tables={prepareTablesForExport()}
-      />
     </div>
   );
 };
