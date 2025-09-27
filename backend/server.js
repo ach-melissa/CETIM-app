@@ -43,10 +43,12 @@ app.get("/api/clients", async (req, res) => {
   try {
     const [rows] = await promisePool.query(`
       SELECT c.id, c.sigle, c.nom_raison_sociale, c.adresse, c.famillecement, c.methodeessai,
-             t.id AS typecement_id, t.code, t.description
+             t.id AS typecement_id, t.code, t.description,
+             f.id AS famille_id, f.code AS famille_code, f.nom AS famille_nom
       FROM clients c
       LEFT JOIN client_types_ciment ct ON c.id = ct.client_id
       LEFT JOIN types_ciment t ON ct.typecement_id = t.id
+      LEFT JOIN familles_ciment f ON t.famille_id = f.id
       ORDER BY c.id
     `);
 
@@ -68,7 +70,12 @@ app.get("/api/clients", async (req, res) => {
         client.types_ciment.push({
           id: row.typecement_id,
           code: row.code,
-          description: row.description
+          description: row.description,
+          famille: {
+            id: row.famille_id,
+            code: row.famille_code,
+            nom: row.famille_nom
+          }
         });
       }
       return acc;
@@ -436,16 +443,30 @@ app.get("/api/produits/:clientId", async (req, res) => {
   try {
     const [rows] = await promisePool.query(
       `
-      SELECT ct.id, t.code AS nom, t.description
+      SELECT ct.id, t.code AS nom, t.description, t.sr,
+             f.id AS famille_id, f.code AS famille_code, f.nom AS famille_nom
       FROM client_types_ciment ct
       JOIN types_ciment t ON ct.typecement_id = t.id
+      JOIN familles_ciment f ON t.famille_id = f.id
       WHERE ct.client_id = ?
       ORDER BY t.code
       `,
       [clientId]
     );
 
-    res.json(rows);
+    const produits = rows.map(row => ({
+      id: row.id,
+      nom: row.nom,
+      description: row.description,
+      sr: row.sr,
+      famille: {
+        id: row.famille_id,
+        code: row.famille_code,
+        nom: row.famille_nom
+      }
+    }));
+
+    res.json(produits);
   } catch (err) {
     console.error("❌ Erreur SQL produits:", err);
     res.status(500).json({ error: "Erreur serveur lors du chargement des produits" });
@@ -459,30 +480,94 @@ app.get("/api/clients/:sigle", async (req, res) => {
   try {
     const sql = `
       SELECT c.id, c.sigle, c.nom_raison_sociale, c.adresse,
-             p.type_ciment, p.classe_resistance, p.court_terme,
-             p.min_rc_2j, p.min_rc_7j, p.min_rc_28j,
-             p.min_debut_prise, p.max_stabilite, p.max_chaleur_hydratation,
-             p.max_perte_au_feu, p.max_residu_insoluble, p.max_so3,
-             p.max_chlorure, p.max_c3a, p.exigence_pouzzolanicite,
-             p.is_lh, p.is_sr
+             t.id AS type_ciment_id, t.code AS type_ciment_code, t.description AS type_ciment_description,
+             f.id AS famille_id, f.code AS famille_code, f.nom AS famille_nom
       FROM clients c
-      LEFT JOIN parametres_ciment p ON c.parametres_id = p.id
+      LEFT JOIN client_types_ciment ct ON c.id = ct.client_id
+      LEFT JOIN types_ciment t ON ct.typecement_id = t.id
+      LEFT JOIN familles_ciment f ON t.famille_id = f.id
       WHERE c.sigle = ?
     `;
 
-    const [result] = await promisePool.execute(sql, [sigle]);
+    const [results] = await promisePool.execute(sql, [sigle]);
     
-    if (result.length === 0) {
+    if (results.length === 0) {
       return res.status(404).json({ error: "Client not found" });
     }
-    
-    res.json(result[0]);
+
+    // Format the response to group types by client
+    const client = {
+      id: results[0].id,
+      sigle: results[0].sigle,
+      nom_raison_sociale: results[0].nom_raison_sociale,
+      adresse: results[0].adresse,
+      types_ciment: []
+    };
+
+    // Add all cement types for this client with famille information
+    results.forEach(row => {
+      if (row.type_ciment_id) {
+        client.types_ciment.push({
+          id: row.type_ciment_id,
+          code: row.type_ciment_code,
+          description: row.type_ciment_description,
+          famille: {
+            id: row.famille_id,
+            code: row.famille_code,
+            nom: row.famille_nom
+          }
+        });
+      }
+    });
+
+    res.json(client);
   } catch (err) {
     console.error("❌ Error fetching client info:", err);
     res.status(500).json({ error: "Database error" });
   }
 });
+app.get("/api/clients/:sigle/types-ciment", async (req, res) => {
+  const sigle = req.params.sigle;
 
+  try {
+    const sql = `
+      SELECT t.id, t.code, t.description, t.sr,
+             f.id AS famille_id, f.code AS famille_code, f.nom AS famille_nom
+      FROM clients c
+      JOIN client_types_ciment ct ON c.id = ct.client_id
+      JOIN types_ciment t ON ct.typecement_id = t.id
+      JOIN familles_ciment f ON t.famille_id = f.id
+      WHERE c.sigle = ?
+      ORDER BY t.code
+    `;
+
+    const [results] = await promisePool.execute(sql, [sigle]);
+    
+    if (results.length === 0) {
+      return res.status(404).json({ error: "Client not found or no cement types assigned" });
+    }
+
+    const types_ciment = results.map(row => ({
+      id: row.id,
+      code: row.code,
+      description: row.description,
+      sr: row.sr,
+      famille: {
+        id: row.famille_id,
+        code: row.famille_code,
+        nom: row.famille_nom
+      }
+    }));
+
+    res.json({
+      client_sigle: sigle,
+      types_ciment: types_ciment
+    });
+  } catch (err) {
+    console.error("❌ Error fetching client cement types:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
 
 // --- API Produits par client --- //
 app.get('/api/echantillons', async (req, res) => {
