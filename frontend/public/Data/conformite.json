@@ -170,12 +170,12 @@
   "conditions_statistiques": [
     { "n_min": 20, "n_max": 39, "pk_percentile": 10, "ca_probabilite": 0 },
     { "n_min": 40, "n_max": 54, "pk_percentile": 10, "ca_probabilite": 1 },
-    { "n_min": 40, "n_max": 54, "pk_percentile": 10, "ca_probabilite": 2 },
-    { "n_min": 40, "n_max": 54, "pk_percentile": 10, "ca_probabilite": 3 },
-    { "n_min": 40, "n_max": 54, "pk_percentile": 10, "ca_probabilite": 4 },
-    { "n_min": 40, "n_max": 54, "pk_percentile": 10, "ca_probabilite": 5 },
-    { "n_min": 40, "n_max": 54, "pk_percentile": 10, "ca_probabilite": 6 },
-    { "n_min": 40, "n_max": 54, "pk_percentile": 10, "ca_probabilite": 7 }
+    { "n_min": 55, "n_max": 69, "pk_percentile": 10, "ca_probabilite": 2 },
+    { "n_min": 70, "n_max": 84, "pk_percentile": 10, "ca_probabilite": 3 },
+    { "n_min": 85, "n_max": 99, "pk_percentile": 10, "ca_probabilite": 4 },
+    { "n_min": 100, "n_max": 109, "pk_percentile": 10, "ca_probabilite": 5 },
+    { "n_min": 110, "n_max": 123, "pk_percentile": 10, "ca_probabilite": 6 },
+    { "n_min": 124, "n_max": 136, "pk_percentile": 10, "ca_probabilite": 7 }
   ]
 
 
