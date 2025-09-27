@@ -630,18 +630,26 @@ app.post('/api/echantillons/bulk', async (req, res) => {
     }
 
     const columns = [
+
       'client_type_ciment_id', 'phase', 'num_ech', 'date_test', 'heure_test',
       'rc2j', 'rc7j', 'rc28j', 'prise', 'stabilite', 'hydratation', 
       'pfeu', 'r_insoluble', 'so3', 'chlorure', 'c3a', 'ajout_percent', 
       'type_ajout', 'source'
+
+      'client_id', 'produit_id', 'phase', 'num_ech', 'date_test',
+      'rc2j', 'rc7j', 'rc28j', 'prise', 'stabilite', 'hydratation',
+      'pfeu', 'r_insoluble', 'so3', 'chlorure', 'c3a',
+      'ajout_percent', 'type_ajout', 'source'
+
     ];
 
     const values = [];
     const placeholders = [];
 
     for (const r of rows) {
-      let date_test = r.date_test;
-      if (!date_test) date_test = new Date().toISOString().split('T')[0];
+      let date_test = r.date_test || new Date().toISOString().split('T')[0];
+
+      // Fix dd/mm/yyyy → yyyy-mm-dd
       if (typeof date_test === 'string' && date_test.includes('/')) {
         const [d, m, y] = date_test.split('/');
         date_test = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
@@ -650,7 +658,11 @@ app.post('/api/echantillons/bulk', async (req, res) => {
       const rowVals = [
         client_type_ciment_id,
         phase,
+
         r.num_ech || `IMP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+
+        r.num_ech || `IMP-${Date.now()}`, // fallback if missing
+
         date_test,
         null, // heure_test
         r.rc2j ? parseFloat(r.rc2j) : null,
@@ -673,15 +685,24 @@ app.post('/api/echantillons/bulk', async (req, res) => {
       placeholders.push(`(${columns.map(() => '?').join(',')})`);
     }
 
+ 
     const sql = `INSERT INTO echantillons (${columns.join(',')}) VALUES ${placeholders.join(',')}`;
+
+    const sql = `
+      INSERT INTO echantillons (${columns.join(',')})
+      VALUES ${placeholders.join(',')}
+    `;
+
 
     const [result] = await promisePool.query(sql, values);
     res.json({ inserted: result.affectedRows });
+
   } catch (err) {
     console.error("❌ Erreur bulk insert:", err);
     res.status(500).json({ error: 'DB error', details: err.message });
   }
 });
+
 
 /* --- Update an echantillon --- */
 app.put('/api/echantillons/:id', async (req, res) => {
@@ -719,10 +740,19 @@ app.delete('/api/echantillons/:id', async (req, res) => {
   }
 });
 // Import Excel rows into echantillons
+
 // Import Excel rows into echantillons - CORRECTED VERSION
 app.post("/api/echantillons/import", async (req, res) => {
   try {
     const { clientId, produitId, rows } = req.body;
+
+app.post("/api/echantillons/import", (req, res) => {
+  const { clientId, produitId, phase, rows } = req.body;
+  
+  if (!clientId || !produitId || !phase || !rows) {
+    return res.status(400).json({ error: "Paramètres manquants" });
+  }
+
 
     // Check if all necessary parameters are provided
     if (!clientId || !produitId || !rows) {
@@ -791,6 +821,7 @@ app.post("/api/echantillons/import", async (req, res) => {
 
 
 // Save modifications
+
 // Save modifications - ENHANCED VERSION
 app.post("/api/echantillons/save", async (req, res) => {
   try {
@@ -846,9 +877,42 @@ app.post("/api/echantillons/save", async (req, res) => {
     }
   } catch (err) {
     console.error("Erreur sauvegarde:", err);
+
+app.post("/api/echantillons/save", async (req, res) => {
+  const { rows } = req.body;
+  if (!rows || !Array.isArray(rows)) return res.status(400).json({ error: "Pas de données" });
+
+  try {
+    const promises = rows.map((row) => {
+      return new Promise((resolve, reject) => {
+        const sql = `
+          UPDATE echantillons SET 
+            rc2j=?, rc7j=?, rc28j=?, prise=?, stabilite=?, hydratation=?, 
+            pfeu=?, r_insoluble=?, so3=?, chlorure=?, c3a=?, ajout_percent=?, 
+            type_ajout=?, source=?
+          WHERE id=?
+        `;
+        const params = [
+          row.rc2j, row.rc7j, row.rc28j, row.prise, row.stabilite, row.hydratation,
+          row.pfeu, row.r_insoluble, row.so3, row.chlorure, row.c3a, row.ajout_percent,
+          row.type_ajout, row.source, row.id
+        ];
+        db.query(sql, params, (err, result) => {
+          if (err) return reject(err);
+          resolve(result);
+        });
+      });
+    });
+
+    await Promise.all(promises);
+    res.json({ success: true, updated: rows.length });
+  } catch (err) {
+    console.error("❌ Erreur save:", err);
+
     res.status(500).json({ error: "Erreur serveur lors de la sauvegarde" });
   }
 });
+
 
 // Delete rows
 // Delete rows - ENHANCED VERSION

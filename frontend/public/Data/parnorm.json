@@ -1323,6 +1323,259 @@
     {  "classe": "52.5 R", "limit_inf": null, "limit_max": "5", "garantie": null }
   ]
       },
+"CEM II":{ 
+    "CEM II/A-S": [ 
+    {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/B-S": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/A-D": [ 
+          { 
+             "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/A-P": [ 
+          { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/B-P": [ 
+      
+    { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/A-Q": [ 
+          { 
+             "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/B-Q": [ 
+          { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/A-V": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/B-V": [ 
+      
+    { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/A-W": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+
+    ],
+        "CEM II/B-W": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        " CEM II/A-T": [ 
+      
+    {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/B-T ": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/A-L ": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+            " CEM II/B-L": [ 
+          { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+            "CEM II/A-LL ": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+            " CEM II/B-LL": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+            "CEM II/A-M": [ 
+          { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+    
+    "CEM II/B-M": [ 
+      
+    {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ] },
 
         "CEM III": {
       "CEM III/A": [     {  "classe": "32.5 L", "limit_inf": null, "limit_max": "5", "garantie": null },
@@ -1376,7 +1629,79 @@
     {  "classe": "52.5 R", "limit_inf": null, "limit_max": "5", "garantie": null }
   ]
 
-}
+},
+
+  "CEM IV": {
+    "CEM IV/A": [
+      { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+    ],
+    "CEM IV/B": [
+      { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+    ],
+    "CEM IV/A-SR": [
+      { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+    ],
+    "CEM IV/B-SR": [
+      { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+    ]
+  },
+  "CEM V": {
+    "CEM V/A": [
+      { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+    ],
+    "CEM V/B": [
+      { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+    ]
+  }
+
   },
 
 
@@ -1425,6 +1750,259 @@
     {  "classe": "52.5 R", "limit_inf": null, "limit_max": "5", "garantie": null }
   ]
       },
+"CEM II":{ 
+    "CEM II/A-S": [ 
+    {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/B-S": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/A-D": [ 
+          { 
+             "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/A-P": [ 
+          { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/B-P": [ 
+      
+    { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/A-Q": [ 
+          { 
+             "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { 
+       "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/B-Q": [ 
+          { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/A-V": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/B-V": [ 
+      
+    { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/A-W": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+
+    ],
+        "CEM II/B-W": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        " CEM II/A-T": [ 
+      
+    {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/B-T ": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+        "CEM II/A-L ": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+            " CEM II/B-L": [ 
+          { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+            "CEM II/A-LL ": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+            " CEM II/B-LL": [ 
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+            "CEM II/A-M": [ 
+          { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ],
+    
+    "CEM II/B-M": [ 
+      
+    {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+
+    ] },
 
         "CEM III": {
       "CEM III/A": [     {  "classe": "32.5 L", "limit_inf": null, "limit_max": "5", "garantie": null },
@@ -1478,7 +2056,79 @@
     {  "classe": "52.5 R", "limit_inf": null, "limit_max": "5", "garantie": null }
   ]
 
-}
+},
+
+  "CEM IV": {
+    "CEM IV/A": [
+      { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+    ],
+    "CEM IV/B": [
+      { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+    ],
+    "CEM IV/A-SR": [
+      { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+    ],
+    "CEM IV/B-SR": [
+      { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+    ]
+  },
+  "CEM V": {
+    "CEM V/A": [
+      { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+    ],
+    "CEM V/B": [
+      { "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+      { "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+    ]
+  }
+
   },
 
   "temps_debut_prise": { 
@@ -3088,7 +3738,7 @@
     {  "classe": "52.5 R", "limit_inf": null, "limit_max": "5", "garantie": "6" }
  ]
       },
-        "CEM IV": {
+ "CEM IV": {
       "CEM IV/A-SR": [     
     { "classe": "32.5L", "limit_inf": null, "limit_max": "9", "garantie": "10"},
     { "classe": "32.5N", "limit_inf": null, "limit_max": "9", "garantie": "10"},
@@ -3119,100 +3769,75 @@
 
   "ajout": {
     "S": {
-      "description": "Laitier de haut fourneau (S)",
+      "description": "Laitier ",
       "CEM II/A-S": { "limitInf": 6, "limitSup": 20 },
-      "CEM II/B-S": { "limitInf": 21, "limitSup": 35 }
+      "CEM II/B-S": { "limitInf": 21, "limitSup": 35 },
+      "CEM III/A": { "limitInf": 36, "limitSup": 65  },
+      "CEM III/B": { "limitInf": 66, "limitSup": 80},
+      "CEM III/C": { "limitInf": 81, "limitSup": 95},
+      "CEM III/B-SR": { "limitInf": 66, "limitSup": 80},
+      "CEM III/C-SR": { "limitInf": 81, "limitSup": 95}
     },
     "D": {
-      "description":"Fumée de silice (D)",
+      "description":"Fumée ",
       "CEM II/A-D": { "limitInf": 6, "limitSup": 20 }
     },
     "P": {
-      "description":"Pouzzolane naturelle (P)",
+      "description":"Pouzzolane ",
       "CEM II/A-P": { "limitInf": 6, "limitSup": 20 },
       "CEM II/B-P": { "limitInf": 21, "limitSup": 35 }
     },
     "Q": {
-      "description":"Pouzzolane naturelle calcinée (Q)",
+      "description":"Pouzzolane calcinée ",
       "CEM II/A-Q": { "limitInf": 6, "limitSup": 20 },
       "CEM II/B-Q": { "limitInf": 21, "limitSup": 35 }
     },
     "V": {
-      "description":"Cendres volantes siliceuse (V)",
+      "description":"Cendres volantes siliceuse ",
       "CEM II/A-V": { "limitInf": 6, "limitSup": 20 },
       "CEM II/B-V": { "limitInf": 21, "limitSup": 35 }
     },
     "W": {
-      "description":"Cendres volantes calciques (W)",
+      "description":"Cendres volantes calciques ",
       "CEM II/A-W": { "limitInf": 6, "limitSup": 20 },
       "CEM II/B-W": { "limitInf": 21, "limitSup": 35 }
     },
     "T": {
-      "description":"Schiste calciné (T)",
+      "description":"Schiste ",
       "CEM II/A-T": { "limitInf": 6, "limitSup": 20 },
       "CEM II/B-T": { "limitInf": 21, "limitSup": 35 }
     },
     "L": {
-      "description":"Calcaire (L)",
+      "description":"Calcaire ",
       "CEM II/A-L": { "limitInf": 6, "limitSup": 20 },
       "CEM II/B-L": { "limitInf": 21, "limitSup": 35 }
     },
     "LL": {
-      "description":"Calcaire (LL)",
+      "description":"Calcaire ",
       "CEM II/A-LL": { "limitInf": 12, "limitSup": 20 },
       "CEM II/B-LL": { "limitInf": 21, "limitSup": 35 }
     },
     "SDPQVWTLLL": {
-      "description":"Ciments composés (S-D-P-Q-V-W-T-L-LL)",
+      "description":"Ciments composés ",
       "CEM II/A-M": { "limitInf": 12, "limitSup": 20 },
       "CEM II/B-M": { "limitInf": 21, "limitSup": 35 }
     },
     "DPQVW": {
-      "description": "Ciments pouzzolaniques (D-P-Q-V-W)",
+      "description": "Ciments pouzzolaniques ",
       "CEM IV/A": { "limitInf": 11, "limitSup": 35 },
       "CEM IV/B": { "limitInf": 36, "limitSup": 55 }
     },
     "PQV": {
-      "description":"Ciments composés (P-Q-V)",
+      "description":"Ciments composés ",
       "CEM V/A": { "limitInf": 18, "limitSup": 30 },
       "CEM V/B": { "limitInf": 31, "limitSup": 49 }
+    },
+   "PV": {
+      "description":"Ciments composés ",
+      "CEM IV/A-SR": { "limitInf": 21, "limitSup": 35 },
+      "CEM IV/B-SR": { "limitInf": 36, "limitSup": 55 }
     }
-  },
-    "CEM II" : {
-      "CEM II/A-S":{ "key":"S" , "limitInf": 6, "limitSup": 20 },  
-      "CEM II/B-S": { "key":"S","limitInf": 21, "limitSup": 35 },
-      "CEM II/A-D": {"key":"D", "limitInf": 6, "limitSup": 20 },
-      "CEM II/A-P": { "key":"P","limitInf": 6, "limitSup": 20 },
-      "CEM II/B-P": { "key":"P","limitInf": 21, "limitSup": 35 },
-      "CEM II/A-Q": {"key":"Q", "limitInf": 6, "limitSup": 20 },
-      "CEM II/B-Q": {"key":"Q", "limitInf": 21, "limitSup": 35 },
-      "CEM II/A-V": {"key":"V", "limitInf": 6, "limitSup": 20 },
-      "CEM II/B-V": {"key":"V", "limitInf": 21, "limitSup": 35 },
-      "CEM II/A-W": { "key":"W","limitInf": 6, "limitSup": 20 },
-      "CEM II/B-W": { "key":"W","limitInf": 21, "limitSup": 35 },
-      "CEM II/A-T": { "key":"T","limitInf": 6, "limitSup": 20 },
-      "CEM II/B-T": {"key":"T", "limitInf": 21, "limitSup": 35 },
-       "CEM II/A-L": {"key":"L", "limitInf": 6, "limitSup": 20 },
-      "CEM II/B-L": {"key":"L", "limitInf": 21, "limitSup": 35 },
-      "CEM II/A-LL": {"key":"LL", "limitInf": 12, "limitSup": 20 },
-      "CEM II/B-LL": { "key":"LL","limitInf": 21, "limitSup": 35 },
-      "CEM II/A-M": { "key":"SDPQVWTLLL","limitInf": 12, "limitSup": 20 },
-      "CEM II/B-M": {"key":"SDPQVWTLLL", "limitInf": 21, "limitSup": 35 } 
-   },
-   "CEM III":{
-      "CEM III/A": { "key":"S" , "limitInf": 36, "limitSup": 65  },
-      "CEM III/B": { "key":"S" , "limitInf": 66, "limitSup": 80},
-      "CEM III/C": { "key":"S" , "limitInf": 81, "limitSup": 95}
-   },
-   "CEM IV":{
-      "CEM IV/A": { "key":"DPQVW","limitInf": 11, "limitSup": 35 },
-      "CEM IV/B": {"key":"DPQVW", "limitInf": 36, "limitSup": 55 }
-   },
-"CEM V":{
-      "CEM V/A": {"key":"PQV", "limitInf": 18, "limitSup": 30 },
-      "CEM V/B": { "key":"PQV","limitInf": 31, "limitSup": 49 }
-
-}
+  }
 } 
 
 
