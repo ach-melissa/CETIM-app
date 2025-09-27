@@ -94,7 +94,23 @@ const evaluateLimits = (data, key, li, ls, lg) => {
 
   const belowLI = !isNaN(liNum) ? values.filter((v) => v < liNum).length : 0;
   const aboveLS = !isNaN(lsNum) ? values.filter((v) => v > lsNum).length : 0;
-  const belowLG = !isNaN(lgNum) ? values.filter((v) => v < lgNum).length : 0;
+  
+  // ✅ CORRECTION : Logique améliorée pour belowLG selon le type de paramètre
+  let belowLG = 0;
+  
+  if (!isNaN(lgNum)) {
+    const resistanceParams = ['rc2j', 'rc7j', 'rc28j', 'prise'];
+    const isResistanceParam = resistanceParams.includes(key);
+    
+    if (isResistanceParam) {
+      // Résistances : belowLG = valeurs TROP BAISSES
+      belowLG = values.filter((v) => v < lgNum).length;
+    } else {
+      // Autres paramètres : belowLG = valeurs TROP ÉLEVÉES
+      belowLG = values.filter((v) => v > lgNum).length;
+    }
+  }
+
   const total = values.length;
 
   return {

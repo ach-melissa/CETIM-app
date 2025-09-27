@@ -112,7 +112,22 @@ const evaluateLimits = (data, key, li, ls, lg) => {
 
   const countLI = (li !== null && li !== "-") ? values.filter(v => v < parseFloat(li)).length : 0;
   const countLS = (ls !== null && ls !== "-") ? values.filter(v => v > parseFloat(ls)).length : 0;
-  const countLG = (lg !== null && lg !== "-") ? values.filter(v => v < parseFloat(lg)).length : 0;
+  
+  // ✅ CORRECTION : Logique améliorée pour countLG selon le type de paramètre
+  let countLG = 0;
+  
+  if (lg !== null && lg !== "-") {
+    const lgValue = parseFloat(lg);
+    
+    // Paramètres de résistance et temps de début de prise : valeurs INFÉRIEURES à la limite garantie
+    if (key === 'rc2j' || key === 'rc7j' || key === 'rc28j' || key === 'prise') {
+      countLG = values.filter(v => v < lgValue).length;
+    } 
+    // Autres paramètres (stabilité, SO3, chlorure, etc.) : valeurs SUPÉRIEURES à la limite garantie
+    else {
+      countLG = values.filter(v => v > lgValue).length;
+    }
+  }
 
   return {
     count,
