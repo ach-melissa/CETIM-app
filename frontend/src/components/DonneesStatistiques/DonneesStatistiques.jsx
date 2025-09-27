@@ -59,10 +59,10 @@ const calculateStats = (data, key) => {
   
   return {
     count,
-    min: min.toFixed(2),
-    max: max.toFixed(2),
-    mean: mean.toFixed(2),
-    std: std.toFixed(2),
+    min: min.toFixed(3),
+    max: max.toFixed(3),
+    mean: mean.toFixed(3),
+    std: std.toFixed(3),
   };
 };
 
