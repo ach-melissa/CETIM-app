@@ -19,6 +19,34 @@ const formatExcelDate = (excelDate) => {
   return `${year}-${month}-${day}`;
 };
 
+const formatExcelTime = (excelTime) => {
+  if (!excelTime) return "";
+
+  // If it's already a string like "14:30" or "14:30:00"
+  if (typeof excelTime === "string") {
+    const parts = excelTime.split(":");
+    if (parts.length >= 2) {
+      const hours = String(parts[0]).padStart(2, "0");
+      const minutes = String(parts[1]).padStart(2, "0");
+      const seconds = parts[2] ? String(parts[2]).padStart(2, "0") : "00";
+      return `${hours}:${minutes}:${seconds}`;
+    }
+    return excelTime; // fallback
+  }
+
+  // If it's a number (Excel serial time)
+  if (!isNaN(excelTime)) {
+    const totalSeconds = Math.floor(excelTime * 86400);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return "";
+};
+
+
 const EchantillonsTable = forwardRef(
   (
     {
@@ -33,8 +61,7 @@ const EchantillonsTable = forwardRef(
       clients = [],
       produits = [],
       hasData,
-      ajoutsData ,
-
+      ajoutsData,
     },
     ref
   ) => {
@@ -74,8 +101,8 @@ const EchantillonsTable = forwardRef(
 
     // Déterminer quelles colonnes afficher
     const showC3A =
-  produitInfo &&
-  (produitInfo.famille?.code === "CEM I" || c3aProducts.includes(produitInfo.nom));
+      produitInfo &&
+      (produitInfo.famille?.code === "CEM I" || c3aProducts.includes(produitInfo.nom));
 
     const showAjoutFields = produitInfo && ajoutProducts.includes(produitInfo.nom);
 
@@ -99,11 +126,12 @@ const EchantillonsTable = forwardRef(
 
         const resp = await axios.get("http://localhost:5000/api/echantillons", { params });
         const formattedData = (resp.data || []).map(item => ({
-         
-          ...item, // garde toutes les colonnes, dont id
-  date_test: item.date_test
-    ? new Date(item.date_test).toLocaleDateString("fr-CA")
-    : item.date_test, }));
+          ...item,
+          date_test: item.date_test
+            ? new Date(item.date_test).toLocaleDateString("fr-CA")
+            : item.date_test,
+          heure_test: item.heure_test || "",
+        }));
         
         setRows(formattedData);
         setSelected(new Set());
@@ -342,7 +370,7 @@ const EchantillonsTable = forwardRef(
           id: Date.now() + index,
           num_ech: row["N° ech"] || row["Ech"] || "",
           date_test: formatExcelDate(row["Date"] || row.date_test || ""),
-          heure_test: row["Heure"] || row["Heure essai"] || "",
+          heure_test: formatExcelTime(row["Heure"] || row["Heure essai"] || row.heure_test || ""),
           rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
           rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
           rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
@@ -354,7 +382,7 @@ const EchantillonsTable = forwardRef(
           so3: row["SO3 (%)"] || "",
           chlorure: row["Cl (%)"] || "",
           c3a: row["C3A"] || "",
-          ajout_percent: row["Taux d'Ajouts (%)"] || "",
+          ajout_percent: row["Taux d'Ajouts (%)"] || row["Taux Ajout"] || "",
           type_ajout: row["Type ajout"] || "",
           source: row["SILO N°"] || "",
         }));
@@ -372,10 +400,7 @@ const EchantillonsTable = forwardRef(
           .post("http://localhost:5000/api/echantillons/import", {
             clientId: clientId,
             produitId: clientTypeCimentId,
-            rows: formattedRows.map(r => ({
-    ...r,
-    heure_test: r.heure_test || null, // <- important
-  })),
+            rows: formattedRows,
           })
           .then((res) => {
             alert("Fichier importé avec succès !");
@@ -405,14 +430,16 @@ const EchantillonsTable = forwardRef(
       const dataToExport = rowsToEdit.length > 0 ? rowsToEdit : filteredRows;
       
       // Déterminer les colonnes à exporter en fonction du type de produit
-      const headers = ["Ech", "Date", "RC2J", "RC7J", "RC28J", "Prise", "Stabilité", "Hydratation", "P. Feu", "R. Insoluble", "SO3", "Chlorure"];
+      const headers = ["Ech", "Date", "Heure", "RC2J", "RC7J", "RC28J", "Prise", "Stabilité", "Hydratation", "P. Feu", "R. Insoluble", "SO3", "Chlorure"];
       
       if (showC3A) {
         headers.push("C3A");
       }
       
       if (showAjoutFields) {
+        headers.push("Taux Ajout");
         headers.push("Type Ajout");
+        headers.push("Description Ajout");
       }
 
       const doc = new jsPDF();
@@ -422,6 +449,7 @@ const EchantillonsTable = forwardRef(
           const baseRow = [
             row.num_ech,
             row.date_test,
+            row.heure_test,
             row.rc2j,
             row.rc7j,
             row.rc28j,
@@ -439,7 +467,9 @@ const EchantillonsTable = forwardRef(
           }
           
           if (showAjoutFields) {
+            baseRow.push(row.ajout_percent);
             baseRow.push(row.type_ajout);
+            baseRow.push(getAjoutDescription(row.type_ajout));
           }
           
           return baseRow;
@@ -468,23 +498,23 @@ const EchantillonsTable = forwardRef(
     const displayRows = isEditing && rowsToEdit.length > 0 ? rowsToEdit : filteredRows;
 
     // Calculer le nombre de colonnes pour le colspan
-    const colSpanCount = 12 + (showC3A ? 1 : 0) + (showAjoutFields ? 1 : 0);
- 
-const getAjoutDescription = (codeAjout) => {
-  if (!codeAjout || !ajoutsData) return "";
+    const colSpanCount = 13 + (showC3A ? 1 : 0) + (showAjoutFields ? 3 : 0);
 
-  // Découper en parties (ex: "S-L" → ["S","L"])
-  const parts = codeAjout.split("-");
+    const getAjoutDescription = (codeAjout) => {
+      if (!codeAjout || !ajoutsData) return "";
 
-  // Remplacer chaque partie par sa description
-  const descriptions = parts.map((part) => {
-    const ajout = ajoutsData[part];
-    return ajout ? ajout.description : part; // fallback au code brut
-  });
+      // Découper en parties (ex: "S-L" → ["S","L"])
+      const parts = codeAjout.split("-");
 
-  // Assembler
-  return descriptions.join(" + ");
-};
+      // Remplacer chaque partie par sa description
+      const descriptions = parts.map((part) => {
+        const ajout = ajoutsData[part];
+        return ajout ? ajout.description : part; // fallback au code brut
+      });
+
+      // Assembler
+      return descriptions.join(" + ");
+    };
 
     return (
       <div>
@@ -699,6 +729,7 @@ const getAjoutDescription = (codeAjout) => {
               <tr>
                 <th>Ech</th>
                 <th>Date</th>
+               
                 <th>RC2J</th>
                 <th>RC7J</th>
                 <th>RC28J</th>
@@ -710,10 +741,13 @@ const getAjoutDescription = (codeAjout) => {
                 <th>SO3</th>
                 <th>Chlorure</th>
                 {showC3A && <th>C3A</th>}
-                {showAjoutFields &&  <>
-    <th>Type Ajout</th>
-    <th>Description Ajout</th>
-  </>}
+                {showAjoutFields && (
+                  <>
+                    <th>Taux Ajout</th>
+                    <th>Type Ajout</th>
+                    <th>Description Ajout</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -721,6 +755,7 @@ const getAjoutDescription = (codeAjout) => {
                 <tr key={row.id}>
                   <td>{row.num_ech}</td>
                   <td>{row.date_test}</td>
+                  
                   <td>
                     <input
                       type="number"
@@ -812,19 +847,26 @@ const getAjoutDescription = (codeAjout) => {
                     </td>
                   )}
                   {showAjoutFields && (
-  <>
-    <td>
-      <input
-        type="text"
-        value={row.type_ajout || ""}
-        onChange={(e) => handleEdit(row.id, "type_ajout", e.target.value)}
-        disabled={!isEditing}
-      />
-    </td>
-    <td>{getAjoutDescription(row.type_ajout)}</td>
-  </>
-)}
-
+                    <>
+                      <td>
+                        <input
+                          type="number"
+                          value={row.ajout_percent || ""}
+                          onChange={(e) => handleEdit(row.id, "ajout_percent", e.target.value)}
+                          disabled={!isEditing}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          value={row.type_ajout || ""}
+                          onChange={(e) => handleEdit(row.id, "type_ajout", e.target.value)}
+                          disabled={!isEditing}
+                        />
+                      </td>
+                      <td>{getAjoutDescription(row.type_ajout)}</td>
+                    </>
+                  )}
                 </tr>
               ))}
               {displayRows.length === 0 && (

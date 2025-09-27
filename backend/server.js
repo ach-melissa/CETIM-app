@@ -718,8 +718,10 @@ app.delete('/api/echantillons/:id', async (req, res) => {
     res.status(500).json({ error: 'DB error' });
   }
 });
-// Import Excel rows into echantillons
-// Import Excel rows into echantillons - CORRECTED VERSION
+
+// ... existing code ...
+
+// Import Excel rows into echantillons - UPDATED VERSION
 app.post("/api/echantillons/import", async (req, res) => {
   try {
     const { clientId, produitId, rows } = req.body;
@@ -746,7 +748,7 @@ app.post("/api/echantillons/import", async (req, res) => {
       row.phase || null,           // phase
       row.num_ech || null,         // num_ech
       row.date_test || null,       // date_test
-      null,                        // heure_test (not in import data)
+      row.heure_test || null,      // heure_test (NOW INCLUDED)
       parseFloat(row.rc2j) || null, // rc2j
       parseFloat(row.rc7j) || null, // rc7j
       parseFloat(row.rc28j) || null, // rc28j
@@ -758,7 +760,7 @@ app.post("/api/echantillons/import", async (req, res) => {
       parseFloat(row.so3) || null,  // so3
       parseFloat(row.chlorure) || null, // chlorure
       parseFloat(row.c3a) || null,  // c3a
-      parseFloat(row.ajout_percent) || null, // ajout_percent
+      parseFloat(row.ajout_percent) || null, // ajout_percent (NOW INCLUDED)
       row.type_ajout || null,      // type_ajout
       row.source || null           // source
     ]);
@@ -786,69 +788,56 @@ app.post("/api/echantillons/import", async (req, res) => {
   }
 });
 
-
-
-
-
-// Save modifications
-// Save modifications - ENHANCED VERSION
+// Save modifications - UPDATED VERSION
 app.post("/api/echantillons/save", async (req, res) => {
   try {
     const { rows } = req.body;
+
     if (!rows || !Array.isArray(rows)) {
       return res.status(400).json({ error: "Données invalides" });
     }
 
-    const connection = await promisePool.getConnection();
-    await connection.beginTransaction();
+    for (const row of rows) {
+      const sql = `
+        UPDATE echantillons 
+        SET 
+          num_ech = ?, date_test = ?, heure_test = ?,
+          rc2j = ?, rc7j = ?, rc28j = ?,
+          prise = ?, stabilite = ?, hydratation = ?,
+          pfeu = ?, r_insoluble = ?, so3 = ?, chlorure = ?,
+          c3a = ?, ajout_percent = ?, type_ajout = ?
+        WHERE id = ?
+      `;
 
-    try {
-      for (const row of rows) {
-        const sql = `
-          UPDATE echantillons SET 
-            num_ech=?, date_test=?, rc2j=?, rc7j=?, rc28j=?, 
-            prise=?, stabilite=?, hydratation=?, pfeu=?, r_insoluble=?, 
-            so3=?, chlorure=?, c3a=?, ajout_percent=?, type_ajout=?, source=?
-          WHERE id=?
-        `;
-        
-        await connection.execute(sql, [
-          row.num_ech || null,
-          row.date_test || null,
-          row.rc2j ? parseFloat(row.rc2j) : null,
-          row.rc7j ? parseFloat(row.rc7j) : null,
-          row.rc28j ? parseFloat(row.rc28j) : null,
-          row.prise ? parseFloat(row.prise) : null,
-          row.stabilite ? parseFloat(row.stabilite) : null,
-          row.hydratation ? parseFloat(row.hydratation) : null,
-          row.pfeu ? parseFloat(row.pfeu) : null,
-          row.r_insoluble ? parseFloat(row.r_insoluble) : null,
-          row.so3 ? parseFloat(row.so3) : null,
-          row.chlorure ? parseFloat(row.chlorure) : null,
-          row.c3a ? parseFloat(row.c3a) : null,
-          row.ajout_percent ? parseFloat(row.ajout_percent) : null,
-          row.type_ajout || null,
-          row.source || null,
-          row.id
-        ]);
-      }
-
-      await connection.commit();
-      res.json({ 
-        success: true, 
-        message: `${rows.length} échantillon(s) sauvegardé(s) avec succès` 
-      });
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
+      await promisePool.execute(sql, [
+        row.num_ech || null,
+        row.date_test || null,
+        row.heure_test || null, // NOW INCLUDED
+        parseFloat(row.rc2j) || null,
+        parseFloat(row.rc7j) || null,
+        parseFloat(row.rc28j) || null,
+        parseFloat(row.prise) || null,
+        parseFloat(row.stabilite) || null,
+        parseFloat(row.hydratation) || null,
+        parseFloat(row.pfeu) || null,
+        parseFloat(row.r_insoluble) || null,
+        parseFloat(row.so3) || null,
+        parseFloat(row.chlorure) || null,
+        parseFloat(row.c3a) || null,
+        parseFloat(row.ajout_percent) || null, // NOW INCLUDED
+        row.type_ajout || null,
+        row.id
+      ]);
     }
+
+    res.json({ success: true, message: "Données sauvegardées avec succès" });
   } catch (err) {
     console.error("Erreur sauvegarde:", err);
-    res.status(500).json({ error: "Erreur serveur lors de la sauvegarde" });
+    res.status(500).json({ error: "Erreur serveur", details: err.message });
   }
 });
+
+// ... existing code ...
 
 // Delete rows
 // Delete rows - ENHANCED VERSION
