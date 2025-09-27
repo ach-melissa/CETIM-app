@@ -3,159 +3,147 @@ import "./TableConformite.css";
 import { useData } from "../../context/DataContext";
 
 const calculateStats = (data, key) => {
-  console.log(`=== RECHERCHE VALEURS MANQUANTES ${key} ===`);
-  
   const missingValues = [];
   const values = [];
   
   data.forEach((row, index) => {
     const value = row[key];
     
-    // ✅ CORRECTION AMÉLIORÉE : Détection plus robuste des valeurs manquantes
+    // CORRECTION : Meilleure détection des valeurs manquantes
     const isMissing = 
       value === null || 
       value === undefined || 
       value === "" || 
       value === " " || 
       value === "NULL" || 
-      value === "null" || // Ajout spécifique pour "null" en chaîne
+      value === "null" ||
       value === "undefined" ||
-      String(value).trim() === "" ||
-      String(value).toLowerCase() === "null" || // Détection case-insensitive
-      String(value).toLowerCase() === "undefined";
+      (typeof value === 'string' && value.trim() === "") ||
+      (typeof value === 'string' && value.toLowerCase().trim() === "null") ||
+      (typeof value === 'string' && value.toLowerCase().trim() === "undefined") ||
+      // Ajouter la vérification pour les objets
+      (typeof value === 'object' && value !== null && Object.keys(value).length === 0);
     
     if (isMissing) {
       missingValues.push({ line: index + 1, value: value, type: typeof value });
-      console.log(`Ligne ${index + 1}: VALEUR MANQUANTE -> "${value}" (type: ${typeof value})`);
     } else {
-      // ✅ CORRECTION : Conversion numérique plus robuste
       try {
-        const stringValue = String(value).trim().replace(',', '.');
-        const numericValue = parseFloat(stringValue);
+        // CORRECTION : Gérer différents types de données
+        let numericValue;
+        
+        if (typeof value === 'number') {
+          numericValue = value;
+        } else if (typeof value === 'string') {
+          const stringValue = value.trim().replace(',', '.');
+          numericValue = parseFloat(stringValue);
+        } else {
+          // Pour les autres types (objets, etc.), considérer comme manquant
+          missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "Invalid type" });
+          return;
+        }
         
         if (!isNaN(numericValue) && isFinite(numericValue)) {
           values.push(numericValue);
         } else {
           missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "NaN or Infinite" });
-          console.log(`Ligne ${index + 1}: VALEUR NON NUMÉRIQUE -> "${value}"`);
         }
       } catch (error) {
         missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "Conversion error" });
-        console.log(`Ligne ${index + 1}: ERREUR CONVERSION -> "${value}"`);
       }
     }
   });
-  
-  console.log(`Total valeurs manquantes: ${missingValues.length}`);
-  console.log(`Valeurs valides trouvées: ${values.length}`);
-  console.log("Positions des manquants:", missingValues.slice(0, 10)); // Afficher seulement les 10 premiers pour éviter l'overflow
 
-  // ✅ CORRECTION : Vérification plus explicite
   if (values.length === 0) {
-    console.log(`❌ AUCUNE VALEUR VALIDE TROUVÉE pour ${key}`);
-    
-    // Debug supplémentaire : analyser les types de données trouvés
-    const valueTypes = {};
-    data.forEach(row => {
-      const val = row[key];
-      const type = typeof val;
-      valueTypes[type] = (valueTypes[type] || 0) + 1;
-    });
-    console.log(`Types de données pour ${key}:`, valueTypes);
-    
-    return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
+    return { 
+      count: 0, 
+      min: "-", 
+      max: "-", 
+      mean: "-", 
+      std: "-",
+      missingValues: missingValues // Ajouter pour le débogage
+    };
   }
 
-  console.log("=== ANALYSE VALEURS VALIDES ===");
-  console.log("Nombre de valeurs valides:", values.length);
-  console.log("Valeurs uniques:", [...new Set(values)].length);
-  console.log("Premières valeurs valides:", values.slice(0, 5));
-  
-
-
-  const zeroValues = values.filter(v => v === 0);
-  console.log("Valeurs égales à zéro:", zeroValues.length);
-
-  // ✅ CORRECTION : Utilisation de reduce pour éviter les problèmes de stack
   const count = values.length;
-  const min = values.reduce((a, b) => Math.min(a, b), values[0]);
-  const max = values.reduce((a, b) => Math.max(a, b), values[0]);
- const sum = values.reduce((a, b) => a + b, 0);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const sum = values.reduce((a, b) => a + b, 0);
   const mean = sum / count;
   
-  // DEBUG: Log intermediate values
-  console.log('=== DEBUG CALCULATION ===');
-  console.log('Values count:', values.length);
-  console.log('Sum:', sum);
-  console.log('Mean:', mean);
-  
   const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
-  console.log('Variance:', variance);
-  
   const std = Math.sqrt(variance);
-  console.log('Standard Deviation:', std);
-  console.log('Rounded SD:', std.toFixed(2));
   
   return {
     count,
     min: min.toFixed(2),
     max: max.toFixed(2),
-    mean: mean.toFixed(2),  // Use calculated mean, not assumed one
+    mean: mean.toFixed(2),
     std: std.toFixed(2),
+    missingValues: missingValues // Ajouter pour le débogage
   };
 };
 
-
 const evaluateLimits = (data, key, li, ls, lg) => {
-  const values = data.map(v => parseFloat(v[key])).filter(v => !isNaN(v));
-  if (values.length === 0) {
-    return {
-      count: 0,
-      mean: "-",
-      stdDev: "-",
-      countLI: "-",
-      percentLI: "-",
-      countLS: "-",
-      percentLS: "-",
-      countLG: "-",
-      percentLG: "-"
+  const safeParse = (val) => {
+    if (val === null || val === undefined || val === "" || val === "-") return NaN;
+    if (typeof val === "number") return val;
+    
+    // CORRECTION : Meilleure gestion des conversions
+    try {
+      const stringVal = String(val).trim().replace(',', '.');
+      const num = parseFloat(stringVal);
+      return isNaN(num) ? NaN : num;
+    } catch (error) {
+      return NaN;
+    }
+  };
+
+  // CORRECTION : Filtrer correctement les valeurs
+  const values = data.map((row) => {
+    const value = row[key];
+    return safeParse(value);
+  }).filter((v) => !isNaN(v));
+  
+  if (!values.length) {
+    return { 
+      belowLI: "-", 
+      aboveLS: "-", 
+      belowLG: "-", 
+      percentLI: "-", 
+      percentLS: "-", 
+      percentLG: "-" 
     };
   }
 
-  const count = values.length;
-  const mean = values.reduce((a, b) => a + b, 0) / count;
-  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / count;
-  const stdDev = Math.sqrt(variance);
+  const liNum = safeParse(li);
+  const lsNum = safeParse(ls);
+  const lgNum = safeParse(lg);
 
-  const countLI = (li !== null && li !== "-") ? values.filter(v => v < parseFloat(li)).length : 0;
-  const countLS = (ls !== null && ls !== "-") ? values.filter(v => v > parseFloat(ls)).length : 0;
+  const belowLI = !isNaN(liNum) ? values.filter((v) => v < liNum).length : 0;
+  const aboveLS = !isNaN(lsNum) ? values.filter((v) => v > lsNum).length : 0;
   
-  // ✅ CORRECTION : Logique améliorée pour countLG selon le type de paramètre
-  let countLG = 0;
+  let belowLG = 0;
   
-  if (lg !== null && lg !== "-") {
-    const lgValue = parseFloat(lg);
+  if (!isNaN(lgNum)) {
+    const resistanceParams = ['rc2j', 'rc7j', 'rc28j', 'prise'];
+    const isResistanceParam = resistanceParams.includes(key);
     
-    // Paramètres de résistance et temps de début de prise : valeurs INFÉRIEURES à la limite garantie
-    if (key === 'rc2j' || key === 'rc7j' || key === 'rc28j' || key === 'prise') {
-      countLG = values.filter(v => v < lgValue).length;
-    } 
-    // Autres paramètres (stabilité, SO3, chlorure, etc.) : valeurs SUPÉRIEURES à la limite garantie
-    else {
-      countLG = values.filter(v => v > lgValue).length;
+    if (isResistanceParam) {
+      belowLG = values.filter((v) => v < lgNum).length;
+    } else {
+      belowLG = values.filter((v) => v > lgNum).length;
     }
   }
 
+  const total = values.length;
+
   return {
-    count,
-    mean: mean.toFixed(2),
-    stdDev: stdDev.toFixed(2),
-    countLI,
-    percentLI: countLI > 0 ? ((countLI / count) * 100).toFixed(2) : "0.00",
-    countLS,
-    percentLS: countLS > 0 ? ((countLS / count) * 100).toFixed(2) : "0.00",
-    countLG,
-    percentLG: countLG > 0 ? ((countLG / count) * 100).toFixed(2) : "0.00",
+    belowLI: belowLI > 0 ? belowLI : "-",
+    aboveLS: aboveLS > 0 ? aboveLS : "-",
+    belowLG: belowLG > 0 ? belowLG : "-",
+    percentLI: belowLI > 0 ? ((belowLI / total) * 100).toFixed(1) : "-",
+    percentLS: aboveLS > 0 ? ((aboveLS / total) * 100).toFixed(1) : "-",
+    percentLG: belowLG > 0 ? ((belowLG / total) * 100).toFixed(1) : "-",
   };
 };
 
@@ -319,7 +307,6 @@ const TableConformite = ({
     "CEM II/A-M", "CEM II/B-M"
   ];
 
-  // Create timeDependentParams dynamically based on product type
   const getTimeDependentParams = useCallback(() => {
     const baseParams = [
       { key: "prise", label: "Temp debut de prise", jsonKey: "temps_debut_de_prise" },
@@ -378,7 +365,6 @@ const TableConformite = ({
     ajout_percent: "ajout"
   };
 
-  // Set product type and family from produitInfo
   useEffect(() => {
     if (produitInfo) {
       setSelectedProductType(produitInfo.nom || produitInfo.code || "");
@@ -426,85 +412,79 @@ const TableConformite = ({
     fetchData();
   }, []);
 
-const getLimitsByClass = useCallback((classe, key) => {
-  const mapping = keyMapping[key];
-  if (!mapping || !mockDetails[mapping]) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
-  
-  const parameterData = mockDetails[mapping];
-  if (!parameterData) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
+  const getLimitsByClass = useCallback((classe, key) => {
+    const mapping = keyMapping[key];
+    if (!mapping || !mockDetails[mapping]) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
+    
+    const parameterData = mockDetails[mapping];
+    if (!parameterData) return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
 
-  // First try: Search in selected product family and type
-  if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
-    const familyData = parameterData[selectedProductFamily];
-    if (familyData[selectedProductType]) {
-      const typeData = familyData[selectedProductType];
-      
-      // FIX: Check if typeData is an array or object
-      if (Array.isArray(typeData)) {
-        const found = typeData.find(item => item.classe === classe);
-        if (found) return { 
-          li: found.limit_inf ?? "-", 
-          ls: found.limit_max ?? "-", 
-          lg: found.garantie ?? "-",
-          limit_inf: found.limit_inf,
-          limit_max: found.limit_max
-        };
-      } else if (typeof typeData === 'object' && typeData.classe === classe) {
-        // If typeData is a direct object (not array)
-        return { 
-          li: typeData.limit_inf ?? "-", 
-          ls: typeData.limit_max ?? "-", 
-          lg: typeData.garantie ?? "-",
-          limit_inf: typeData.limit_inf,
-          limit_max: typeData.limit_max
-        };
-      }
-    }
-  }
-
-  // Second try: Search through all families and types
-  for (const familleKey in parameterData) {
-    const familleData = parameterData[familleKey];
-    for (const typeKey in familleData) {
-      const typeData = familleData[typeKey];
-      
-      // FIX: Handle both array and object cases
-      if (Array.isArray(typeData)) {
-        const found = typeData.find(item => item.classe === classe);
-        if (found) return { 
-          li: found.limit_inf ?? "-", 
-          ls: found.limit_max ?? "-", 
-          lg: found.garantie ?? "-",
-          limit_inf: found.limit_inf,
-          limit_max: found.limit_max
-        };
-      } else if (typeof typeData === 'object' && typeData.classe === classe) {
-        // If typeData is a direct object (not array)
-        return { 
-          li: typeData.limit_inf ?? "-", 
-          ls: typeData.limit_max ?? "-", 
-          lg: typeData.garantie ?? "-",
-          limit_inf: typeData.limit_inf,
-          limit_max: typeData.limit_max
-        };
-      } else if (typeof typeData === 'object') {
-        // If typeData is an object with classe as keys
-        if (typeData[classe]) {
-          const classData = typeData[classe];
+    if (selectedProductFamily && selectedProductType && parameterData[selectedProductFamily]) {
+      const familyData = parameterData[selectedProductFamily];
+      if (familyData[selectedProductType]) {
+        const typeData = familyData[selectedProductType];
+        
+        if (Array.isArray(typeData)) {
+          const found = typeData.find(item => item.classe === classe);
+          if (found) return { 
+            li: found.limit_inf ?? "-", 
+            ls: found.limit_max ?? "-", 
+            lg: found.garantie ?? "-",
+            limit_inf: found.limit_inf,
+            limit_max: found.limit_max
+          };
+        } else if (typeof typeData === 'object' && typeData.classe === classe) {
           return { 
-            li: classData.limit_inf ?? "-", 
-            ls: classData.limit_max ?? "-", 
-            lg: classData.garantie ?? "-",
-            limit_inf: classData.limit_inf,
-            limit_max: classData.limit_max
+            li: typeData.limit_inf ?? "-", 
+            ls: typeData.limit_max ?? "-", 
+            lg: typeData.garantie ?? "-",
+            limit_inf: typeData.limit_inf,
+            limit_max: typeData.limit_max
           };
         }
       }
     }
-  }
 
-  return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
-}, [mockDetails, selectedProductFamily, selectedProductType]);
+    for (const familleKey in parameterData) {
+      const familleData = parameterData[familleKey];
+      for (const typeKey in familleData) {
+        const typeData = familleData[typeKey];
+        
+        if (Array.isArray(typeData)) {
+          const found = typeData.find(item => item.classe === classe);
+          if (found) return { 
+            li: found.limit_inf ?? "-", 
+            ls: found.limit_max ?? "-", 
+            lg: found.garantie ?? "-",
+            limit_inf: found.limit_inf,
+            limit_max: found.limit_max
+          };
+        } else if (typeof typeData === 'object' && typeData.classe === classe) {
+          return { 
+            li: typeData.limit_inf ?? "-", 
+            ls: typeData.limit_max ?? "-", 
+            lg: typeData.garantie ?? "-",
+            limit_inf: typeData.limit_inf,
+            limit_max: typeData.limit_max
+          };
+        } else if (typeof typeData === 'object') {
+          if (typeData[classe]) {
+            const classData = typeData[classe];
+            return { 
+              li: classData.limit_inf ?? "-", 
+              ls: classData.limit_max ?? "-", 
+              lg: classData.garantie ?? "-",
+              limit_inf: classData.limit_inf,
+              limit_max: classData.limit_max
+            };
+          }
+        }
+      }
+    }
+
+    return { li: "-", ls: "-", lg: "-", limit_inf: null, limit_max: null };
+  }, [mockDetails, selectedProductFamily, selectedProductType]);
+
   const dataToUse = filteredTableData || [];
 
   const allStats = useMemo(() => 
@@ -568,38 +548,8 @@ const getLimitsByClass = useCallback((classe, key) => {
     return checkTemporalCoverage(dataToUse, paramKeys);
   }, [dataToUse, timeDependentParams, checkTemporalCoverage]);
 
-  const calculateClassConformity = (classCompliance, statisticalCompliance, conditionsStatistiques) => {
-    const statisticalResults = Object.values(statisticalCompliance);
-    const allStatisticalSatisfied = statisticalResults.every(result => 
-      result && result.satisfied !== false
-    );
-
-    let allAttributeSatisfied = true;
-    Object.keys(classCompliance).forEach(paramKey => {
-      const compliance = classCompliance[paramKey];
-      if (compliance.values && compliance.values.length > 0) {
-        const attributeResult = checkEquationSatisfaction(
-          compliance.values,
-          compliance.limits,
-          conditionsStatistiques
-        );
-        if (!attributeResult.satisfied) {
-          allAttributeSatisfied = false;
-        }
-      }
-    });
-
-    const hasGarantieDeviations = Object.keys(classCompliance).some(paramKey => {
-      const compliance = classCompliance[paramKey];
-      return compliance.stats && compliance.stats.percentLG !== "-" && 
-             parseFloat(compliance.stats.percentLG) > 0;
-    });
-
-    return allStatisticalSatisfied && allAttributeSatisfied && !hasGarantieDeviations;
-  };
-
   const getCellColor = (deviationPercent, defaultPercent, hasData, limits) => {
-    if (!hasData || limits.li === "-" && limits.ls === "-" && limits.lg === "-") {
+    if (!hasData || (limits.li === "-" && limits.ls === "-" && limits.lg === "-")) {
       return "grey";
     }
     
@@ -618,67 +568,183 @@ const getLimitsByClass = useCallback((classe, key) => {
     return "green";
   };
 
-  const getControlStatus = (paramKey, limits, values, conditionsStatistiques) => {
-    if (!values || values.length === 0 || (limits.li === "-" && limits.ls === "-")) {
-      return { status: "ND/NS", color: "grey" };
-    }
-
-    const isMesureParam = alwaysMesureParams.some(p => p.key === paramKey) || 
-                         timeDependentParams.some(p => p.key === paramKey);
+  const getDeviationDisplay = (compliance) => {
+    const { limits, stats, values } = compliance;
+    const hasData = values && values.length > 0;
+    const hasLimits = limits.li !== "-" || limits.ls !== "-" || limits.lg !== "-";
     
-    const isAttributParam = alwaysAttributParams.some(p => p.key === paramKey);
-
-    if (isMesureParam) {
-      const stats = calculateStats(dataToUse, paramKey);
-      const category = keyMapping[paramKey]?.category || "general";
-      
-      let allSatisfied = true;
-      let hasInsufficientData = false;
-      
-      if (limits.li !== "-") {
-        const liResult = checkStatisticalCompliance(conformiteData, stats, limits, category, "li");
-        if (liResult.equation.includes("insuffisantes") || liResult.equation.includes("non disponible")) {
-          hasInsufficientData = true;
-        } else if (!liResult.satisfied) {
-          allSatisfied = false;
-        }
-      }
-      if (limits.ls !== "-") {
-        const lsResult = checkStatisticalCompliance(conformiteData, stats, limits, category, "ls");
-        if (lsResult.equation.includes("insuffisantes") || lsResult.equation.includes("non disponible")) {
-          hasInsufficientData = true;
-        } else if (!lsResult.satisfied) {
-          allSatisfied = false;
-        }
-      }
-      
-      if (hasInsufficientData) {
-        return { status: "Données insuffisantes", color: "grey" };
-      }
-      
-      return { 
-        status: allSatisfied ? "Satisfait" : "Non Satisfait", 
-        color: allSatisfied ? "green" : "yellow" 
-      };
+    if (!hasData) {
+      return { displayValue: "ND", color: "grey", isRelevant: false };
     }
-
-    if (isAttributParam) {
-      const attributeResult = checkEquationSatisfaction(values, limits, conditionsStatistiques);
-      
-      if (attributeResult.equation.includes("insuffisantes") || 
-          attributeResult.equation.includes("manquantes") || 
-          attributeResult.equation.includes("non chargées")) {
-        return { status: "Données insuffisantes", color: "grey" };
-      }
-      
-      return { 
-        status: attributeResult.satisfied ? "Satisfait" : "Non Satisfait", 
-        color: attributeResult.satisfied ? "green" : "yellow" 
-      };
+    
+    if (!hasLimits) {
+      return { displayValue: "--", color: "grey", isRelevant: false };
     }
-
-    return { status: "ND/NS", color: "grey" };
+    
+    const deviationPercent = Math.max(
+      parseFloat(stats.percentLI || 0),
+      parseFloat(stats.percentLS || 0)
+    );
+    
+    const color = getCellColor(deviationPercent, 0, hasData, limits);
+    let displayValue = "OK";
+    
+    if (deviationPercent >= 5) {
+      displayValue = `${deviationPercent}%`;
+    } else {
+      displayValue = "OK";
+    }
+    
+    return { displayValue, color, isRelevant: true };
   };
+
+  const getDefaultDisplay = (compliance) => {
+    const { limits, stats, values } = compliance;
+    const hasData = values && values.length > 0;
+    const hasLimits = limits.lg !== "-";
+    
+    if (!hasData) {
+      return { displayValue: "ND", color: "grey", isRelevant: false };
+    }
+    
+    if (!hasLimits) {
+      return { displayValue: "--", color: "grey", isRelevant: false };
+    }
+    
+    const defaultPercent = parseFloat(stats.percentLG || 0);
+    const color = getCellColor(0, defaultPercent, hasData, limits);
+    let displayValue = "OK";
+    
+    if (defaultPercent >= 5) {
+      displayValue = `${defaultPercent}%`;
+    } else {
+      displayValue = "OK";
+    }
+    
+    return { displayValue, color, isRelevant: true };
+  };
+
+const getControlStatus = (paramKey, limits, values, conditionsStatistiques) => {
+  // Cas ND: pas de données
+  if (!values || values.length === 0) {
+    return { status: "ND", color: "grey", isRelevant: false };
+  }
+  
+  // Cas --: pas de limites définies
+  if (limits.li === "-" && limits.ls === "-" && limits.lg === "-") {
+    return { status: "--", color: "grey", isRelevant: false };
+  }
+  
+  // Cas où le contrôle statistique est pertinent
+  if (values.length < 20) {
+    return { status: "Non Satisfait", color: "yellow", isRelevant: true };
+  }
+  
+  const isMesureParam = alwaysMesureParams.some(p => p.key === paramKey) || 
+                       timeDependentParams.some(p => p.key === paramKey);
+  
+  const isAttributParam = alwaysAttributParams.some(p => p.key === paramKey);
+
+  if (isMesureParam) {
+    const stats = calculateStats(dataToUse, paramKey);
+    const category = keyMapping[paramKey]?.category || "general";
+    
+    let allSatisfied = true;
+    
+    if (limits.li !== "-") {
+      const liResult = checkStatisticalCompliance(conformiteData, stats, limits, category, "li");
+      if (!liResult.satisfied) {
+        allSatisfied = false;
+      }
+    }
+    if (limits.ls !== "-") {
+      const lsResult = checkStatisticalCompliance(conformiteData, stats, limits, category, "ls");
+      if (!lsResult.satisfied) {
+        allSatisfied = false;
+      }
+    }
+    
+    return { 
+      status: allSatisfied ? "Satisfait" : "Non Satisfait", 
+      color: allSatisfied ? "green" : "yellow",
+      isRelevant: true
+    };
+  }
+
+  if (isAttributParam) {
+    const attributeResult = checkEquationSatisfaction(values, limits, conditionsStatistiques);
+    
+    return { 
+      status: attributeResult.satisfied ? "Satisfait" : "Non Satisfait", 
+      color: attributeResult.satisfied ? "green" : "yellow",
+      isRelevant: true
+    };
+  }
+
+  // Cas par défaut: non pertinent
+  return { status: "ND", color: "grey", isRelevant: false };
+};
+
+const calculateClassConformity = (classCompliance, statisticalCompliance, conditionsStatistiques) => {
+  let hasAnyRelevantParameter = false;
+  let allRelevantParametersConform = true;
+
+  console.log("=== CALCUL CONFORMITÉ CLASSE ===");
+
+  Object.entries(classCompliance).forEach(([paramKey, compliance]) => {
+    const hasLimits = compliance.limits.li !== "-" || compliance.limits.ls !== "-" || compliance.limits.lg !== "-";
+    const hasData = compliance.values && compliance.values.length > 0;
+    
+    console.log(`Paramètre: ${paramKey}, HasLimits: ${hasLimits}, HasData: ${hasData}, Count: ${compliance.values ? compliance.values.length : 0}`);
+    
+    // Cas 1: Pas de limites (--) - ignorer
+    if (!hasLimits) {
+      console.log(`  - Ignoré: pas de limites`);
+      return;
+    }
+    
+    // Cas 2: Il y a des limites MAIS pas de données (ND) - ignorer
+    if (!hasData) {
+      console.log(`  - Ignoré: pas de données (ND)`);
+      return;
+    }
+    
+    // Cas 3: Il y a des limites ET des données - évaluer la conformité
+    hasAnyRelevantParameter = true;
+
+    // Vérifier les déviations (LI/LS)
+    const deviationPercent = Math.max(
+      parseFloat(compliance.stats.percentLI || "0"),
+      parseFloat(compliance.stats.percentLS || "0")
+    );
+    
+    // Vérifier les défauts (LG)
+    const defaultPercent = parseFloat(compliance.stats.percentLG || "0");
+
+    // Vérifier le contrôle statistique
+    const controlStatus = getControlStatus(paramKey, compliance.limits, compliance.values, conditionsStatistiques);
+
+    console.log(`  - Déviation: ${deviationPercent}%, Défaut: ${defaultPercent}%, Contrôle: ${controlStatus.status}`);
+
+    // Critère de non-conformité: déviation OU défaut ≥5% OU contrôle non satisfait
+    const isNonConform = deviationPercent >= 5 || defaultPercent >= 5 || controlStatus.status === "Non Satisfait";
+    
+    console.log(`  - Non conforme: ${isNonConform}`);
+
+    if (isNonConform) {
+      allRelevantParametersConform = false;
+    }
+  });
+
+  console.log(`Résultat: hasAnyRelevantParameter=${hasAnyRelevantParameter}, allRelevantParametersConform=${allRelevantParametersConform}`);
+
+  // Si aucun paramètre pertinent n'a été trouvé, considérer comme conforme
+  if (!hasAnyRelevantParameter) {
+    return true;
+  }
+
+  return allRelevantParametersConform;
+};
 
   const handleExport = () => {
     console.log("Export functionality");
@@ -703,21 +769,47 @@ const getLimitsByClass = useCallback((classe, key) => {
   if (!dataToUse.length) {
     return <div className="no-data">Aucune donnée disponible. Veuillez d'abord filtrer des échantillons.</div>;
   }
+const debugClassConformity = (classCompliance, classe) => {
+  console.log(`=== Debug Conformité Classe ${classe} ===`);
+  
+  Object.entries(classCompliance).forEach(([paramKey, compliance]) => {
+    const hasLimits = compliance.limits.li !== "-" || compliance.limits.ls !== "-" || compliance.limits.lg !== "-";
+    const hasData = compliance.values && compliance.values.length > 0;
+    
+    console.log(`Paramètre: ${paramKey}`);
+    console.log(`- Has Limits: ${hasLimits}`);
+    console.log(`- Has Data: ${hasData}`);
+    console.log(`- Data Count: ${compliance.values ? compliance.values.length : 0}`);
+    console.log(`- Limits: LI=${compliance.limits.li}, LS=${compliance.limits.ls}, LG=${compliance.limits.lg}`);
+    
+    if (hasLimits && hasData) {
+      const deviationPercent = Math.max(
+        parseFloat(compliance.stats.percentLI || 0),
+        parseFloat(compliance.stats.percentLS || 0)
+      );
+      const defaultPercent = parseFloat(compliance.stats.percentLG || 0);
+      
+      console.log(`- Deviation: ${deviationPercent}%, Default: ${defaultPercent}%`);
+      console.log(`- Under 5%: ${deviationPercent < 5 && defaultPercent < 5}`);
+    }
+  });
+}; 
 
   return (
     <div className="cement-table-page">
       <div className="cement-table-container">
-      <div style={{ marginBottom: "1rem" }}>
-        <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
-        {produitInfo && (
-          <>
-            <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
-          </>
-        )}
-        <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-      </div>
+        <div style={{ marginBottom: "1rem" }}>
+          <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
+          {produitInfo && (
+            <>
+              <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
+            </>
+          )}
+          <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
+        </div>
 
         <div className="table-section">
+          
           <h3>Conformité</h3>
           <table className="conformity-table">
             <thead>
@@ -729,6 +821,7 @@ const getLimitsByClass = useCallback((classe, key) => {
               </tr>
             </thead>
             <tbody>
+              
               {classes.map((classe) => {
                 const classCompliance = {};
                 const statisticalCompliance = {};
@@ -754,11 +847,17 @@ const getLimitsByClass = useCallback((classe, key) => {
                 return (
                   <React.Fragment key={classe}>
                     <tr key={`${classe}-name`}>
-                      <td>
-                        {classe} <strong style={{ marginLeft: "10px", color: isClassConforme ? "green" : "red" }}>
-                          {isClassConforme ? "Conforme" : "Non Conforme"}
-                        </strong>
-                      </td>
+      <td>
+        {classe}{" "}
+        <strong
+          style={{
+            marginLeft: "10px",
+            color: isClassConforme ? "green" : "red",
+          }}
+        >
+          {isClassConforme ? "Conforme" : "Non Conforme"}
+        </strong>
+      </td>
                       {allParameters.map((param) => (
                         <td key={param.key}></td>
                       ))}
@@ -768,35 +867,17 @@ const getLimitsByClass = useCallback((classe, key) => {
                       <td>% Déviation</td>
                       {allParameters.map((param) => {
                         const compliance = classCompliance[param.key];
-                        const deviationPercent = Math.max(
-                          parseFloat(compliance.stats.percentLI || 0),
-                          parseFloat(compliance.stats.percentLS || 0)
-                        );
-                        const hasData = compliance.values && compliance.values.length > 0;
+                        const deviationDisplay = getDeviationDisplay(compliance);
                         
-                        const color = getCellColor(
-                          deviationPercent, 
-                          0, 
-                          hasData, 
-                          compliance.limits
-                        );
-
-                        let displayValue = "OK";
-                        if (deviationPercent >= 5) {
-                          displayValue = `${deviationPercent}%`;
-                        } else if (!hasData || (compliance.limits.li === "-" && compliance.limits.ls === "-")) {
-                          displayValue = "ND";
-                        }
-
                         return (
                           <td key={param.key} style={{ 
-                            color, 
+                            color: deviationDisplay.color, 
                             fontWeight: "bold", 
-                            backgroundColor: color === "green" ? "#e8f5e8" : 
-                                          color === "red" ? "#ffe8e8" : 
-                                          color === "grey" ? "#f0f0f0" : "transparent" 
+                            backgroundColor: deviationDisplay.color === "green" ? "#e8f5e8" : 
+                                          deviationDisplay.color === "red" ? "#ffe8e8" : 
+                                          deviationDisplay.color === "grey" ? "#f0f0f0" : "transparent" 
                           }}>
-                            {displayValue}
+                            {deviationDisplay.displayValue}
                           </td>
                         );
                       })}
@@ -806,32 +887,17 @@ const getLimitsByClass = useCallback((classe, key) => {
                       <td>% Défaut</td>
                       {allParameters.map((param) => {
                         const compliance = classCompliance[param.key];
-                        const defaultPercent = parseFloat(compliance.stats.percentLG || 0);
-                        const hasData = compliance.values && compliance.values.length > 0;
+                        const defaultDisplay = getDefaultDisplay(compliance);
                         
-                        const color = getCellColor(
-                          0, 
-                          defaultPercent, 
-                          hasData, 
-                          compliance.limits
-                        );
-
-                        let displayValue = "OK";
-                        if (defaultPercent >= 5) {
-                          displayValue = `${defaultPercent}%`;
-                        } else if (!hasData || compliance.limits.lg === "-") {
-                          displayValue = "ND";
-                        }
-
                         return (
                           <td key={param.key} style={{ 
-                            color, 
+                            color: defaultDisplay.color, 
                             fontWeight: "bold", 
-                            backgroundColor: color === "green" ? "#e8f5e8" : 
-                                          color === "red" ? "#ffe8e8" : 
-                                          color === "grey" ? "#f0f0f0" : "transparent" 
+                            backgroundColor: defaultDisplay.color === "green" ? "#e8f5e8" : 
+                                          defaultDisplay.color === "red" ? "#ffe8e8" : 
+                                          defaultDisplay.color === "grey" ? "#f0f0f0" : "transparent" 
                           }}>
-                            {displayValue}
+                            {defaultDisplay.displayValue}
                           </td>
                         );
                       })}
@@ -841,13 +907,8 @@ const getLimitsByClass = useCallback((classe, key) => {
                       <td>Contrôle Statistique</td>
                       {allParameters.map((param) => {
                         const compliance = classCompliance[param.key];
-                        const controlStatus = getControlStatus(
-                          param.key, 
-                          compliance.limits, 
-                          compliance.values, 
-                          conditionsStatistiques
-                        );
-
+                        const controlStatus = getControlStatus(param.key, compliance.limits, compliance.values, conditionsStatistiques);
+                        
                         return (
                           <td key={param.key} style={{ 
                             color: controlStatus.color, 
