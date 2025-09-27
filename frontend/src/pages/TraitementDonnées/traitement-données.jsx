@@ -11,10 +11,16 @@ import * as XLSX from "xlsx";
 const formatExcelDate = (excelDate) => {
   if (!excelDate || isNaN(excelDate)) return "";
   const utc_days = Math.floor(excelDate - 25569);
-  const utc_value = utc_days * 86400; 
+  const utc_value = utc_days * 86400;
   const date_info = new Date(utc_value * 1000);
-  return date_info.toISOString().split("T")[0];
+
+  // Retourne YYYY-MM-DD en heure locale (pas UTC)
+  const year = date_info.getFullYear();
+  const month = String(date_info.getMonth() + 1).padStart(2, "0");
+  const day = String(date_info.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
+
 
 const TraitDonnes = () => {
   const [clients, setClients] = useState([]);
@@ -228,21 +234,50 @@ const TraitDonnes = () => {
   };
 
   // Get complete produit info including famille
-  const getSelectedProduitInfo = () => {
-    if (!clientTypeCimentId) return null;
-    
-    const produit = produits.find((p) => p.id == clientTypeCimentId);
-    if (!produit) return null;
-    
-    return {
-      id: produit.id,
-      nom: produit.nom,
-      description: produit.description,
-      famille: produit.famille || null
-    };
+  // Get complete produit info including famille
+const getSelectedProduitInfo = () => {
+  if (!clientTypeCimentId) return null;
+  
+  const produit = produits.find((p) => p.id == clientTypeCimentId);
+  if (!produit) return null;
+  
+  return {
+    id: produit.id,
+    nom: produit.nom,
+    description: produit.description,
+    famille: produit.famille || null
   };
+};
 
   const selectedProduitInfo = getSelectedProduitInfo();
+  const [ajoutsData, setAjoutsData] = useState({});
+
+useEffect(() => {
+  fetch("/Data/parnorm.json")
+    .then((res) => res.json())
+    .then((data) => {
+      setAjoutsData(data.ajout || {}); // récupérer uniquement la clé "ajout"
+    })
+    .catch((err) => {
+      console.error("Erreur chargement parnorm.json:", err);
+    });
+}, []);
+const getAjoutDescription = (code) => {
+  if (!code || !ajoutsData) return "";
+
+  // Ex: "S-L" → ["S","L"]
+  const parts = code.split("-");
+  
+  // Récupérer les descriptions pour chaque lettre
+  const descriptions = parts.map((part) => {
+    const ajout = ajoutsData[part];
+    return ajout ? ajout.description : part; // si trouvé → description, sinon → code brut
+  });
+
+  // Retourner les descriptions jointes
+  return descriptions.join(" + ");
+};
+
 
   return (
     <div className="trait-donnees-container">
@@ -349,6 +384,7 @@ const TraitDonnes = () => {
           produitInfo={selectedProduitInfo}
           phase={phase}
           tableData={tableData}
+           ajoutsData={ajoutsData}  
           selectedRows={selectedRows}
           onTableDataChange={(data, s, e) => {
             setTableData(data);
@@ -368,6 +404,7 @@ const TraitDonnes = () => {
           initialEnd={endDate}
           clients={clients}
           produits={produits}
+            ajoutsData={ajoutsData} 
           onTableDataChange={(data, s, e) => {
             setTableData(data);
             setStartDate(s);
@@ -399,6 +436,8 @@ const TraitDonnes = () => {
           initialEnd={endDate}
           clients={clients}
           produits={produits}
+           ajoutsData={ajoutsData} 
+           
           onTableDataChange={(data, s, e) => {
             setTableData(data);
             setStartDate(s);
@@ -417,6 +456,8 @@ const TraitDonnes = () => {
           initialEnd={endDate}
           clients={clients}
           produits={produits}
+          ajoutsData={ajoutsData}   // keep this
+  getAjoutDescription={getAjoutDescription}
           onTableDataChange={(data, s, e) => {
             setTableData(data);
             setStartDate(s);

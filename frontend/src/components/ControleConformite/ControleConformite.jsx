@@ -282,7 +282,8 @@ const ControleConformite = ({
   produitInfo,
   produitDescription, 
   clients = [], 
-  produits = [] 
+  produits = [] ,
+  ajoutsData = {},
 }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
@@ -332,6 +333,16 @@ const ControleConformite = ({
     ajt: "ajout",
     c3a: "C3A",
   };
+  const getAjoutDescription = (code, ajoutsData) => {
+  if (!code || !ajoutsData) return "";
+  const parts = code.split("-");
+  const descriptions = parts.map((part) => {
+    const ajout = ajoutsData[part];
+    return ajout ? ajout.description : part;
+  });
+  return descriptions.join(" + ");
+};
+
 
   // Parameters configuration
   const timeDependentParams = [
@@ -344,8 +355,13 @@ const ControleConformite = ({
   ];
 
   const deviationOnlyParams = [
-    { key: "ajout_percent", label: "Ajout(Calcaire)", jsonKey: "ajout" } 
-  ];
+  { 
+    key: "ajout_percent", 
+    label: `Ajout: ${getAjoutDescription(produitInfo?.type_ajout, ajoutsData)}`, 
+    jsonKey: "ajout" 
+  }
+];
+
 
   const alwaysMesureParams = [
     { key: "rc2j", label: "Résistance courante 2 jrs" },
@@ -715,7 +731,8 @@ const ControleConformite = ({
 
                 {showAjout && classCompliance.ajout_percent && (
                   <div className="parameter-item">
-                    <span>Ajout(Calcaire)</span>
+                   <span>Ajout: {getAjoutDescription(produitInfo?.type_ajout, ajoutsData)}</span>
+
                     <span>
                       {classCompliance.ajout_percent?.stats?.percentLI !== "-" 
                         ? `${classCompliance.ajout_percent.stats.percentLI}% < ${classCompliance.ajout_percent.limits.li}` 
@@ -775,7 +792,7 @@ const ControleConformite = ({
 
                 {showAjout && classCompliance.ajout_percent && (
                   <div className="parameter-item">
-                    <span>Ajout(Calcaire)</span>
+                    <span>Ajout: {getAjoutDescription(produitInfo?.type_ajout, ajoutsData)}</span>
                     <span>
                       {classCompliance.ajout_percent?.stats?.percentLS !== "-" 
                         ? `${classCompliance.ajout_percent.stats.percentLS}% > ${classCompliance.ajout_percent.limits.ls}` 

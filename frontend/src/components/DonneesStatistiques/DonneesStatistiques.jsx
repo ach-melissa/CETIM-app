@@ -122,7 +122,8 @@ const DonneesStatistiques = ({
   produitInfo,
   produitDescription, 
   clients = [], 
-  produits = [] 
+  produits = [] ,
+  ajoutsData = {}
 }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
@@ -189,8 +190,18 @@ const DonneesStatistiques = ({
     chlorure: "teneur_chlour",
     ajt: "ajout",
     c3a: "C3A",
-  };
+    };
+// ✅ placer la fonction ici, après keyMapping
+const getAjoutDescription = (codeAjout, ajoutsData) => {
+  if (!codeAjout || !ajoutsData) return "";
 
+  const parts = codeAjout.split("-");
+  const descriptions = parts.map((part) =>
+    ajoutsData[part] ? ajoutsData[part].description : part
+  );
+
+  return descriptions.join(" + ");
+};
   const getLimitsByClass = (classe, key) => {
     const mockKey = keyMapping[key];
     if (!mockKey || !mockDetails[mockKey]) {
@@ -284,9 +295,22 @@ const DonneesStatistiques = ({
   }
 
   // Add Ajout if selected product is in ajoutProducts
-  if (ajoutProducts.includes(selectedProductType)) {
-    parameters.push({ key: "ajt", label: "Ajout" });
+ // Add Ajout if selected product is in ajoutProducts
+if (ajoutProducts.includes(selectedProductType)) {
+  let label = "Ajout";
+  const firstRowAjout = dataToUse.length > 0 ? dataToUse[0].type_ajout : null;
+
+  if (firstRowAjout) {
+    const desc = getAjoutDescription(firstRowAjout, ajoutsData);
+    if (desc) {
+      label = `Ajout (${desc})`;
+    }
   }
+
+  parameters.push({ key: "ajt", label });
+}
+
+
 
   const allStats = parameters.reduce((acc, param) => {
     acc[param.key] = calculateStats(dataToUse, param.key);
@@ -381,6 +405,8 @@ const DonneesStatistiques = ({
       </table>
     </div>
   );
+
+
 
   return (
     <div className="stats-section">

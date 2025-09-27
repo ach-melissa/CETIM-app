@@ -287,7 +287,9 @@ const TableConformite = ({
   produitInfo,
   produitDescription, 
   clients = [], 
-  produits = [] 
+  produits = [] ,
+  ajoutsData,
+  getAjoutDescription,
 }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
@@ -321,9 +323,10 @@ const TableConformite = ({
       baseParams.push({ key: "c3a", label: "C3A", jsonKey: "c3a" });
     }
 
-    if (ajoutProducts.includes(selectedProductType)) {
-      baseParams.push({ key: "ajout_percent", label: "Ajout(Calcaire)", jsonKey: "ajout" });
-    }
+   if (ajoutProducts.includes(selectedProductType)) {
+  baseParams.push({ key: "ajout_percent", label: "Ajout", jsonKey: "ajout" });
+}
+
 
     return baseParams;
   }, [selectedProductType]);
