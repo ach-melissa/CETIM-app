@@ -746,7 +746,7 @@ app.post("/api/echantillons/import", async (req, res) => {
       row.phase || null,           // phase
       row.num_ech || null,         // num_ech
       row.date_test || null,       // date_test
-      null,                        // heure_test (not in import data)
+      row.heure_test || null,  // au lieu de null fixe
       parseFloat(row.rc2j) || null, // rc2j
       parseFloat(row.rc7j) || null, // rc7j
       parseFloat(row.rc28j) || null, // rc28j
