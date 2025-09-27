@@ -3768,7 +3768,67 @@
 
 
   "ajout": {
-    "CEM II":{
+    "S": {
+      "description": "Laitier de haut fourneau (S)",
+      "CEM II/A-S": { "limitInf": 6, "limitSup": 20 },
+      "CEM II/B-S": { "limitInf": 21, "limitSup": 35 }
+    },
+    "D": {
+      "description":"Fumée de silice (D)",
+      "CEM II/A-D": { "limitInf": 6, "limitSup": 20 }
+    },
+    "P": {
+      "description":"Pouzzolane naturelle (P)",
+      "CEM II/A-P": { "limitInf": 6, "limitSup": 20 },
+      "CEM II/B-P": { "limitInf": 21, "limitSup": 35 }
+    },
+    "Q": {
+      "description":"Pouzzolane naturelle calcinée (Q)",
+      "CEM II/A-Q": { "limitInf": 6, "limitSup": 20 },
+      "CEM II/B-Q": { "limitInf": 21, "limitSup": 35 }
+    },
+    "V": {
+      "description":"Cendres volantes siliceuse (V)",
+      "CEM II/A-V": { "limitInf": 6, "limitSup": 20 },
+      "CEM II/B-V": { "limitInf": 21, "limitSup": 35 }
+    },
+    "W": {
+      "description":"Cendres volantes calciques (W)",
+      "CEM II/A-W": { "limitInf": 6, "limitSup": 20 },
+      "CEM II/B-W": { "limitInf": 21, "limitSup": 35 }
+    },
+    "T": {
+      "description":"Schiste calciné (T)",
+      "CEM II/A-T": { "limitInf": 6, "limitSup": 20 },
+      "CEM II/B-T": { "limitInf": 21, "limitSup": 35 }
+    },
+    "L": {
+      "description":"Calcaire (L)",
+      "CEM II/A-L": { "limitInf": 6, "limitSup": 20 },
+      "CEM II/B-L": { "limitInf": 21, "limitSup": 35 }
+    },
+    "LL": {
+      "description":"Calcaire (LL)",
+      "CEM II/A-LL": { "limitInf": 12, "limitSup": 20 },
+      "CEM II/B-LL": { "limitInf": 21, "limitSup": 35 }
+    },
+    "SDPQVWTLLL": {
+      "description":"Ciments composés (S-D-P-Q-V-W-T-L-LL)",
+      "CEM II/A-M": { "limitInf": 12, "limitSup": 20 },
+      "CEM II/B-M": { "limitInf": 21, "limitSup": 35 }
+    },
+    "DPQVW": {
+      "description": "Ciments pouzzolaniques (D-P-Q-V-W)",
+      "CEM IV/A": { "limitInf": 11, "limitSup": 35 },
+      "CEM IV/B": { "limitInf": 36, "limitSup": 55 }
+    },
+    "PQV": {
+      "description":"Ciments composés (P-Q-V)",
+      "CEM V/A": { "limitInf": 18, "limitSup": 30 },
+      "CEM V/B": { "limitInf": 31, "limitSup": 49 }
+    }
+  },
+    "CEM II" : {
       "CEM II/A-S":{ "key":"S" , "limitInf": 6, "limitSup": 20 },  
       "CEM II/B-S": { "key":"S","limitInf": 21, "limitSup": 35 },
       "CEM II/A-D": {"key":"D", "limitInf": 6, "limitSup": 20 },
@@ -3801,9 +3861,8 @@
 "CEM V":{
       "CEM V/A": {"key":"PQV", "limitInf": 18, "limitSup": 30 },
       "CEM V/B": { "key":"PQV","limitInf": 31, "limitSup": 49 }
+
 }
 } 
 
-
-}
 

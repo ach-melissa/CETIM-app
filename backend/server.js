@@ -611,8 +611,8 @@ app.get('/api/echantillons', async (req, res) => {
 });
 
 
-
 /* --- Bulk insert (import) endpoint --- */
+/* --- Bulk insert (import) endpoint - CORRECTED VERSION --- */
 app.post('/api/echantillons/bulk', async (req, res) => {
   try {
     const { client_id, client_type_ciment_id = null, phase = null, rows } = req.body;
@@ -620,10 +620,20 @@ app.post('/api/echantillons/bulk', async (req, res) => {
       return res.status(400).json({ error: 'client_id and rows are required' });
     }
 
+    // Validate client_type_ciment_id belongs to client_id
+    if (client_type_ciment_id) {
+      const checkSql = `SELECT COUNT(*) as count FROM client_types_ciment WHERE id = ? AND client_id = ?`;
+      const [checkResult] = await promisePool.execute(checkSql, [client_type_ciment_id, client_id]);
+      if (checkResult[0].count === 0) {
+        return res.status(400).json({ error: 'Invalid client_type_ciment_id for this client' });
+      }
+    }
+
     const columns = [
-      'client_id', 'produit_id', 'phase', 'num_ech', 'date_test', 'rc2j', 'rc7j', 'rc28j',
-      'prise', 'stabilite', 'hydratation', 'pfeu', 'r_insoluble', 'so3', 'chlorure',
-      'c3a', 'ajout_percent', 'type_ajout', 'source'
+      'client_type_ciment_id', 'phase', 'num_ech', 'date_test', 'heure_test',
+      'rc2j', 'rc7j', 'rc28j', 'prise', 'stabilite', 'hydratation', 
+      'pfeu', 'r_insoluble', 'so3', 'chlorure', 'c3a', 'ajout_percent', 
+      'type_ajout', 'source'
     ];
 
     const values = [];
@@ -638,38 +648,38 @@ app.post('/api/echantillons/bulk', async (req, res) => {
       }
 
       const rowVals = [
-        client_id,
-        produit_id,
+        client_type_ciment_id,
         phase,
-        r.num_ech || `IMP-${Date.now()}`,
+        r.num_ech || `IMP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         date_test,
-        r.rc2j || null,
-        r.rc7j || null,
-        r.rc28j || null,
-        r.prise || null,
-        r.stabilite || null,
-        r.hydratation || null,
-        r.pfeu || null,
-        r.r_insoluble || null,
-        r.so3 || null,
-        r.chlorure || null,
-        r.c3a || null,
-        r.ajout_percent || null,
+        null, // heure_test
+        r.rc2j ? parseFloat(r.rc2j) : null,
+        r.rc7j ? parseFloat(r.rc7j) : null,
+        r.rc28j ? parseFloat(r.rc28j) : null,
+        r.prise ? parseFloat(r.prise) : null,
+        r.stabilite ? parseFloat(r.stabilite) : null,
+        r.hydratation ? parseFloat(r.hydratation) : null,
+        r.pfeu ? parseFloat(r.pfeu) : null,
+        r.r_insoluble ? parseFloat(r.r_insoluble) : null,
+        r.so3 ? parseFloat(r.so3) : null,
+        r.chlorure ? parseFloat(r.chlorure) : null,
+        r.c3a ? parseFloat(r.c3a) : null,
+        r.ajout_percent ? parseFloat(r.ajout_percent) : null,
         r.type_ajout || null,
-        'import'
+        r.source || 'import'
       ];
 
       values.push(...rowVals);
       placeholders.push(`(${columns.map(() => '?').join(',')})`);
     }
 
-    const sql = `INSERT IGNORE INTO echantillons (${columns.join(',')}) VALUES ${placeholders.join(',')}`;
+    const sql = `INSERT INTO echantillons (${columns.join(',')}) VALUES ${placeholders.join(',')}`;
 
     const [result] = await promisePool.query(sql, values);
     res.json({ inserted: result.affectedRows });
   } catch (err) {
     console.error("❌ Erreur bulk insert:", err);
-    res.status(500).json({ error: 'DB error' });
+    res.status(500).json({ error: 'DB error', details: err.message });
   }
 });
 
@@ -709,7 +719,8 @@ app.delete('/api/echantillons/:id', async (req, res) => {
   }
 });
 // Import Excel rows into echantillons
-app.post("/api/echantillons/import", (req, res) => {
+// Import Excel rows into echantillons - CORRECTED VERSION
+app.post("/api/echantillons/import", async (req, res) => {
   try {
     const { clientId, produitId, rows } = req.body;
 
@@ -718,45 +729,59 @@ app.post("/api/echantillons/import", (req, res) => {
       return res.status(400).json({ error: "Paramètres manquants" });
     }
 
-    // Insert data into the echantillons table
+    // Validate that produitId exists in client_types_ciment for this client
+    const checkSql = `
+      SELECT COUNT(*) as count FROM client_types_ciment 
+      WHERE id = ? AND client_id = ?
+    `;
+    const [checkResult] = await promisePool.execute(checkSql, [produitId, clientId]);
+    
+    if (checkResult[0].count === 0) {
+      return res.status(400).json({ error: "Produit non trouvé pour ce client" });
+    }
+
+    // Insert data into the echantillons table with correct column mapping
     const values = rows.map((row) => [
-      produitId, // This should refer to the client_type_ciment_id
-      row.phase || null,
-      row.num_ech || null,
-      row.date_test || null,
-      row.rc2j || null,
-      row.rc7j || null,
-      row.rc28j || null,
-      row.prise || null,
-      row.stabilite || null,
-      row.hydratation || null,
-      row.pfeu || null,
-      row.r_insoluble || null,
-      row.so3 || null,
-      row.chlorure || null,
-      row.c3a || null,
-      row.ajout_percent || null,
-      row.type_ajout || null,
-      row.source || null,
+      produitId,                    // client_type_ciment_id
+      row.phase || null,           // phase
+      row.num_ech || null,         // num_ech
+      row.date_test || null,       // date_test
+      null,                        // heure_test (not in import data)
+      parseFloat(row.rc2j) || null, // rc2j
+      parseFloat(row.rc7j) || null, // rc7j
+      parseFloat(row.rc28j) || null, // rc28j
+      parseFloat(row.prise) || null, // prise
+      parseFloat(row.stabilite) || null, // stabilite
+      parseFloat(row.hydratation) || null, // hydratation
+      parseFloat(row.pfeu) || null, // pfeu
+      parseFloat(row.r_insoluble) || null, // r_insoluble
+      parseFloat(row.so3) || null,  // so3
+      parseFloat(row.chlorure) || null, // chlorure
+      parseFloat(row.c3a) || null,  // c3a
+      parseFloat(row.ajout_percent) || null, // ajout_percent
+      row.type_ajout || null,      // type_ajout
+      row.source || null           // source
     ]);
 
-    // SQL query to insert data into the echantillons table
+    // SQL query to insert data into the echantillons table with correct columns
     const sql = `
       INSERT INTO echantillons 
-      (client_type_ciment_id, phase, num_ech, date_test, rc2j, rc7j, rc28j, prise, stabilite, hydratation, pfeu, r_insoluble, so3, chlorure, c3a, ajout_percent, type_ajout, source)
+      (client_type_ciment_id, phase, num_ech, date_test, heure_test, 
+       rc2j, rc7j, rc28j, prise, stabilite, hydratation, pfeu, r_insoluble, 
+       so3, chlorure, c3a, ajout_percent, type_ajout, source)
       VALUES ?
     `;
 
-    // Execute the query
-    db.query(sql, [values], (err, result) => {
-      if (err) {
-        console.error("Erreur import:", err);
-        return res.status(500).json({ error: "Erreur serveur", details: err.message });
-      }
-      res.json({ success: true, insertedRows: result.affectedRows });
+    // Execute the query using promisePool for consistency
+    const [result] = await promisePool.query(sql, [values]);
+    
+    res.json({ 
+      success: true, 
+      insertedRows: result.affectedRows,
+      message: `${result.affectedRows} échantillon(s) importé(s) avec succès`
     });
   } catch (err) {
-    console.error("Erreur serveur:", err);
+    console.error("Erreur import:", err);
     res.status(500).json({ error: "Erreur serveur", details: err.message });
   }
 });
@@ -766,46 +791,93 @@ app.post("/api/echantillons/import", (req, res) => {
 
 
 // Save modifications
+// Save modifications - ENHANCED VERSION
 app.post("/api/echantillons/save", async (req, res) => {
   try {
     const { rows } = req.body;
-    if (!rows) return res.status(400).json({ error: "Pas de données" });
-
-    for (const row of rows) {
-      const sql = `
-        UPDATE echantillons SET 
-          rc2j=?, rc7j=?, rc28j=?, prise=?, stabilite=?, hydratation=?, 
-          pfeu=?, r_insoluble=?, so3=?, chlorure=?, c3a=?, ajout_percent=?, 
-          type_ajout=?
-        WHERE id=?
-      `;
-      await promisePool.execute(sql, [
-        row.rc2j, row.rc7j, row.rc28j, row.prise, row.stabilite, row.hydratation,
-        row.pfeu, row.r_insoluble, row.so3, row.chlorure, row.c3a, row.ajout_percent,
-        row.type_ajout, row.id
-      ]);
+    if (!rows || !Array.isArray(rows)) {
+      return res.status(400).json({ error: "Données invalides" });
     }
 
-    res.json({ success: true });
+    const connection = await promisePool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      for (const row of rows) {
+        const sql = `
+          UPDATE echantillons SET 
+            num_ech=?, date_test=?, rc2j=?, rc7j=?, rc28j=?, 
+            prise=?, stabilite=?, hydratation=?, pfeu=?, r_insoluble=?, 
+            so3=?, chlorure=?, c3a=?, ajout_percent=?, type_ajout=?, source=?
+          WHERE id=?
+        `;
+        
+        await connection.execute(sql, [
+          row.num_ech || null,
+          row.date_test || null,
+          row.rc2j ? parseFloat(row.rc2j) : null,
+          row.rc7j ? parseFloat(row.rc7j) : null,
+          row.rc28j ? parseFloat(row.rc28j) : null,
+          row.prise ? parseFloat(row.prise) : null,
+          row.stabilite ? parseFloat(row.stabilite) : null,
+          row.hydratation ? parseFloat(row.hydratation) : null,
+          row.pfeu ? parseFloat(row.pfeu) : null,
+          row.r_insoluble ? parseFloat(row.r_insoluble) : null,
+          row.so3 ? parseFloat(row.so3) : null,
+          row.chlorure ? parseFloat(row.chlorure) : null,
+          row.c3a ? parseFloat(row.c3a) : null,
+          row.ajout_percent ? parseFloat(row.ajout_percent) : null,
+          row.type_ajout || null,
+          row.source || null,
+          row.id
+        ]);
+      }
+
+      await connection.commit();
+      res.json({ 
+        success: true, 
+        message: `${rows.length} échantillon(s) sauvegardé(s) avec succès` 
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   } catch (err) {
     console.error("Erreur sauvegarde:", err);
-    res.status(500).json({ error: "Erreur serveur" });
+    res.status(500).json({ error: "Erreur serveur lors de la sauvegarde" });
   }
 });
 
 // Delete rows
+// Delete rows - ENHANCED VERSION
 app.post("/api/echantillons/delete", async (req, res) => {
   try {
     const { ids } = req.body;
-    if (!ids || ids.length === 0) return res.status(400).json({ error: "Pas d'IDs" });
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "Aucun ID fourni" });
+    }
 
-    const sql = `DELETE FROM echantillons WHERE id IN (?)`;
-    await promisePool.query(sql, [ids]);
+    // Validate IDs are numbers
+    const validIds = ids.filter(id => !isNaN(parseInt(id)));
+    if (validIds.length === 0) {
+      return res.status(400).json({ error: "IDs invalides" });
+    }
+
+    const placeholders = validIds.map(() => '?').join(',');
+    const sql = `DELETE FROM echantillons WHERE id IN (${placeholders})`;
     
-    res.json({ success: true });
+    const [result] = await promisePool.query(sql, validIds);
+    
+    res.json({ 
+      success: true, 
+      deletedRows: result.affectedRows,
+      message: `${result.affectedRows} échantillon(s) supprimé(s) avec succès`
+    });
   } catch (err) {
     console.error("Erreur suppression:", err);
-    res.status(500).json({ error: "Erreur serveur" });
+    res.status(500).json({ error: "Erreur serveur lors de la suppression" });
   }
 });
 
