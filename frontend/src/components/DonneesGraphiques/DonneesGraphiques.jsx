@@ -92,13 +92,18 @@ const evaluateLimits = (data, key, li, ls, lg) => {
   const lsNum = safeParse(ls);
   const lgNum = safeParse(lg);
 
-  const belowLI = !isNaN(liNum) ? values.filter((v) => v < liNum).length : 0;
-  const aboveLS = !isNaN(lsNum) ? values.filter((v) => v > lsNum).length : 0;
+  // Vérifier si les limites sont définies
+  const hasLI = !isNaN(liNum);
+  const hasLS = !isNaN(lsNum);
+  const hasLG = !isNaN(lgNum);
+
+  const belowLI = hasLI ? values.filter((v) => v < liNum).length : 0;
+  const aboveLS = hasLS ? values.filter((v) => v > lsNum).length : 0;
   
   // ✅ CORRECTION : Logique améliorée pour belowLG selon le type de paramètre
   let belowLG = 0;
   
-  if (!isNaN(lgNum)) {
+  if (hasLG) {
     const resistanceParams = ['rc2j', 'rc7j', 'rc28j', 'prise'];
     const isResistanceParam = resistanceParams.includes(key);
     
@@ -114,12 +119,12 @@ const evaluateLimits = (data, key, li, ls, lg) => {
   const total = values.length;
 
   return {
-    belowLI: belowLI > 0 ? belowLI : "-",
-    aboveLS: aboveLS > 0 ? aboveLS : "-",
-    belowLG: belowLG > 0 ? belowLG : "-",
-    percentLI: belowLI > 0 ? ((belowLI / total) * 100).toFixed(1) : "-",
-    percentLS: aboveLS > 0 ? ((aboveLS / total) * 100).toFixed(1) : "-",
-    percentLG: belowLG > 0 ? ((belowLG / total) * 100).toFixed(1) : "-",
+    belowLI: hasLI ? (belowLI > 0 ? belowLI : 0) : "-",
+    aboveLS: hasLS ? (aboveLS > 0 ? aboveLS : 0) : "-",
+    belowLG: hasLG ? (belowLG > 0 ? belowLG : 0) : "-",
+    percentLI: hasLI ? ((belowLI / total) * 100).toFixed(1) : "-",
+    percentLS: hasLS ? ((aboveLS / total) * 100).toFixed(1) : "-",
+    percentLG: hasLG ? ((belowLG / total) * 100).toFixed(1) : "-",
   };
 };
 

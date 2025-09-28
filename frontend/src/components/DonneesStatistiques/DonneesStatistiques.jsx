@@ -74,21 +74,41 @@ const evaluateLimits = (data, key, li, ls, lg) => {
 
   const values = data.map((row) => safeParse(row[key])).filter((v) => !isNaN(v));
   
+  // Si aucune donnée valide, retourner "-"
   if (!values.length) {
-    return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
+    return { 
+      belowLI: "-", 
+      aboveLS: "-", 
+      belowLG: "-", 
+      percentLI: "-", 
+      percentLS: "-", 
+      percentLG: "-" 
+    };
   }
 
   const liNum = safeParse(li);
   const lsNum = safeParse(ls);
   const lgNum = safeParse(lg);
 
-  const belowLI = !isNaN(liNum) ? values.filter((v) => v < liNum).length : 0;
-  const aboveLS = !isNaN(lsNum) ? values.filter((v) => v > lsNum).length : 0;
-  
-  // ✅ CORRECTION : belowLG représente maintenant les NON-CONFORMITÉS à LG
+  // Vérifier si les limites sont définies pour ce paramètre
+  const hasLI = !isNaN(liNum);
+  const hasLS = !isNaN(lsNum);
+  const hasLG = !isNaN(lgNum);
+
+  let belowLI = 0;
+  let aboveLS = 0;
   let belowLG = 0;
+
+  // Calculer seulement si la limite est définie
+  if (hasLI) {
+    belowLI = values.filter((v) => v < liNum).length;
+  }
   
-  if (!isNaN(lgNum)) {
+  if (hasLS) {
+    aboveLS = values.filter((v) => v > lsNum).length;
+  }
+  
+  if (hasLG) {
     const resistanceParams = ['rc2j', 'rc7j', 'rc28j', 'prise'];
     const isResistanceParam = resistanceParams.includes(key);
     
@@ -104,12 +124,12 @@ const evaluateLimits = (data, key, li, ls, lg) => {
   const total = values.length;
 
   return {
-    belowLI: belowLI > 0 ? belowLI : "-",
-    aboveLS: aboveLS > 0 ? aboveLS : "-",
-    belowLG: belowLG > 0 ? belowLG : "-",
-    percentLI: belowLI > 0 ? ((belowLI / total) * 100).toFixed(1) : "-",
-    percentLS: aboveLS > 0 ? ((aboveLS / total) * 100).toFixed(1) : "-",
-    percentLG: belowLG > 0 ? ((belowLG / total) * 100).toFixed(1) : "-",
+    belowLI: hasLI ? belowLI : "-",
+    aboveLS: hasLS ? aboveLS : "-",
+    belowLG: hasLG ? belowLG : "-",
+    percentLI: hasLI ? ((belowLI / total) * 100).toFixed(1) : "-",
+    percentLS: hasLS ? ((aboveLS / total) * 100).toFixed(1) : "-",
+    percentLG: hasLG ? ((belowLG / total) * 100).toFixed(1) : "-",
   };
 };
 
