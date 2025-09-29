@@ -343,7 +343,6 @@ const ControleConformite = ({
   return descriptions.join(" + ");
 };
 
-
   // Parameters configuration
   const timeDependentParams = [
     { key: "prise", label: "Temp debut de prise", jsonKey: "temps_debut_de_prise" },
@@ -361,7 +360,6 @@ const ControleConformite = ({
     jsonKey: "ajout" 
   }
 ];
-
 
   const alwaysMesureParams = [
     { key: "rc2j", label: "Résistance courante 2 jrs" },
@@ -619,6 +617,196 @@ const ControleConformite = ({
     return allStatisticalSatisfied && allAttributeSatisfied && !hasGarantieDeviations;
   };
 
+  // Fonction pour déterminer quels paramètres afficher selon la classe
+  const getDeviationParameters = (classe) => {
+    const isLowClass = ["32.5 L", "32.5 N", "42.5 L"].includes(classe);
+    
+    return {
+      // Déviations limites inférieures
+      li: isLowClass 
+        ? ["rc7j", "rc28j", "prise"] // Pour 32.5 L, 32.5 N, 42.5 L
+        : ["rc2j", "rc28j", "prise"], // Pour autres classes (32.5R, 42.5 N R, 52.5 L N R)
+      
+      // Déviations limites supérieures (toujours les mêmes pour toutes les classes)
+      ls: ["rc28j", "stabilite", "pfeu", "r_insoluble", "so3", "chlorure"],
+      
+      // Déviations limites garanties
+      lg: isLowClass 
+        ? ["rc7j", "rc28j", "prise", "stabilite", "pfeu", "r_insoluble", "so3", "chlorure"]
+        : ["rc2j", "rc28j", "prise", "stabilite", "pfeu", "r_insoluble", "so3", "chlorure"]
+    };
+  };
+
+const renderDeviationSection = (classe, classCompliance, type) => {
+  const params = getDeviationParameters(classe);
+  const parametersToShow = params[type];
+  
+  const sectionTitles = {
+    li: "Déviations Limites inférieures",
+    ls: "Déviations Limites supérieures", 
+    lg: "Défauts Limites garanties"
+  };
+
+  const deviationLabels = {
+    li: "Déviation",
+    ls: "Déviation",
+    lg: "Défaut"
+  };
+
+  return (
+    <div className="section-box">
+      <h4>{sectionTitles[type]}</h4>
+      <div className="parameter-list">
+        {parametersToShow.map(paramKey => {
+          const param = allParameters.find(p => p.key === paramKey) || 
+                       deviationOnlyParams.find(p => p.key === paramKey);
+          
+          if (!param) return null;
+
+          const compliance = classCompliance[param.key];
+          if (!compliance) return null;
+
+          const { stats, limits } = compliance;
+          
+          // CORRECTION: Ne pas afficher le paramètre s'il n'a pas de données
+          const hasData = stats.count > 0;
+          if (!hasData) return null; // ← Cacher le paramètre sans données
+          
+          const percentValue = type === 'li' ? stats.percentLI : 
+                             type === 'ls' ? stats.percentLS : 
+                             stats.percentLG;
+          
+          const limitValue = type === 'li' ? limits.li : 
+                           type === 'ls' ? limits.ls : 
+                           limits.lg;
+
+          const hasLimit = limitValue !== "-" && limitValue !== null && limitValue !== undefined;
+          
+          let displayText = "Aucune déviation";
+          let deviationText = `${deviationLabels[type]}`;
+          
+          if (hasLimit) {
+            // Cas 1: Limite existe
+            const hasDeviation = percentValue !== "-" && parseFloat(percentValue) > 0;
+            
+            if (hasDeviation) {
+              if (type === 'li') {
+                displayText = `${percentValue}% < ${limitValue}`;
+              } else if (type === 'ls') {
+                displayText = `${percentValue}% > ${limitValue}`;
+              } else if (type === 'lg') {
+                if (['rc2j', 'rc7j', 'rc28j', 'prise'].includes(paramKey)) {
+                  displayText = `${percentValue}% < ${limitValue}`;
+                } else {
+                  displayText = `${percentValue}% > ${limitValue}`;
+                }
+              }
+              deviationText = `${deviationLabels[type]}=${percentValue}%`;
+            } else {
+              // Pas de déviation mais limite existe
+              if (type === 'li') {
+                displayText = `0.00% < ${limitValue}`;
+              } else if (type === 'ls') {
+                displayText = `0.00% > ${limitValue}`;
+              } else if (type === 'lg') {
+                if (['rc2j', 'rc7j', 'rc28j', 'prise'].includes(paramKey)) {
+                  displayText = `0.00% < ${limitValue}`;
+                } else {
+                  displayText = `0.00% > ${limitValue}`;
+                }
+              }
+              deviationText = `${deviationLabels[type]}=0.00%`;
+            }
+          } else {
+            // Cas 2: Limite n'existe pas
+            displayText = `0.00% < -`;
+            deviationText = `${deviationLabels[type]}=0.00%`;
+          }
+
+          return (
+            <div key={param.key} className="parameter-item">
+              <span>{param.label}</span>
+              <span>{displayText}</span>
+              <span>{deviationText}</span>
+            </div>
+          );
+        })}
+
+        {/* Ajout spécifique pour les paramètres d'ajout et C3A - avec vérification des données */}
+        {showAjout && type === 'li' && classCompliance.ajout_percent && classCompliance.ajout_percent.stats.count > 0 && (
+          <div className="parameter-item">
+            <span>Ajout: {getAjoutDescription(produitInfo?.type_ajout, ajoutsData)}</span>
+            <span>
+              {classCompliance.ajout_percent?.stats?.percentLI !== "-" && classCompliance.ajout_percent?.limits?.li !== "-"
+                ? `${classCompliance.ajout_percent.stats.percentLI}% < ${classCompliance.ajout_percent.limits.li}` 
+                : "0.00% < -"}
+            </span>
+            <span>
+              {`Déviation=${classCompliance.ajout_percent?.stats?.percentLI !== "-" ? classCompliance.ajout_percent.stats.percentLI : "0.00"}%`}
+            </span>
+          </div>
+        )}
+
+        {showAjout && type === 'ls' && classCompliance.ajout_percent && classCompliance.ajout_percent.stats.count > 0 && (
+          <div className="parameter-item">
+            <span>Ajout: {getAjoutDescription(produitInfo?.type_ajout, ajoutsData)}</span>
+            <span>
+              {classCompliance.ajout_percent?.stats?.percentLS !== "-" && classCompliance.ajout_percent?.limits?.ls !== "-"
+                ? `${classCompliance.ajout_percent.stats.percentLS}% > ${classCompliance.ajout_percent.limits.ls}` 
+                : "0.00% > -"}
+            </span>
+            <span>
+              {`Déviation=${classCompliance.ajout_percent?.stats?.percentLS !== "-" ? classCompliance.ajout_percent.stats.percentLS : "0.00"}%`}
+            </span>
+          </div>
+        )}
+
+        {showC3A && type === 'ls' && classCompliance.c3a && classCompliance.c3a.stats.count > 0 && (
+          <div className="parameter-item">
+            <span>C3A</span>
+            <span>
+              {classCompliance.c3a?.stats?.percentLS !== "-" && classCompliance.c3a?.limits?.ls !== "-"
+                ? `${classCompliance.c3a.stats.percentLS}% > ${classCompliance.c3a.limits.ls}` 
+                : "0.00% > -"}
+            </span>
+            <span>
+              {`Déviation=${classCompliance.c3a?.stats?.percentLS !== "-" ? classCompliance.c3a.stats.percentLS : "0.00"}%`}
+            </span>
+          </div>
+        )}
+
+        {showC3A && type === 'lg' && classCompliance.c3a && classCompliance.c3a.stats.count > 0 && (
+          <div className="parameter-item">
+            <span>C3A</span>
+            <span>
+              {classCompliance.c3a?.stats?.percentLG !== "-" && classCompliance.c3a?.limits?.lg !== "-"
+                ? `${classCompliance.c3a.stats.percentLG}% < ${classCompliance.c3a.limits.lg}` 
+                : "0.00% < -"}
+            </span>
+            <span>
+              {`Défaut=${classCompliance.c3a?.stats?.percentLG !== "-" ? classCompliance.c3a.stats.percentLG : "0.00"}%`}
+            </span>
+          </div>
+        )}
+
+        {/* Message si aucune donnée n'est disponible pour cette section */}
+        {parametersToShow.every(paramKey => {
+          const compliance = classCompliance[paramKey];
+          return !compliance || compliance.stats.count === 0;
+        }) && 
+        !(showAjout && classCompliance.ajout_percent && classCompliance.ajout_percent.stats.count > 0) &&
+        !(showC3A && classCompliance.c3a && classCompliance.c3a.stats.count > 0) && (
+          <div className="parameter-item">
+            <span>Aucune donnée disponible</span>
+            <span>-</span>
+            <span>-</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
   const renderClassSection = useCallback((classe) => {
     // Create selectedCement from produitInfo
     const selectedCement = produitInfo ? {
@@ -688,282 +876,130 @@ const ControleConformite = ({
     return (
       <div className="class-section" key={classe}>
         <div className="report-header">
-       <div style={{ marginBottom: "1rem" }}>
-        <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
-          <h2>Contrôle de conformité / classe de résistance</h2>
-        {produitInfo && (
-          <>
-            <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
-          </>
-        )}
-        <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-      </div>
+          <div style={{ marginBottom: "1rem" }}>
+            <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
+            <h2>Contrôle de conformité / classe de résistance</h2>
+            {produitInfo && (
+              <>
+                <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
+              </>
+            )}
+            <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
+          </div>
           
           <hr className="strong-hr" />
           <h3>CLASSE {classe}</h3>
 
           {/* Deviations Sections */}
           <div className="sections-horizontal">
-            <div className="section-box">
-              <h4>Déviations Limites inférieures</h4>
-              <div className="parameter-list">
-                <div className="parameter-item">
-                  <span>Résistance à court terme à 02 j (RC2J)</span>
-                  <span>{classCompliance.rc2j?.stats?.percentLI !== "-" 
-                    ? `${classCompliance.rc2j.stats.percentLI}% < ${classCompliance.rc2j.limits.li}` 
-                    : "Aucune déviation"}</span>
-                  <span>Déviation={classCompliance.rc2j?.stats?.percentLI}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Résistance courante 28j (RC28J)</span>
-                  <span>{classCompliance.rc28j?.stats?.percentLI !== "-" 
-                    ? `${classCompliance.rc28j.stats.percentLI}% < ${classCompliance.rc28j.limits.li}` 
-                    : "Aucune déviation"}</span>
-                  <span>Déviation={classCompliance.rc28j?.stats?.percentLI}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Temps de début de prise (Prise)</span>
-                  <span>{classCompliance.prise?.stats?.percentLI !== "-" 
-                    ? `${classCompliance.prise.stats.percentLI}% < ${classCompliance.prise.limits.li}` 
-                    : "Aucune déviation"}</span>
-                  <span>Déviation={classCompliance.prise?.stats?.percentLI}%</span>
-                </div>
-
-                {showAjout && classCompliance.ajout_percent && (
-                  <div className="parameter-item">
-                   <span>Ajout: {getAjoutDescription(produitInfo?.type_ajout, ajoutsData)}</span>
-
-                    <span>
-                      {classCompliance.ajout_percent?.stats?.percentLI !== "-" 
-                        ? `${classCompliance.ajout_percent.stats.percentLI}% < ${classCompliance.ajout_percent.limits.li}` 
-                        : "Aucune déviation"}
-                    </span>
-                    <span>Déviation={classCompliance.ajout_percent?.stats?.percentLI}%</span>
-                  </div>
-                )}
-              </div>
-            </div>
+            {renderDeviationSection(classe, classCompliance, 'li')}
           </div>
 
           <div className="sections-horizontal">
-            <div className="section-box">
-              <h4>Déviations Limites supérieures</h4>
-              <div className="parameter-list">
-                <div className="parameter-item">
-                  <span>Résistance courante 28j (RC28J)</span>
-                  <span>{classCompliance.rc28j?.stats?.percentLS !== "-" 
-                    ? `${classCompliance.rc28j.stats.percentLS}% > ${classCompliance.rc28j.limits.ls}` 
-                    : "Aucune déviation"}</span>
-                  <span>Déviation={classCompliance.rc28j?.stats?.percentLS}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Stabilité (Stabilite)</span>
-                  <span>{classCompliance.stabilite?.stats?.percentLS !== "-" 
-                    ? `${classCompliance.stabilite.stats.percentLS}% > ${classCompliance.stabilite.limits.ls}` 
-                    : "Aucune déviation"}</span>
-                  <span>Déviation={classCompliance.stabilite?.stats?.percentLS}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Sulfate (SO3)</span>
-                  <span>{classCompliance.so3?.stats?.percentLS !== "-" 
-                    ? `${classCompliance.so3.stats.percentLS}% > ${classCompliance.so3.limits.ls}` 
-                    : "Aucune déviation"}</span>
-                  <span>Déviation={classCompliance.so3?.stats?.percentLS}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Chlorure (Chlorure)</span>
-                  <span>{classCompliance.chlorure?.stats?.percentLS !== "-" 
-                    ? `${classCompliance.chlorure.stats.percentLS}% > ${classCompliance.chlorure.limits.ls}` 
-                    : "Aucune déviation"}</span>
-                  <span>Déviation={classCompliance.chlorure?.stats?.percentLS}%</span>
-                </div>
-
-                {showC3A && classCompliance.c3a && (
-                  <div className="parameter-item">
-                    <span>C3A</span>
-                    <span>
-                      {classCompliance.c3a?.stats?.percentLS !== "-" 
-                        ? `${classCompliance.c3a.stats.percentLS}% > ${classCompliance.c3a.limits.ls}` 
-                        : "Aucune déviation"}
-                    </span>
-                    <span>Déviation={classCompliance.c3a?.stats?.percentLS}%</span>
-                  </div>
-                )}
-
-                {showAjout && classCompliance.ajout_percent && (
-                  <div className="parameter-item">
-                    <span>Ajout: {getAjoutDescription(produitInfo?.type_ajout, ajoutsData)}</span>
-                    <span>
-                      {classCompliance.ajout_percent?.stats?.percentLS !== "-" 
-                        ? `${classCompliance.ajout_percent.stats.percentLS}% > ${classCompliance.ajout_percent.limits.ls}` 
-                        : "Aucune déviation"}
-                    </span>
-                    <span>Déviation={classCompliance.ajout_percent?.stats?.percentLS}%</span>
-                  </div>
-                )}
-              </div>
-            </div>
+            {renderDeviationSection(classe, classCompliance, 'ls')}
           </div>
 
           <div className="sections-horizontal">
+            {renderDeviationSection(classe, classCompliance, 'lg')}
+          </div>
+
+          {/* Contrôle par Mesures */}
+          <div className="sections-horizontal">
             <div className="section-box">
-              <h4>Défauts Limites garanties</h4>
+              <h4>Contrôle par Mesures des résistances mécaniques</h4>
               <div className="parameter-list">
-                <div className="parameter-item">
-                  <span>Résistance à court terme à 02 j (RC2J)</span>
-                  <span>{classCompliance.rc2j?.stats?.percentLG !== "-" 
-                    ? `${classCompliance.rc2j.stats.percentLG}% < ${classCompliance.rc2j.limits.lg}` 
-                    : "Aucun défaut"}</span>
-                  <span>Défaut={classCompliance.rc2j?.stats?.percentLG}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Résistance courante 28j (RC28J)</span>
-                  <span>{classCompliance.rc28j?.stats?.percentLG !== "-" 
-                    ? `${classCompliance.rc28j.stats.percentLG}% < ${classCompliance.rc28j.limits.lg}` 
-                    : "Aucun défaut"}</span>
-                  <span>Défaut={classCompliance.rc28j?.stats?.percentLG}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Temps de début de prise (Prise)</span>
-                  <span>{classCompliance.prise?.stats?.percentLG !== "-" 
-                    ? `${classCompliance.prise.stats.percentLG}% < ${classCompliance.prise.limits.lg}` 
-                    : "Aucun défaut"}</span>
-                  <span>Défaut={classCompliance.prise?.stats?.percentLG}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Stabilité (Stabilite)</span>
-                  <span>{classCompliance.stabilite?.stats?.percentLG !== "-" 
-                    ? `${classCompliance.stabilite.stats.percentLG}% > ${classCompliance.stabilite.limits.lg}` 
-                    : "Aucun défaut"}</span>
-                  <span>Défaut={classCompliance.stabilite?.stats?.percentLG}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Sulfate (SO3)</span>
-                  <span>{classCompliance.so3?.stats?.percentLG !== "-" 
-                    ? `${classCompliance.so3.stats.percentLG}% > ${classCompliance.so3.limits.lg}` 
-                    : "Aucun défaut"}</span>
-                  <span>Défaut={classCompliance.so3?.stats?.percentLG}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Chlorure (Chlorure)</span>
-                  <span>{classCompliance.chlorure?.stats?.percentLG !== "-" 
-                    ? `${classCompliance.chlorure.stats.percentLG}% > ${classCompliance.chlorure.limits.lg}` 
-                    : "Aucun défaut"}</span>
-                  <span>Défaut={classCompliance.chlorure?.stats?.percentLG}%</span>
-                </div>
-
-                {showC3A && (
-                  <div className="parameter-item">
-                    <span>C3A</span>
-                    <span>
-                      {classCompliance.c3a?.stats?.percentLG !== "-" 
-                        ? `${classCompliance.c3a.stats.percentLG}% < ${classCompliance.c3a.limits.lg}` 
-                        : "Aucun défaut"}
-                    </span>
-                    <span>Défaut={classCompliance.c3a?.stats?.percentLG}%</span>
-                  </div>
-                )}
+                {mesureParams.map(param => {
+                  const liCompliance = statisticalCompliance[`${param.key}_li`];
+                  const lsCompliance = statisticalCompliance[`${param.key}_ls`];
+                  
+                  if (param.key === 'rc28j') {
+                    return (
+                      <div key={param.key}>
+                        <div className="parameter-item">
+                          <span>{param.label} LI</span>
+                          <span>
+                            {liCompliance?.equation || "Données insuffisantes"}
+                          </span>
+                          <span>
+                            {liCompliance ? 
+                              (liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
+                                "Données insuffisantes" : 
+                                (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
+                              : "Données insuffisantes"
+                            }
+                          </span>
+                        </div>
+                        <div className="parameter-item">
+                          <span>{param.label} LS</span>
+                          <span>
+                            {lsCompliance?.equation || "Données insuffisantes"}
+                          </span>
+                          <span>
+                            {lsCompliance ? 
+                              (lsCompliance.equation.includes("insuffisantes") || lsCompliance.equation.includes("non disponible") ? 
+                                "Données insuffisantes" : 
+                                (lsCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
+                              : "Données insuffisantes"
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div key={param.key} className="parameter-item">
+                        <span>{param.label} LI</span>
+                        <span>
+                          {liCompliance?.equation || "Données insuffisantes"}
+                        </span>
+                        <span>
+                          {liCompliance ? 
+                            (liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
+                              "Données insuffisantes" : 
+                              (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
+                            : "Données insuffisantes"
+                          }
+                        </span>
+                      </div>
+                    );
+                  }
+                })}
               </div>
             </div>
           </div>
 
-{/* Contrôle par Mesures */}
-<div className="sections-horizontal">
-  <div className="section-box">
-    <h4>Contrôle par Mesures des résistances mécaniques</h4>
-    <div className="parameter-list">
-      {mesureParams.map(param => {
-        const liCompliance = statisticalCompliance[`${param.key}_li`];
-        const lsCompliance = statisticalCompliance[`${param.key}_ls`];
-        
-        if (param.key === 'rc28j') {
-          return (
-            <div key={param.key}>
-              <div className="parameter-item">
-                <span>{param.label} LI</span>
-                <span>
-                  {liCompliance?.equation || "Données insuffisantes"}
-                </span>
-                <span>
-                  {liCompliance ? 
-                    (liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
-                      "Données insuffisantes" : 
-                      (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
-                    : "Données insuffisantes"
-                  }
-                </span>
-              </div>
-              <div className="parameter-item">
-                <span>{param.label} LS</span>
-                <span>
-                  {lsCompliance?.equation || "Données insuffisantes"}
-                </span>
-                <span>
-                  {lsCompliance ? 
-                    (lsCompliance.equation.includes("insuffisantes") || lsCompliance.equation.includes("non disponible") ? 
-                      "Données insuffisantes" : 
-                      (lsCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
-                    : "Données insuffisantes"
-                  }
-                </span>
+          {/* Contrôle par Attributs */}
+          <div className="sections-horizontal">
+            <div className="section-box">
+              <h4>Contrôle par Attributs propriétés physiques & chimiques</h4>
+              <div className="parameter-list">
+                {attributParams.map(param => {
+                  const attributeResult = checkEquationSatisfaction(
+                    classCompliance[param.key]?.values || [],
+                    classCompliance[param.key]?.limits || {},
+                    conditionsStatistiques
+                  );
+                  
+                  return (
+                    <div key={param.key} className="parameter-item">
+                      <span>{param.label}</span>
+                      <span>
+                        {attributeResult.displayText}
+                      </span>
+                      <span>
+                        {attributeResult.equation.includes("insuffisantes") || 
+                         attributeResult.equation.includes("manquantes") || 
+                         attributeResult.equation.includes("non chargées") ? 
+                          "Données insuffisantes" : 
+                          (attributeResult.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
+                        }
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          );
-        } else {
-          return (
-            <div key={param.key} className="parameter-item">
-              <span>{param.label} LI</span>
-              <span>
-                {liCompliance?.equation || "Données insuffisantes"}
-              </span>
-              <span>
-                {liCompliance ? 
-                  (liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
-                    "Données insuffisantes" : 
-                    (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
-                  : "Données insuffisantes"
-                }
-              </span>
-            </div>
-          );
-        }
-      })}
-    </div>
-  </div>
-</div>
-
-{/* Contrôle par Attributs */}
-<div className="sections-horizontal">
-  <div className="section-box">
-    <h4>Contrôle par Attributs propriétés physiques & chimiques</h4>
-    <div className="parameter-list">
-      {attributParams.map(param => {
-        const attributeResult = checkEquationSatisfaction(
-          classCompliance[param.key]?.values || [],
-          classCompliance[param.key]?.limits || {},
-          conditionsStatistiques
-        );
-        
-        return (
-          <div key={param.key} className="parameter-item">
-            <span>{param.label}</span>
-            <span>
-              {attributeResult.displayText}
-            </span>
-            <span>
-              {attributeResult.equation.includes("insuffisantes") || 
-               attributeResult.equation.includes("manquantes") || 
-               attributeResult.equation.includes("non chargées") ? 
-                "Données insuffisantes" : 
-                (attributeResult.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
-              }
-            </span>
           </div>
-        );
-      })}
-    </div>
-  </div>
-</div>
 
           {/* Class Conclusion */}
           <div className="conclusion-section">

@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./DonneesGraphiques.css";
 import { useData } from "../../context/DataContext";
+
 import {
   ScatterChart,
   Scatter,
@@ -12,6 +13,8 @@ import {
   ReferenceLine,
   ResponsiveContainer,
   Legend,
+  LineChart,
+  Line,
 } from "recharts";
 
 /* ---------- utils ---------- */
@@ -150,6 +153,7 @@ export default function DonneesGraphiques({
   produits = [] 
 }) {
   const { filteredTableData = [], filterPeriod = {} } = useData();
+  const [chartType, setChartType] = useState("scatter"); // "scatter" | "gaussian"
 
   const [limitsData, setLimitsData] = useState({});
   const [loading, setLoading] = useState(true);
@@ -406,6 +410,27 @@ export default function DonneesGraphiques({
     });
   }, [filteredTableData, selectedParameter]);
 
+  const getGaussianData = (mean, std, count = 100) => {
+    if (!mean || !std || isNaN(mean) || isNaN(std)) return [];
+
+    const data = [];
+    const minX = mean - 4 * std;
+    const maxX = mean + 4 * std;
+    const step = (maxX - minX) / count;
+
+    for (let i = 0; i <= count; i++) {
+      const x = minX + i * step;
+      const y = (1 / (std * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / std, 2));
+      data.push({ x, y });
+    }
+    return data;
+  };
+
+  const gaussianData = useMemo(() => {
+    if (!derivedStats.moyenne || !derivedStats.std) return [];
+    return getGaussianData(derivedStats.moyenne, parseFloat(derivedStats.std));
+  }, [derivedStats]);
+
   if (loading) return <p className="no-data">Chargement des limites...</p>;
   if (!filteredTableData?.length)
     return <p className="no-data">Veuillez d'abord filtrer des échantillons.</p>;
@@ -461,6 +486,30 @@ export default function DonneesGraphiques({
         </div>
       </div>
 
+      <div className="dg-chart-type-selector">
+        <h3>Type de graphique</h3>
+        <label>
+          <input
+            type="radio"
+            name="chartType"
+            value="scatter"
+            checked={chartType === "scatter"}
+            onChange={(e) => setChartType(e.target.value)}
+          />
+          Points (Scatter)
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="chartType"
+            value="gaussian"
+            checked={chartType === "gaussian"}
+            onChange={(e) => setChartType(e.target.value)}
+          />
+          Courbe Gaussienne
+        </label>
+      </div>
+
       <div className="dg-main">
         <div className="dg-chart-card">
           <h3>
@@ -468,63 +517,78 @@ export default function DonneesGraphiques({
               ? `${parameters.find((p) => p.key === selectedParameter)?.label} | Classe ${selectedClass}`
               : "Sélectionnez paramètre & classe"}
           </h3>
+          
           <ResponsiveContainer width="100%" height={420}>
-            <ScatterChart
-              margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="x" name="Échantillon"  />
-              <YAxis dataKey="y" name={selectedParameter} ticks={[0, 15, 30, 45, 60, 75]} />
-              <Tooltip
-                formatter={(val) =>
-                  isNaN(val) ? "-" : Number(val).toFixed(2)
-                }
-              />
-              <Legend />
-              <Scatter
-                name="Mesures"
-                data={chartData.filter(point => !isNaN(point.y))}
-                fill="#FFC107"
-                shape="circle"
-                size={5}
-              />
+            {chartType === "scatter" ? (
+              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="x" name="Échantillon" />
+                <YAxis dataKey="y" name={selectedParameter} ticks={[0, 15, 30, 45, 60, 75]}/>
+                <Tooltip formatter={(val) => (isNaN(val) ? "-" : Number(val).toFixed(2))} />
+                <Legend />
+                <Scatter
+                  name="Mesures"
+                  data={chartData.filter((point) => !isNaN(point.y))}
+                  fill="#FFC107"
+                  shape="circle"
+                  size={5}
+                />
 
-              {derivedStats.mean !== "-" && !isNaN(derivedStats.mean) && (
-                <ReferenceLine
-                  y={parseFloat(derivedStats.mean)}
-                  stroke="#800020"
+                {derivedStats.mean !== "-" && !isNaN(derivedStats.mean) && (
+                  <ReferenceLine
+                    y={parseFloat(derivedStats.mean)}
+                    stroke="#800020"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    label={{ value: "Moyenne", position: "right", fill: "#800020" }}
+                  />
+                )}
+                
+                {typeof currentLimits.li === "number" && !isNaN(currentLimits.li) && (
+                  <ReferenceLine
+                    y={currentLimits.li}
+                    stroke="#2B90FF"
+                    strokeWidth={2}
+                    label={{ value: "LI", position: "right", fill: "#2B90FF" }}
+                  />
+                )}
+                {typeof currentLimits.ls === "number" && !isNaN(currentLimits.ls) && (
+                  <ReferenceLine
+                    y={currentLimits.ls}
+                    stroke="#18A558"
+                    strokeWidth={2}
+                    label={{ value: "LS", position: "right", fill: "#18A558" }}
+                  />
+                )}
+                {typeof currentLimits.lg === "number" && !isNaN(currentLimits.lg) && (
+                  <ReferenceLine
+                    y={currentLimits.lg}
+                    stroke="#E53935"
+                    strokeWidth={2}
+                    label={{ value: "LG", position: "right", fill: "#E53935" }}
+                  />
+                )}
+              </ScatterChart>
+            ) : (
+              <LineChart
+                data={gaussianData}
+                margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="x" />
+                <YAxis dataKey="y" />
+                <Tooltip formatter={(val) => (isNaN(val) ? "-" : Number(val).toFixed(4))} />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="y"
+                  stroke="#FF0000"
                   strokeWidth={2}
-                  strokeDasharray="5 5"
-                  label={{ value: "Moyenne", position: "right", fill: "#800020" }}
+                  dot={false}
+                  name="Courbe Gaussienne"
                 />
-              )}
-              
-              {/* Reference Lines with proper validation */}
-              {typeof currentLimits.li === "number" && !isNaN(currentLimits.li) && (
-                <ReferenceLine
-                  y={currentLimits.li}
-                  stroke="#2B90FF"
-                  strokeWidth={2}
-                  label={{ value: "LI", position: "right", fill: "#2B90FF" }}
-                />
-              )}
-              {typeof currentLimits.ls === "number" && !isNaN(currentLimits.ls) && (
-                <ReferenceLine
-                  y={currentLimits.ls}
-                  stroke="#18A558"
-                  strokeWidth={2}
-                  label={{ value: "LS", position: "right", fill: "#18A558" }}
-                />
-              )}
-              {typeof currentLimits.lg === "number" && !isNaN(currentLimits.lg) && (
-                <ReferenceLine
-                  y={currentLimits.lg}
-                  stroke="#E53935"
-                  strokeWidth={2}
-                  label={{ value: "LG", position: "right", fill: "#E53935" }}
-                />
-              )}
-            </ScatterChart>
+              </LineChart>
+            )}
           </ResponsiveContainer>
         </div>
 

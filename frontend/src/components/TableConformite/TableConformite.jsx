@@ -323,10 +323,9 @@ const TableConformite = ({
       baseParams.push({ key: "c3a", label: "C3A", jsonKey: "c3a" });
     }
 
-   if (ajoutProducts.includes(selectedProductType)) {
-  baseParams.push({ key: "ajout_percent", label: "Ajout", jsonKey: "ajout" });
-}
-
+    if (ajoutProducts.includes(selectedProductType)) {
+      baseParams.push({ key: "ajout_percent", label: "Ajout", jsonKey: "ajout" });
+    }
 
     return baseParams;
   }, [selectedProductType]);
@@ -348,9 +347,12 @@ const TableConformite = ({
 
   const baseParams = [...alwaysMesureParams, ...alwaysAttributParams];
   
-  const allParameters = [...baseParams, ...timeDependentParams.filter(p => 
-    !baseParams.some(bp => bp.key === p.key)
-  )];
+  // CORRECTION: Utiliser allParameters directement sans filtrage
+  const allParameters = useMemo(() => {
+    return [...baseParams, ...timeDependentParams.filter(p => 
+      !baseParams.some(bp => bp.key === p.key)
+    )];
+  }, [baseParams, timeDependentParams]);
 
   const keyMapping = {
     rc2j: "resistance_2j",
@@ -490,11 +492,16 @@ const TableConformite = ({
 
   const dataToUse = filteredTableData || [];
 
+  // SUPPRIMER: Ne plus utiliser parametersWithData, utiliser allParameters directement
   const allStats = useMemo(() => 
-    allParameters.reduce((acc, param) => ({ ...acc, [param.key]: calculateStats(dataToUse, param.key) }), {}),
+    allParameters.reduce((acc, param) => ({ 
+      ...acc, 
+      [param.key]: calculateStats(dataToUse, param.key) 
+    }), {}),
   [allParameters, dataToUse]);
 
   const classes = ["32.5 L", "32.5 N", "32.5 R", "42.5 L", "42.5 N", "42.5 R", "52.5 L", "52.5 N", "52.5 R"];
+  
 
   const checkTemporalCoverage = useCallback((data, paramKeys) => {
     if (!data || data.length === 0) {
@@ -551,23 +558,27 @@ const TableConformite = ({
     return checkTemporalCoverage(dataToUse, paramKeys);
   }, [dataToUse, timeDependentParams, checkTemporalCoverage]);
 
-  const getCellColor = (deviationPercent, defaultPercent, hasData, limits) => {
+ const getCellColor = (deviationPercent, defaultPercent, hasData, limits) => {
     if (!hasData || (limits.li === "-" && limits.ls === "-" && limits.lg === "-")) {
       return "grey";
     }
     
-    if (defaultPercent >= 5) {
+    if (defaultPercent > 5) {
       return "red";
     }
     
-    if (deviationPercent >= 5) {
-      return "red";
+    if (deviationPercent > 5) {
+      return "yellow";
     }
     
-    if (deviationPercent >= 0 && deviationPercent < 5) {
+    if (deviationPercent >= 0 && deviationPercent <= 5) {
       return "green";
     }
     
+    if (defaultPercent >= 0 && defaultPercent <= 5) {
+      return "green";
+    }
+
     return "green";
   };
 
@@ -585,8 +596,8 @@ const TableConformite = ({
     }
     
     const deviationPercent = Math.max(
-      parseFloat(stats.percentLI || 0),
-      parseFloat(stats.percentLS || 0)
+      parseFloat(stats.percentLI === "-" ? "0" : stats.percentLI),
+      parseFloat(stats.percentLS === "-" ? "0" : stats.percentLS)
     );
     
     const color = getCellColor(deviationPercent, 0, hasData, limits);
@@ -614,7 +625,7 @@ const TableConformite = ({
       return { displayValue: "--", color: "grey", isRelevant: false };
     }
     
-    const defaultPercent = parseFloat(stats.percentLG || 0);
+    const defaultPercent = parseFloat(stats.percentLG === "-" ? "0" : stats.percentLG);
     const color = getCellColor(0, defaultPercent, hasData, limits);
     let displayValue = "OK";
     
@@ -627,127 +638,111 @@ const TableConformite = ({
     return { displayValue, color, isRelevant: true };
   };
 
-const getControlStatus = (paramKey, limits, values, conditionsStatistiques) => {
-  // Cas ND: pas de données
-  if (!values || values.length === 0) {
+  const getControlStatus = (paramKey, limits, values, conditionsStatistiques) => {
+    // Cas ND: pas de données
+    if (!values || values.length === 0) {
+      return { status: "ND", color: "grey", isRelevant: false };
+    }
+    
+    // Cas --: pas de limites définies
+    if (limits.li === "-" && limits.ls === "-" && limits.lg === "-") {
+      return { status: "--", color: "grey", isRelevant: false };
+    }
+    
+    // Cas où le contrôle statistique est pertinent
+    if (values.length < 20) {
+      return { status: "Non Satisfait", color: "yellow", isRelevant: true };
+    }
+    
+    const isMesureParam = alwaysMesureParams.some(p => p.key === paramKey) || 
+                         timeDependentParams.some(p => p.key === paramKey);
+    
+    const isAttributParam = alwaysAttributParams.some(p => p.key === paramKey);
+
+    if (isMesureParam) {
+      const stats = calculateStats(dataToUse, paramKey);
+      const category = keyMapping[paramKey]?.category || "general";
+      
+      let allSatisfied = true;
+      
+      if (limits.li !== "-") {
+        const liResult = checkStatisticalCompliance(conformiteData, stats, limits, category, "li");
+        if (!liResult.satisfied) {
+          allSatisfied = false;
+        }
+      }
+      if (limits.ls !== "-") {
+        const lsResult = checkStatisticalCompliance(conformiteData, stats, limits, category, "ls");
+        if (!lsResult.satisfied) {
+          allSatisfied = false;
+        }
+      }
+      
+      return { 
+        status: allSatisfied ? "Satisfait" : "Non Satisfait", 
+        color: allSatisfied ? "green" : "yellow",
+        isRelevant: true
+      };
+    }
+
+    if (isAttributParam) {
+      const attributeResult = checkEquationSatisfaction(values, limits, conditionsStatistiques);
+      
+      return { 
+        status: attributeResult.satisfied ? "Satisfait" : "Non Satisfait", 
+        color: attributeResult.satisfied ? "green" : "yellow",
+        isRelevant: true
+      };
+    }
+
+    // Cas par défaut: non pertinent
     return { status: "ND", color: "grey", isRelevant: false };
-  }
-  
-  // Cas --: pas de limites définies
-  if (limits.li === "-" && limits.ls === "-" && limits.lg === "-") {
-    return { status: "--", color: "grey", isRelevant: false };
-  }
-  
-  // Cas où le contrôle statistique est pertinent
-  if (values.length < 20) {
-    return { status: "Non Satisfait", color: "yellow", isRelevant: true };
-  }
-  
-  const isMesureParam = alwaysMesureParams.some(p => p.key === paramKey) || 
-                       timeDependentParams.some(p => p.key === paramKey);
-  
-  const isAttributParam = alwaysAttributParams.some(p => p.key === paramKey);
+  };
 
-  if (isMesureParam) {
-    const stats = calculateStats(dataToUse, paramKey);
-    const category = keyMapping[paramKey]?.category || "general";
-    
-    let allSatisfied = true;
-    
-    if (limits.li !== "-") {
-      const liResult = checkStatisticalCompliance(conformiteData, stats, limits, category, "li");
-      if (!liResult.satisfied) {
-        allSatisfied = false;
+  const calculateClassConformity = (classCompliance, statisticalCompliance, conditionsStatistiques) => {
+    let hasAnyRelevantParameter = false;
+    let allRelevantParametersConform = true;
+
+    Object.entries(classCompliance).forEach(([paramKey, compliance]) => {
+      const hasLimits = compliance.limits.li !== "-" || compliance.limits.ls !== "-" || compliance.limits.lg !== "-";
+      const hasData = compliance.values && compliance.values.length > 0;
+      
+      // Cas 1: Pas de limites (--) - ignorer
+      if (!hasLimits) {
+        return;
       }
-    }
-    if (limits.ls !== "-") {
-      const lsResult = checkStatisticalCompliance(conformiteData, stats, limits, category, "ls");
-      if (!lsResult.satisfied) {
-        allSatisfied = false;
+      
+      // Cas 2: Il y a des limites MAIS pas de données (ND) - ignorer
+      if (!hasData) {
+        return;
       }
+      
+      // Cas 3: Il y a des limites ET des données - évaluer la conformité
+      hasAnyRelevantParameter = true;
+
+      const deviationPercent = Math.max(
+        parseFloat(compliance.stats.percentLI || "0"),
+        parseFloat(compliance.stats.percentLS || "0")
+      );
+      
+      const defaultPercent = parseFloat(compliance.stats.percentLG || "0");
+
+      const controlStatus = getControlStatus(paramKey, compliance.limits, compliance.values, conditionsStatistiques);
+
+      const isNonConform = deviationPercent >= 5 || defaultPercent >= 5 || controlStatus.status === "Non Satisfait";
+
+      if (isNonConform) {
+        allRelevantParametersConform = false;
+      }
+    });
+
+    // Si aucun paramètre pertinent n'a été trouvé, considérer comme conforme
+    if (!hasAnyRelevantParameter) {
+      return true;
     }
-    
-    return { 
-      status: allSatisfied ? "Satisfait" : "Non Satisfait", 
-      color: allSatisfied ? "green" : "yellow",
-      isRelevant: true
-    };
-  }
 
-  if (isAttributParam) {
-    const attributeResult = checkEquationSatisfaction(values, limits, conditionsStatistiques);
-    
-    return { 
-      status: attributeResult.satisfied ? "Satisfait" : "Non Satisfait", 
-      color: attributeResult.satisfied ? "green" : "yellow",
-      isRelevant: true
-    };
-  }
-
-  // Cas par défaut: non pertinent
-  return { status: "ND", color: "grey", isRelevant: false };
-};
-
-const calculateClassConformity = (classCompliance, statisticalCompliance, conditionsStatistiques) => {
-  let hasAnyRelevantParameter = false;
-  let allRelevantParametersConform = true;
-
-  console.log("=== CALCUL CONFORMITÉ CLASSE ===");
-
-  Object.entries(classCompliance).forEach(([paramKey, compliance]) => {
-    const hasLimits = compliance.limits.li !== "-" || compliance.limits.ls !== "-" || compliance.limits.lg !== "-";
-    const hasData = compliance.values && compliance.values.length > 0;
-    
-    console.log(`Paramètre: ${paramKey}, HasLimits: ${hasLimits}, HasData: ${hasData}, Count: ${compliance.values ? compliance.values.length : 0}`);
-    
-    // Cas 1: Pas de limites (--) - ignorer
-    if (!hasLimits) {
-      console.log(`  - Ignoré: pas de limites`);
-      return;
-    }
-    
-    // Cas 2: Il y a des limites MAIS pas de données (ND) - ignorer
-    if (!hasData) {
-      console.log(`  - Ignoré: pas de données (ND)`);
-      return;
-    }
-    
-    // Cas 3: Il y a des limites ET des données - évaluer la conformité
-    hasAnyRelevantParameter = true;
-
-    // Vérifier les déviations (LI/LS)
-    const deviationPercent = Math.max(
-      parseFloat(compliance.stats.percentLI || "0"),
-      parseFloat(compliance.stats.percentLS || "0")
-    );
-    
-    // Vérifier les défauts (LG)
-    const defaultPercent = parseFloat(compliance.stats.percentLG || "0");
-
-    // Vérifier le contrôle statistique
-    const controlStatus = getControlStatus(paramKey, compliance.limits, compliance.values, conditionsStatistiques);
-
-    console.log(`  - Déviation: ${deviationPercent}%, Défaut: ${defaultPercent}%, Contrôle: ${controlStatus.status}`);
-
-    // Critère de non-conformité: déviation OU défaut ≥5% OU contrôle non satisfait
-    const isNonConform = deviationPercent >= 5 || defaultPercent >= 5 || controlStatus.status === "Non Satisfait";
-    
-    console.log(`  - Non conforme: ${isNonConform}`);
-
-    if (isNonConform) {
-      allRelevantParametersConform = false;
-    }
-  });
-
-  console.log(`Résultat: hasAnyRelevantParameter=${hasAnyRelevantParameter}, allRelevantParametersConform=${allRelevantParametersConform}`);
-
-  // Si aucun paramètre pertinent n'a été trouvé, considérer comme conforme
-  if (!hasAnyRelevantParameter) {
-    return true;
-  }
-
-  return allRelevantParametersConform;
-};
+    return allRelevantParametersConform;
+  };
 
   const handleExport = () => {
     console.log("Export functionality");
@@ -772,31 +767,6 @@ const calculateClassConformity = (classCompliance, statisticalCompliance, condit
   if (!dataToUse.length) {
     return <div className="no-data">Aucune donnée disponible. Veuillez d'abord filtrer des échantillons.</div>;
   }
-const debugClassConformity = (classCompliance, classe) => {
-  console.log(`=== Debug Conformité Classe ${classe} ===`);
-  
-  Object.entries(classCompliance).forEach(([paramKey, compliance]) => {
-    const hasLimits = compliance.limits.li !== "-" || compliance.limits.ls !== "-" || compliance.limits.lg !== "-";
-    const hasData = compliance.values && compliance.values.length > 0;
-    
-    console.log(`Paramètre: ${paramKey}`);
-    console.log(`- Has Limits: ${hasLimits}`);
-    console.log(`- Has Data: ${hasData}`);
-    console.log(`- Data Count: ${compliance.values ? compliance.values.length : 0}`);
-    console.log(`- Limits: LI=${compliance.limits.li}, LS=${compliance.limits.ls}, LG=${compliance.limits.lg}`);
-    
-    if (hasLimits && hasData) {
-      const deviationPercent = Math.max(
-        parseFloat(compliance.stats.percentLI || 0),
-        parseFloat(compliance.stats.percentLS || 0)
-      );
-      const defaultPercent = parseFloat(compliance.stats.percentLG || 0);
-      
-      console.log(`- Deviation: ${deviationPercent}%, Default: ${defaultPercent}%`);
-      console.log(`- Under 5%: ${deviationPercent < 5 && defaultPercent < 5}`);
-    }
-  });
-}; 
 
   return (
     <div className="cement-table-page">
@@ -818,6 +788,7 @@ const debugClassConformity = (classCompliance, classe) => {
             <thead>
               <tr>
                 <th>Paramètre/Classe</th>
+                {/* CORRECTION: Utiliser allParameters directement pour afficher TOUS les paramètres */}
                 {allParameters.map((param) => (
                   <th key={param.key}>{param.label}</th>
                 ))}
@@ -829,6 +800,7 @@ const debugClassConformity = (classCompliance, classe) => {
                 const classCompliance = {};
                 const statisticalCompliance = {};
                 
+                {/* CORRECTION: Utiliser allParameters directement */}
                 allParameters.forEach(param => {
                   const limits = getLimitsByClass(classe, param.key);
                   const values = dataToUse.map(r => parseFloat(r[param.key])).filter(v => !isNaN(v));
@@ -850,17 +822,18 @@ const debugClassConformity = (classCompliance, classe) => {
                 return (
                   <React.Fragment key={classe}>
                     <tr key={`${classe}-name`}>
-      <td>
-        {classe}{" "}
-        <strong
-          style={{
-            marginLeft: "10px",
-            color: isClassConforme ? "green" : "red",
-          }}
-        >
-          {isClassConforme ? "Conforme" : "Non Conforme"}
-        </strong>
-      </td>
+                      <td>
+                        {classe}{" "}
+                        <strong
+                          style={{
+                            marginLeft: "10px",
+                            color: isClassConforme ? "green" : "red",
+                          }}
+                        >
+                          {isClassConforme ? "Conforme" : "Non Conforme"}
+                        </strong>
+                      </td>
+                      {/* CORRECTION: Utiliser allParameters directement */}
                       {allParameters.map((param) => (
                         <td key={param.key}></td>
                       ))}
@@ -868,6 +841,7 @@ const debugClassConformity = (classCompliance, classe) => {
 
                     <tr key={`${classe}-deviation`}>
                       <td>% Déviation</td>
+                      {/* CORRECTION: Utiliser allParameters directement */}
                       {allParameters.map((param) => {
                         const compliance = classCompliance[param.key];
                         const deviationDisplay = getDeviationDisplay(compliance);
@@ -888,6 +862,7 @@ const debugClassConformity = (classCompliance, classe) => {
 
                     <tr key={`${classe}-default`}>
                       <td>% Défaut</td>
+                      {/* CORRECTION: Utiliser allParameters directement */}
                       {allParameters.map((param) => {
                         const compliance = classCompliance[param.key];
                         const defaultDisplay = getDefaultDisplay(compliance);
@@ -908,6 +883,7 @@ const debugClassConformity = (classCompliance, classe) => {
 
                     <tr key={`${classe}-control`}>
                       <td>Contrôle Statistique</td>
+                      {/* CORRECTION: Utiliser allParameters directement */}
                       {allParameters.map((param) => {
                         const compliance = classCompliance[param.key];
                         const controlStatus = getControlStatus(param.key, compliance.limits, compliance.values, conditionsStatistiques);
@@ -933,10 +909,10 @@ const debugClassConformity = (classCompliance, classe) => {
         </div>
 
         <div className="legend">
-          <p><span className="green-box"></span> Déviation/Défaut % &lt; 5%</p>
-          <p><span className="yellow-box"></span> Contrôle statistique non satisfait</p>
-          <p><span className="red-box"></span> Déviation/Défaut % ≥ 5%</p>
-          <p><span className="grey-box"></span> Données insuffisantes/ND/NS</p>
+          <p><span className="green-box"></span>% Déviation/Défaut &le; 5%</p>
+          <p><span className="yellow-box"></span>% Déviation &gt; 5%</p>
+          <p><span className="red-box"></span>% Défaut &gt; 5%</p>
+          <p><span className="grey-box"></span> -- Non définie ND/NS Données insuffisantes</p>
         </div>
       </div>
 
