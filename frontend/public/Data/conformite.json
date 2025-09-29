@@ -176,7 +176,150 @@
     { "n_min": 100, "n_max": 109, "pk_percentile": 10, "ca_probabilite": 5 },
     { "n_min": 110, "n_max": 123, "pk_percentile": 10, "ca_probabilite": 6 },
     { "n_min": 124, "n_max": 136, "pk_percentile": 10, "ca_probabilite": 7 }
-  ]
+  ],
+
+  "frequence_essais": {
+    "nouveau_type_produit": {
+      "parametres": [
+        {
+          "parametre": "rc2j",
+          "frequence": 4,
+          "description": "4 essais par semaine"
+        },
+        {
+          "parametre": "rc7j",
+          "frequence": 4,
+          "description": "4 essais par semaine"
+        },
+        {
+          "parametre": "rc28j",
+          "frequence": 4,
+          "description": "4 essais par semaine"
+        },
+        {
+          "parametre": "prise",
+          "frequence": 4,
+          "description": "4 essais par semaine"
+        },
+        {
+          "parametre": "stabilite",
+          "frequence": 4,
+          "description": "4 essais par semaine"
+        },
+        {
+          "parametre": "so3",
+          "frequence": 4,
+          "description": "4 essais par semaine"
+        },
+        {
+          "parametre": "pfeu",
+          "frequence": 1,
+          "description": "1 essai par semaine"
+        },
+        {
+          "parametre": "r_insoluble",
+          "frequence": 1,
+          "description": "1 essai par semaine"
+        },
+        {
+          "parametre": "chlorure",
+          "frequence": 1,
+          "description": "1 essai par semaine"
+        },
+        {
+          "parametre": "c3a",
+          "frequence": 1,
+          "description": "1 essai par semaine"
+        },
+        {
+          "parametre": "pouzzolanicite",
+          "frequence": 1,
+          "description": "1 essai par semaine"
+        },
+        {
+          "parametre": "hydratation",
+          "frequence": 1,
+          "description": "1 essai par semaine"
+        },
+        {
+          "parametre": "ajout",
+          "frequence": 1,
+          "description": "1 essai par semaine"
+        }
+      ]
+    },
+    "situation_courante": {
+     
+      "parametres": [
+        {
+          "parametre": "rc2j",
+          "frequence": 2,
+          "description": "2 essais par semaine"
+        },
+        {
+          "parametre": "rc7j",
+          "frequence": 2,
+          "description": "2 essais par semaine"
+        },
+        {
+          "parametre": "rc28j",
+          "frequence": 2,
+          "description": "2 essais par semaine"
+        },
+        {
+          "parametre": "prise",
+          "frequence": 2,
+          "description": "2 essais par semaine"
+        },
+        {
+          "parametre": "so3",
+          "frequence": 2,
+          "description": "2 essais par semaine"
+        },
+        {
+          "parametre": "stabilite",
+          "frequence": 1,
+          "description": "1 essai par semaine"
+        },
+        {
+          "parametre": "pfeu",
+          "frequence": 2,
+          "description": "2 essais par mois"
+        },
+        {
+          "parametre": "r_insoluble",
+          "frequence": 2,
+          "description": "2 essais par mois"
+        },
+        {
+          "parametre": "chlorure",
+          "frequence": 2,
+          "description": "2 essais par mois"
+        },
+        {
+          "parametre": "c3a",
+          "frequence": 2,
+          "description": "2 essais par mois"
+        },
+        {
+          "parametre": "pouzzolanicite",
+          "frequence": 2,
+          "description": "2 essais par mois"
+        },
+        {
+          "parametre": "hydratation",
+          "frequence": 1,
+          "description": "1 essai par mois"
+        },
+        {
+          "parametre": "ajout",
+          "frequence": 1,
+          "description": "1 essai par mois"
+        }
+      ]
+    }
+  
+}
 
 
 

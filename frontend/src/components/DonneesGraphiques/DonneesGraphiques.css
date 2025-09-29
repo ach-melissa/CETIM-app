@@ -1,263 +1,229 @@
-.dg-root {
-          font-family: Arial, sans-serif;
-          padding: 16px;
-          background-color: #f5f5f5;
-          border-radius: 5px;
-        }
-        
-        .dg-header {
-          margin-bottom: 15px;
-          padding-bottom: 12px;
-          border-bottom: 1px solid #ddd;
-        }
-        
-        .dg-header h2 {
-          margin: 0 0 8px 0;
-          font-size: 18px;
-          color: #333;
-        }
-        
-        
-        .dg-top-controls {
-          display: flex;
-          align-items: flex-end;
-          margin-bottom: 15px;
-          flex-wrap: wrap;
-          gap: 16px;
-        }
-        
-        .dg-left-controls {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        
-        .dg-label {
-          font-weight: bold;
-          margin-bottom: 4px;
-          white-space: nowrap;
-        }
-        
-        .dg-select {
-          padding: 8px 12px;
-          border: 1px solid #ccc;
-          border-radius: 5px;
-          background-color: white;
-          min-width: 200px;
-        }
-        
-        .dg-classes-section {
-          background-color: white;
-          border-radius: 5px;
-          padding: 12px;
-          margin-left: 650px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        .dg-classes-section h3 {
-          margin: 0 0 12px 0;
-          font-size: 16px;
-          color: #333;
+.dg-main-container {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+}
 
-        }
-        
-        .dg-class-groups {
-          display: flex;
-          gap: 24px;
-        }
-        
-        .dg-class-group {
-          display: flex;
-          flex-direction: column;
+.dg-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
 
-          gap: 4px;
-        }
-        
-        .dg-family-title {
-          font-weight: bold;
-          font-size: 14px;
-          color: #555;
-        }
-        
-        .dg-class-list {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        
-        .dg-class {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          cursor: pointer;
-        }
-        
-        .dg-class.active .dg-class-text {
-          font-weight: bold;
-          color: #2196f3;
-        }
-        
-        .dg-class input {
-          margin: 0;
-        }
-        
-        .dg-class-text {
-          font-size: 14px;
-        }
-        
-        .dg-actions {
-          display: flex;
-          gap: 8px;
-          margin-top: 16px;
-        }
-        
-        .btn {
-          padding: 8px 16px;
-          border-radius: 4px;
-          border: 1px solid #ddd;
-          background-color: white;
-          cursor: pointer;
-          font-weight: 500;
-        }
-        
-        .btn.ghost {
-          background-color: transparent;
-          border-color: #2196f3;
-          color: #2196f3;
-        }
-        
-        .btn.primary {
-          background-color: #2196f3;
-          color: white;
-          border: none;
-        }
-        
-        .btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-        
-        .dg-main {
-          display: flex;
-          gap: 20px;
-        }
-        
-        .dg-chart-card {
-          flex: 1;
-          background-color: white;
-          border-radius: 8px;
-          padding: 16px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        
-        .dg-side-panel {
-          width: 280px;
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        
-        .dg-stats-card {
-          background-color: white;
-          border-radius: 8px;
-          padding: 16px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        
-        .dg-stats-card h3 {
-          margin-top: 0;
-          margin-bottom: 16px;
-          font-size: 16px;
-          color: #333;
-        }
-        
-        .dg-stat-row {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 12px;
-        }
-        
-        .dg-stat-row span {
-          color: #666;
-        }
-        
-        .dg-stat-row strong {
-          color: #333;
-        }
-        
-        .dg-divider {
-          height: 1px;
-          background-color: #eee;
-          margin: 16px 0;
-        }
-        
-        .dg-limit-row {
-          display: flex;
-          gap: 12px;
-          margin-bottom: 16px;
-          align-items: flex-start;
-        }
-        
-        .limit-dot {
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          flex-shrink: 0;
-          margin-top: 4px;
-        }
-        
-        .limit-dot.li {
-          background-color: #2B90FF;
-        }
-        
-        .limit-dot.ls {
-          background-color: #18A558;
-        }
-        
-        .limit-dot.lg {
-          background-color: #E53935;
-        }
-        
-        .limit-label {
-          font-weight: bold;
-          font-size: 14px;
-          margin-bottom: 2px;
-        }
-        
-        .limit-value {
-          font-weight: bold;
-          margin-bottom: 4px;
-        }
-        
-        .limit-sub {
-          font-size: 12px;
-          color: #666;
-        }
-        
-        .dg-average-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 8px 0;
-        }
-        
-        .average-value {
-          font-size: 18px;
-          color: #8B5E3C;
-          font-weight: bold;
-        }
-        
-        @media (max-width: 1024px) {
-          .dg-main {
-            flex-direction: column;
-          }
-          
-          .dg-side-panel {
-            width: 100%;
-          }
-          
-          .dg-class-groups {
-            flex-direction: column;
-            gap: 12px;
-          }
-        }
+.dg-chart-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  min-height: 500px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dg-chart-card h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 16px;
+  color: #333;
+  text-align: center;
+  width: 100%;
+}
+
+.dg-side-panel {
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dg-stats-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dg-stats-card h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 16px;
+  color: #333;
+  text-align: center;
+  width: 100%;
+}
+
+/* Section classe dans les statistiques */
+.dg-stats-card .dg-classes-section {
+  margin-bottom: 16px;
+}
+
+.dg-stats-card .dg-classes-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #333;
+  text-align: left;
+}
+
+.dg-stats-card .dg-class-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+
+.dg-stats-card .dg-class {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background-color: #f8f9fa;
+  width: auto;
+  font-size: 12px;
+}
+
+.dg-stats-card .dg-class:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.dg-stats-card .dg-class.active {
+  background-color: #2196f3;
+  color: white;
+  border-color: #2196f3;
+}
+
+.dg-stats-card .dg-class input {
+  margin: 0;
+  margin-right: 4px;
+  transform: scale(0.8);
+}
+
+.dg-stats-card .dg-class-text {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* Statistiques */
+.dg-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.dg-stat-row span {
+  color: #666;
+  font-size: 14px;
+}
+
+.dg-stat-row strong {
+  color: #333;
+  font-size: 14px;
+}
+
+.dg-divider {
+  height: 1px;
+  background-color: #eee;
+  margin: 16px 0;
+  width: 100%;
+}
+
+/* Limit names */
+.limit-name {
+  font-weight: bold;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+.limit-name.li {
+  color: #2B90FF;
+  background-color: rgba(43, 144, 255, 0.1);
+}
+
+.limit-name.ls {
+  color: #18A558;
+  background-color: rgba(24, 165, 88, 0.1);
+}
+
+.limit-name.lg {
+  color: #E53935;
+  background-color: rgba(229, 57, 53, 0.1);
+}
+
+/* Sélecteur de type de graphique */
+.dg-chart-type-selector {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.dg-chart-type-selector h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: #333;
+  text-align: center;
+  width: 100%;
+}
+
+.dg-chart-type-selector label {
+  display: block;
+  margin-bottom: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  font-size: 14px;
+}
+
+.dg-chart-type-selector input {
+  margin: 0;
+}
+
+/* Force Recharts to show all labels without staggering */
+.recharts-x-axis .recharts-cartesian-axis-tick {
+  transform: none !important;
+}
+
+.recharts-x-axis .recharts-cartesian-axis-tick:nth-child(odd) {
+  transform: translateY(0px) !important;
+}
+
+.recharts-x-axis .recharts-cartesian-axis-tick:nth-child(even) {
+  transform: translateY(0px) !important;
+}
+
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .dg-main-container {
+    flex-direction: column;
+  }
+  
+  .dg-side-panel {
+    width: 100%;
+  }
+  
+  .dg-stats-card .dg-class-list {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .dg-stats-card .dg-class {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+  
+  .dg-stats-card .dg-class-text {
+    font-size: 10px;
+  }
+}
