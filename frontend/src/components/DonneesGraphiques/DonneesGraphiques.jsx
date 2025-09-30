@@ -659,7 +659,6 @@ const renderDateTicks = (props) => {
           </>
         )}
         <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-        <p>Nombre d'échantillons: {chartData.length}</p>
       </div>
 
       <div className="dg-top-controls">
