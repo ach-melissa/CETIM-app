@@ -348,6 +348,7 @@ const ControleConformite = ({
   clients = [], 
   produits = [] ,
   ajoutsData = {},
+   phase,
 }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
@@ -358,6 +359,16 @@ const ControleConformite = ({
   const [conditionsStatistiques, setConditionsStatistiques] = useState([]);
   const [debugInfo, setDebugInfo] = useState("");
   const debugLogRef = useRef([]);
+const [coverageRequirements, setCoverageRequirements] = useState({
+  status: false,
+  missing: [],
+  hasData: {},
+  requirements: {},
+  coverageResults: {},
+  coverageStatus: "unknown",
+  productionPhase: ""
+});
+
 
   const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
   const ajoutProducts = [
@@ -520,6 +531,26 @@ const ControleConformite = ({
 
   const dataToUse = filteredTableData || [];
 
+  // Add this useEffect after the existing useEffects
+// Dans le useEffect, passez conformiteData :
+useEffect(() => {
+  if (dataToUse.length > 0) {
+    const allParamKeys = [
+      "rc2j", "rc7j", "rc28j", "prise", "stabilite", "so3",
+      "chlorure", "hydratation", "pfeu", "r_insoluble", "c3a", "pouzzolanicite", "ajout"
+    ];
+    
+    const productionPhase = phase || 'situation_courante';
+    const coverage = checkDataCoverageRequirements(dataToUse, productionPhase, allParamKeys, conformiteData);
+    setCoverageRequirements(coverage);
+    
+    addDebugLog(`Coverage check: ${coverage.coverageStatus} for ${coverage.productionPhase}`);
+    if (!coverage.status) {
+      addDebugLog(`Missing coverage: ${coverage.missing.length} periods`);
+    }
+  }
+}, [dataToUse, phase, conformiteData]);
+
   // ✅ NOUVEAU: Fonction pour vérifier si un paramètre a des données
   const hasDataForParameter = useCallback((paramKey) => {
     if (!dataToUse || dataToUse.length === 0) return false;
@@ -661,6 +692,206 @@ const ControleConformite = ({
     };
   }, []);
 
+
+const checkDataCoverageRequirements = (data, productionPhase, paramKeys, conformiteData) => {
+  if (!data || data.length === 0) {
+    return { 
+      status: false, 
+      missing: [], 
+      hasData: {},
+      requirements: {},
+      coverageStatus: "no_data",
+      productionPhase: productionPhase
+    };
+  }
+
+  const sorted = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const startDate = new Date(sorted[0].date);
+  const endDate = new Date(sorted[sorted.length - 1].date);
+  
+  // Récupérer les fréquences depuis le JSON
+  const getFrequencyRequirements = () => {
+    if (!conformiteData || !conformiteData.frequence_essais) {
+      return {};
+    }
+    
+    const phaseKey = productionPhase === 'nouveau_type' ? 'nouveau_type_produit' : 'situation_courante';
+    const params = conformiteData.frequence_essais[phaseKey]?.parametres || [];
+    
+    const requirements = {
+      weekly: { minResults: 0, params: [] },
+      weekly_other: { minResults: 0, params: [] },
+      monthly: { minResults: 0, params: [] },
+      monthly_other: { minResults: 0, params: [] }
+    };
+    
+    params.forEach(param => {
+      if (param.frequence === 4) {
+        requirements.weekly.params.push(param.parametre);
+        requirements.weekly.minResults = 4;
+      } else if (param.frequence === 2 && param.description.includes('semaine')) {
+        requirements.weekly.params.push(param.parametre);
+        requirements.weekly.minResults = 2;
+      } else if (param.frequence === 1 && param.description.includes('semaine')) {
+        requirements.weekly_other.params.push(param.parametre);
+        requirements.weekly_other.minResults = 1;
+      } else if (param.frequence === 2 && param.description.includes('mois')) {
+        requirements.monthly.params.push(param.parametre);
+        requirements.monthly.minResults = 2;
+      } else if (param.frequence === 1 && param.description.includes('mois')) {
+        requirements.monthly_other.params.push(param.parametre);
+        requirements.monthly_other.minResults = 1;
+      }
+    });
+    
+    return requirements;
+  };
+
+  const requirements = getFrequencyRequirements();
+  
+  const missingWindows = [];
+  const coverageResults = {};
+
+  // Vérifier d'abord quels paramètres ont des données
+  const paramsWithData = {};
+  paramKeys.forEach(key => {
+    paramsWithData[key] = sorted.some(row => {
+      const value = row[key];
+      return value !== null && value !== undefined && value !== "" && value !== " ";
+    });
+  });
+
+  // Check weekly coverage seulement pour les paramètres avec données
+  Object.keys(requirements).forEach(reqType => {
+    if (reqType.includes('weekly')) {
+      const requirement = requirements[reqType];
+      
+      requirement.params.forEach(paramKey => {
+        // Ignorer les paramètres sans données
+        if (!paramsWithData[paramKey]) return;
+        
+        let currentStart = new Date(startDate);
+        const paramMissingWindows = [];
+        
+        while (currentStart <= endDate) {
+          const currentEnd = new Date(currentStart);
+          currentEnd.setDate(currentEnd.getDate() + 6);
+
+          const weekResults = sorted.filter(row => {
+            const d = new Date(row.date);
+            const hasValue = row[paramKey] !== null && 
+                            row[paramKey] !== undefined && 
+                            row[paramKey] !== "" &&
+                            row[paramKey] !== " ";
+            return d >= currentStart && d <= currentEnd && hasValue;
+          });
+
+          if (weekResults.length < requirement.minResults) {
+            paramMissingWindows.push({
+              start: currentStart.toISOString().split("T")[0],
+              end: currentEnd.toISOString().split("T")[0],
+              found: weekResults.length,
+              required: requirement.minResults,
+              parameter: paramKey,
+              period: 'weekly'
+            });
+          }
+
+          currentStart.setDate(currentStart.getDate() + 7);
+        }
+
+        if (paramMissingWindows.length > 0) {
+          coverageResults[paramKey] = {
+            status: false,
+            missingWindows: paramMissingWindows,
+            requirement: `${requirement.minResults} résultats par semaine`,
+            type: 'weekly'
+          };
+          missingWindows.push(...paramMissingWindows);
+        } else {
+          coverageResults[paramKey] = {
+            status: true,
+            requirement: `${requirement.minResults} résultats par semaine`,
+            type: 'weekly'
+          };
+        }
+      });
+    }
+  });
+
+  // Check monthly coverage seulement pour les paramètres avec données
+  Object.keys(requirements).forEach(reqType => {
+    if (reqType.includes('monthly')) {
+      const requirement = requirements[reqType];
+      
+      requirement.params.forEach(paramKey => {
+        // Ignorer les paramètres sans données
+        if (!paramsWithData[paramKey]) return;
+        
+        let currentStart = new Date(startDate);
+        const paramMissingWindows = [];
+        
+        while (currentStart <= endDate) {
+          const currentEnd = new Date(currentStart);
+          currentEnd.setMonth(currentEnd.getMonth() + 1);
+          currentEnd.setDate(currentEnd.getDate() - 1);
+
+          const monthResults = sorted.filter(row => {
+            const d = new Date(row.date);
+            const hasValue = row[paramKey] !== null && 
+                            row[paramKey] !== undefined && 
+                            row[paramKey] !== "" &&
+                            row[paramKey] !== " ";
+            return d >= currentStart && d <= currentEnd && hasValue;
+          });
+
+          if (monthResults.length < requirement.minResults) {
+            paramMissingWindows.push({
+              start: currentStart.toISOString().split("T")[0],
+              end: currentEnd.toISOString().split("T")[0],
+              found: monthResults.length,
+              required: requirement.minResults,
+              parameter: paramKey,
+              period: 'monthly'
+            });
+          }
+
+          currentStart.setMonth(currentStart.getMonth() + 1);
+        }
+
+        if (paramMissingWindows.length > 0) {
+          coverageResults[paramKey] = {
+            status: false,
+            missingWindows: paramMissingWindows,
+            requirement: `${requirement.minResults} résultats par mois`,
+            type: 'monthly'
+          };
+          missingWindows.push(...paramMissingWindows);
+        } else {
+          coverageResults[paramKey] = {
+            status: true,
+            requirement: `${requirement.minResults} résultats par mois`,
+            type: 'monthly'
+          };
+        }
+      });
+    }
+  });
+
+  return {
+    status: missingWindows.length === 0,
+    missing: missingWindows,
+    hasData: paramsWithData,
+    requirements: requirements,
+    coverageResults: coverageResults,
+    coverageStatus: missingWindows.length === 0 ? "adequate" : "insufficient",
+    productionPhase: productionPhase,
+    dataPoints: sorted.length,
+    periodCovered: `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`
+  };
+};
+
+
   const timeDependentCoverage = useMemo(() => {
     const paramKeys = allTimeDependentParams.map(p => p.jsonKey || p.key);
     return checkTemporalCoverage(dataToUse, paramKeys);
@@ -670,65 +901,138 @@ const ControleConformite = ({
     allParameters.reduce((acc, param) => ({ ...acc, [param.key]: calculateStats(dataToUse, param.key) }), {}),
   [allParameters, dataToUse]);
 
-  const calculateClassConformity = (classCompliance, statisticalCompliance, conditionsStatistiques) => {
-    console.log("=== CALCUL DE CONFORMITÉ ===");
-    
-    const hasHighDeviations = Object.keys(classCompliance).some(paramKey => {
-      const compliance = classCompliance[paramKey];
-      if (compliance.stats) {
-        if (compliance.stats.percentLI !== "-" && parseFloat(compliance.stats.percentLI) > 5) {
-          console.log(`❌ High LI deviation: ${paramKey} = ${compliance.stats.percentLI}%`);
-          return true;
-        }
-        if (compliance.stats.percentLS !== "-" && parseFloat(compliance.stats.percentLS) > 5) {
-          console.log(`❌ High LS deviation: ${paramKey} = ${compliance.stats.percentLS}%`);
-          return true;
-        }
-        if (compliance.stats.percentLG !== "-" && parseFloat(compliance.stats.percentLG) > 5) {
-          console.log(`❌ High LG défaut: ${paramKey} = ${compliance.stats.percentLG}%`);
-          return true;
-        }
+const calculateClassConformity = (classCompliance, statisticalCompliance, conditionsStatistiques, classe) => {
+  console.log("=== CALCUL DE CONFORMITÉ ===");
+  
+  const hasHighDeviations = Object.keys(classCompliance).some(paramKey => {
+    const compliance = classCompliance[paramKey];
+    if (compliance.stats) {
+      if (compliance.stats.percentLI !== "-" && parseFloat(compliance.stats.percentLI) > 5) {
+        console.log(`❌ High LI deviation: ${paramKey} = ${compliance.stats.percentLI}%`);
+        return true;
       }
-      return false;
-    });
-
-    const hasUnsatisfiedMesures = Object.keys(statisticalCompliance).some(key => {
-      const compliance = statisticalCompliance[key];
-      const isUnsatisfied = compliance && compliance.canCalculate && !compliance.satisfied;
-      if (isUnsatisfied) {
-        console.log(`❌ Unsatisfied mesure: ${key} = ${compliance.equation}`);
+      if (compliance.stats.percentLS !== "-" && parseFloat(compliance.stats.percentLS) > 5) {
+        console.log(`❌ High LS deviation: ${paramKey} = ${compliance.stats.percentLS}%`);
+        return true;
       }
-      return isUnsatisfied;
-    });
-
-    let hasUnsatisfiedAttributs = false;
-    Object.keys(classCompliance).forEach(paramKey => {
-      const compliance = classCompliance[paramKey];
-      if (compliance.values && compliance.values.length > 0) {
-        const attributeResult = checkEquationSatisfaction(
-          compliance.values,
-          compliance.limits,
-          conditionsStatistiques
-        );
-        if (attributeResult.canCalculate && !attributeResult.satisfied) {
-          console.log(`❌ Unsatisfied attribute: ${paramKey} = ${attributeResult.equation}`);
-          hasUnsatisfiedAttributs = true;
-        }
+      if (compliance.stats.percentLG !== "-" && parseFloat(compliance.stats.percentLG) > 5) {
+        console.log(`❌ High LG défaut: ${paramKey} = ${compliance.stats.percentLG}%`);
+        return true;
       }
-    });
+    }
+    return false;
+  });
 
-    const isClassConforme = !hasHighDeviations && !hasUnsatisfiedMesures && !hasUnsatisfiedAttributs;
+  const hasUnsatisfiedMesures = Object.keys(statisticalCompliance).some(key => {
+    const compliance = statisticalCompliance[key];
+    const isUnsatisfied = compliance && compliance.canCalculate && !compliance.satisfied;
+    if (isUnsatisfied) {
+      console.log(`❌ Unsatisfied mesure: ${key} = ${compliance.equation}`);
+    }
+    return isUnsatisfied;
+  });
 
-    console.log(`📊 Class Conformity Result:`, {
-      hasHighDeviations,
-      hasUnsatisfiedMesures,
-      hasUnsatisfiedAttributs,
-      isClassConforme
-    });
-    console.log("=== FIN CALCUL CONFORMITÉ ===");
+  let hasUnsatisfiedAttributs = false;
+  Object.keys(classCompliance).forEach(paramKey => {
+    const compliance = classCompliance[paramKey];
+    if (compliance.values && compliance.values.length > 0) {
+      const attributeResult = checkEquationSatisfaction(
+        compliance.values,
+        compliance.limits,
+        conditionsStatistiques
+      );
+      if (attributeResult.canCalculate && !attributeResult.satisfied) {
+        console.log(`❌ Unsatisfied attribute: ${paramKey} = ${attributeResult.equation}`);
+        hasUnsatisfiedAttributs = true;
+      }
+    }
+  });
 
-    return isClassConforme;
+  // ✅ INFORMATION SEULEMENT: Analyse de la couverture (pas un critère de conformité)
+  const coverageAnalysis = {
+    adequate: [],
+    insufficient: [],
+    warnings: []
   };
+
+  // Analyser chaque paramètre critique (pour information seulement)
+  Object.keys(coverageRequirements.coverageResults || {}).forEach(paramKey => {
+    const coverage = coverageRequirements.coverageResults[paramKey];
+    const paramLabel = getParameterLabel(paramKey);
+    
+    if (coverage.status) {
+      coverageAnalysis.adequate.push({
+        parameter: paramKey,
+        label: paramLabel,
+        requirement: coverage.requirement
+      });
+    } else {
+      coverageAnalysis.insufficient.push({
+        parameter: paramKey,
+        label: paramLabel,
+        requirement: coverage.requirement,
+        missingPeriods: coverage.missingWindows.length,
+        sampleCount: coverageRequirements.hasData[paramKey] ? 'Avec données' : 'Sans données'
+      });
+    }
+  });
+
+  // Vérifier les paramètres sans données (pour information seulement)
+  const criticalParams = phase === 'nouveau_type' 
+    ? ["rc2j", "rc7j", "rc28j", "prise", "stabilite", "so3", "chlorure", "hydratation", "pfeu", "r_insoluble", "c3a", "pouzzolanicite"]
+    : ["rc2j", "rc7j", "rc28j", "prise", "so3", "stabilite", "chlorure", "hydratation", "pfeu", "r_insoluble", "c3a", "pouzzolanicite"];
+
+  criticalParams.forEach(paramKey => {
+    if (!coverageRequirements.hasData[paramKey]) {
+      coverageAnalysis.warnings.push({
+        parameter: paramKey,
+        label: getParameterLabel(paramKey),
+        message: "Aucune donnée disponible"
+      });
+    }
+  });
+
+  // ✅ LA COUVERTURE N'EST PAS UN CRITÈRE DE CONFORMITÉ
+  const isClassConforme = !hasHighDeviations && !hasUnsatisfiedMesures && !hasUnsatisfiedAttributs;
+
+  console.log(`📊 Class Conformity Result:`, {
+    hasHighDeviations,
+    hasUnsatisfiedMesures,
+    hasUnsatisfiedAttributs,
+    coverageAnalysis, // Information seulement
+    isClassConforme // Ne dépend pas de la couverture
+  });
+  console.log("=== FIN CALCUL CONFORMITÉ ===");
+
+  return {
+    isClassConforme,
+    coverageAnalysis, // Information pour l'affichage seulement
+    hasHighDeviations,
+    hasUnsatisfiedMesures,
+    hasUnsatisfiedAttributs
+  };
+};
+
+
+// Ajoutez cette fonction après les autres fonctions helpers
+const getParameterLabel = (paramKey) => {
+  const paramMap = {
+    rc2j: "Résistance 2j",
+    rc7j: "Résistance 7j", 
+    rc28j: "Résistance 28j",
+    prise: "Temps début prise",
+    stabilite: "Stabilité",
+    so3: "SO3",
+    chlorure: "Chlorure",
+    hydratation: "Chaleur d'hydratation",
+    pfeu: "Perte au feu",
+    r_insoluble: "Résidu insoluble",
+    c3a: "C3A",
+    pouzzolanicite: "Pouzzolanicité"
+  };
+  return paramMap[paramKey] || paramKey;
+};
+
 
   const getDeviationParameters = (classe) => {
     const isLowClass = ["32.5 L", "32.5 N", "42.5 L"].includes(classe);
@@ -931,6 +1235,149 @@ const ControleConformite = ({
     );
   };
 
+  // Ajoutez cette fonction après getParameterLabel
+const generateGeneralConclusion = (coverageAnalysis, phase, coverageRequirements, conformiteData, dataToUse) => {
+  const conclusions = [];
+  
+  const insufficientParams = coverageAnalysis.insufficient || [];
+  const warningParams = coverageAnalysis.warnings || [];
+  const hasData = coverageRequirements.hasData || {};
+
+  // Fonction pour obtenir le nom français du paramètre
+  const getFrenchParamName = (paramKey) => {
+    const paramMap = {
+      'rc2j': 'Résistance à 2 jours',
+      'rc7j': 'Résistance à 7 jours',
+      'rc28j': 'Résistance à 28 jours',
+      'prise': 'Temps de début de prise',
+      'so3': 'Teneur en sulfate',
+      'stabilite': 'Stabilité',
+      'pfeu': 'Perte au feu',
+      'r_insoluble': 'Résidu insoluble',
+      'chlorure': 'Chlorure',
+      'c3a': 'C3A',
+      'pouzzolanicite': 'Pouzzolanicité',
+      'hydratation': 'Chaleur d\'hydratation',
+      'ajout': 'Ajout'
+    };
+    return paramMap[paramKey] || paramKey;
+  };
+
+  // Récupérer les fréquences depuis le JSON
+  const getFrequencyRequirements = () => {
+    if (!conformiteData || !conformiteData.frequence_essais) {
+      return [];
+    }
+    
+    const phaseKey = phase === 'nouveau_type' ? 'nouveau_type_produit' : 'situation_courante';
+    return conformiteData.frequence_essais[phaseKey]?.parametres || [];
+  };
+
+  const frequencyRequirements = getFrequencyRequirements();
+
+  // Fonction pour vérifier si un paramètre a des données dans le tableau filtré
+  const hasDataInFilteredTable = (paramKey) => {
+    return dataToUse.some(row => {
+      const value = row[paramKey];
+      return value !== null && value !== undefined && value !== "" && value !== " ";
+    });
+  };
+
+  // Fonction pour obtenir les périodes problématiques
+  const getProblematicPeriods = (paramKey) => {
+    const coverage = coverageRequirements.coverageResults[paramKey];
+    if (!coverage || !coverage.missingWindows) return [];
+    
+    return coverage.missingWindows.map(window => {
+      const startDate = new Date(window.start);
+      const endDate = new Date(window.end);
+      const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+      
+      if (window.period === 'weekly') {
+        const weekNumber = Math.ceil((startDate.getDate() + startDate.getDay()) / 7);
+        return `semaine ${weekNumber} de ${monthNames[startDate.getMonth()]}`;
+      } else {
+        return `mois de ${monthNames[startDate.getMonth()]}`;
+      }
+    });
+  };
+
+  // Filtrer seulement les paramètres qui ont des données dans le tableau
+  const paramsWithData = frequencyRequirements.filter(req => 
+    hasDataInFilteredTable(req.parametre)
+  );
+
+  // Vérifier les paramètres problématiques parmi ceux qui ont des données
+  const problematicParams = paramsWithData.filter(req => {
+    const paramKey = req.parametre;
+    const isInsufficient = insufficientParams.some(item => item.parameter === paramKey);
+    return isInsufficient;
+  });
+
+  if (problematicParams.length > 0) {
+    const phaseText = phase === 'nouveau_type' ? 'un nouveau type produit' : 'une situation courante';
+    
+    // Grouper par période problématique
+    const periodsMap = {};
+    
+    problematicParams.forEach(req => {
+      const paramKey = req.parametre;
+      const periods = getProblematicPeriods(paramKey);
+      const paramName = getFrenchParamName(paramKey);
+      
+      periods.forEach(period => {
+        if (!periodsMap[period]) {
+          periodsMap[period] = [];
+        }
+        periodsMap[period].push(paramName);
+      });
+    });
+
+    // Créer les conclusions par période
+    Object.keys(periodsMap).forEach(period => {
+      const paramNames = periodsMap[period].join(', ');
+      conclusions.push(`La fréquence minimale d'essai pour ${phaseText} est non respectée pour le ${period}, cas : ${paramNames}.`);
+    });
+
+  } else {
+    const phaseText = phase === 'nouveau_type' ? 'un nouveau type produit' : 'une situation courante';
+    conclusions.push(`La fréquence minimale d'essai pour ${phaseText} est respectée pour tous les paramètres.`);
+  }
+
+  // Ajouter un message si aucun paramètre n'a de données
+  if (paramsWithData.length === 0) {
+    conclusions.push("Aucune donnée disponible pour l'analyse de couverture.");
+  }
+
+  return conclusions;
+};
+
+// Fonction pour obtenir les mois problématiques
+const getProblematicMonths = (coverageRequirements) => {
+  const months = [];
+  const monthNames = [
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+  ];
+  
+  // Analyser les périodes manquantes pour trouver les mois problématiques
+  Object.keys(coverageRequirements.coverageResults || {}).forEach(paramKey => {
+    const coverage = coverageRequirements.coverageResults[paramKey];
+    if (coverage && !coverage.status) {
+      coverage.missingWindows.forEach(window => {
+        const month = new Date(window.start).getMonth();
+        const monthName = monthNames[month];
+        if (monthName && !months.includes(monthName)) {
+          months.push(monthName);
+        }
+      });
+    }
+  });
+  
+  return months;
+};
+
+
   const renderClassSection = useCallback((classe) => {
     const selectedCement = produitInfo ? {
       name: produitInfo.nom || produitInfo.description || "Produit non spécifié",
@@ -1036,9 +1483,8 @@ const ControleConformite = ({
         }
       }
     });
-
-    const isClassConforme = calculateClassConformity(classCompliance, statisticalCompliance, conditionsStatistiques);
-
+const conformityResult = calculateClassConformity(classCompliance, statisticalCompliance, conditionsStatistiques, classe);
+const { isClassConforme, hasCoverageIssues, coverageAnalysis } = conformityResult;
     return (
       <div className="class-section" key={classe}>
         <div className="report-header">
@@ -1295,14 +1741,26 @@ const ControleConformite = ({
             </div>
           )}
 
-          <div className="conclusion-section">
-            <div className="conformity-summary">
-              <h4>CONCLUSION : {isClassConforme ? 'CONFORME' : 'NON CONFORME'}</h4>
-            </div>
-            <div className={`conformity-box ${isClassConforme ? 'conforme' : 'non-conforme'}`}>
-              <strong>CONFORMITÉ: {isClassConforme ? 'CONFORME' : 'NON CONFORME'}</strong>
-            </div>
-          </div>
+
+<div className="conclusion-section">
+  <div className="conformity-summary">
+    <h4>CONCLUSION : 
+ {/* SEULEMENT LA CONCLUSION GÉNÉRALE */}
+<div className="conclusion-text">
+  {generateGeneralConclusion(coverageAnalysis, phase, coverageRequirements, conformiteData, dataToUse).map((conclusion, index) => (
+    <div key={index} className="conclusion-line">
+      {conclusion}
+    </div>
+  ))}
+</div> 
+</h4>
+  </div>
+
+  {/* Boîte de conformité finale */}
+  <div className={`conformity-box ${isClassConforme ? 'conforme' : 'non-conforme'}`}>
+    <strong>CONFORMITÉ: {isClassConforme ? 'CONFORME' : 'NON CONFORME'}</strong>
+  </div>
+</div>
           
           <hr className="section-divider" />
         </div>
@@ -1316,6 +1774,81 @@ const ControleConformite = ({
     alwaysMesureParams, alwaysAttributParams, showC3A, showAjout, hasDataForParameter,
     isCemIOrCemIII
   ]);
+
+
+  const renderCoverageInfo = () => {
+  if (!coverageRequirements || coverageRequirements.coverageStatus === "unknown") {
+    return null;
+  }
+
+  return (
+    <div className="coverage-section">
+      <h4>Vérification de la Couverture des Données</h4>
+      <div className={`coverage-status ${coverageRequirements.coverageStatus}`}>
+        <strong>Statut: </strong>
+        {coverageRequirements.coverageStatus === "adequate" ? "✅ Couverture adéquate" : 
+         coverageRequirements.coverageStatus === "insufficient" ? "❌ Couverture insuffisante" : 
+         "📊 En cours d'analyse"}
+        <span style={{marginLeft: '20px', fontSize: '0.9em', color: '#666'}}>
+          (Phase: {coverageRequirements.productionPhase === 'nouveau_type' ? 'Nouveau Type Produit' : 'Situation Courante'})
+        </span>
+      </div>
+      
+      {coverageRequirements.coverageStatus === "insufficient" && (
+        <div className="coverage-details">
+          <h5>Périodes avec données insuffisantes:</h5>
+          <div className="missing-periods">
+            {Object.keys(coverageRequirements.coverageResults).map(paramKey => {
+              const result = coverageRequirements.coverageResults[paramKey];
+              if (result.status) return null;
+              
+              return (
+                <div key={paramKey} className="missing-param">
+                  <strong>{paramKey}</strong> - {result.requirement}
+                  <div className="missing-windows">
+                    {result.missingWindows.slice(0, 3).map((window, idx) => (
+                      <div key={idx} className="missing-window">
+                        {window.start} à {window.end}: {window.found}/{window.required} résultats
+                      </div>
+                    ))}
+                    {result.missingWindows.length > 3 && (
+                      <div>... et {result.missingWindows.length - 3} autres périodes</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      
+      {coverageRequirements.coverageStatus === "adequate" && (
+        <div className="coverage-success">
+          <p>✅ Tous les paramètres respectent les exigences de couverture des données</p>
+          <div className="requirements-summary">
+            <strong>Exigences appliquées:</strong>
+            <ul>
+              {coverageRequirements.productionPhase === "nouveau_type" ? (
+                <>
+                  <li>4 résultats par semaine pour: RC 2j, 7j, 28j, Temps début prise, Stabilité, SO3</li>
+                  <li>1 résultat par semaine pour les autres paramètres</li>
+                </>
+              ) : (
+                <>
+                  <li>2 résultats par semaine pour: RC 2j, 7j, 28j, Temps début prise, SO3</li>
+                  <li>1 résultat par semaine pour: Stabilité</li>
+                  <li>2 résultats par mois pour: Perte au feu, Résidu insoluble, Chlorure, C3A, Pouzzolanicité</li>
+                  <li>1 résultat par mois pour: Chaleur d'hydratation</li>
+                </>
+              )}
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 
   const handleExport = () => alert("Exporting...");
   const handlePrint = () => alert("Printing...");
