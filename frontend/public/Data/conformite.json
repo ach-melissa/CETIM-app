@@ -1,142 +1,56 @@
 {
-       "controles_conformite": { 
-    "mecanique": [
-    {
-      "id": 1 ,
-      "parametre": "Résistance  à 2 jours",
-      "type_controle": "mesure",
-      "methode_reference": "EN 196-1",
-      "categorie": "mécanique",
-      "ciment_soumis": "Tous",
-      "frequence_courante": "2/semaine",
-      "frequence_admission": "4/semaine"
-    },
-    {
-      "id": 2 ,
-      "parametre": "Résistance  à 7 jours",
-      "type_controle": "mesure",
-      "methode_reference": "EN 196-1",
-      "categorie": "mécanique",
-      "ciment_soumis": "Tous",
-      "frequence_courante": "2/semaine",
-      "frequence_admission": "4/semaine"
-    },
-    {
-      "id": 3 ,
-      "parametre": "Résistance à 28 jours",
-      "type_controle": "mesure",
-      "methode_reference": "EN 196-1",
-      "categorie": "mécanique",
-      "ciment_soumis": "Tous",
-      "frequence_courante": "2/semaine",
-      "frequence_admission": "4/semaine"
-    }
+
+  "familles_ciment": [
+    { "id": 1, "code": "CEM I", "nom": "Ciment Portland" },
+    { "id": 2, "code": "CEM II", "nom": "Ciment Portland composé" },
+    { "id": 3, "code": "CEM III", "nom": "Ciment de haut fourneau" },
+    { "id": 4, "code": "CEM IV", "nom": "Ciment pouzzolanique" },
+    { "id": 5, "code": "CEM V", "nom": "Ciment composé" }
+  ] ,
+
+
+  "types_ciment": [
+    { "id": 1, "famille_id": 1, "code": "CEM I", "description": "Ciment Portland"},
+    { "id": 2, "famille_id": 1, "code": "CEM I-SR 0", "description": "Ciment Portland SR" },
+    { "id": 3, "famille_id": 1, "code": "CEM I-SR 3", "description": "Ciment Portland SR" },
+    { "id": 4, "famille_id": 1, "code": "CEM I-SR 5", "description": "Ciment Portland SR" },
+
+    { "id": 5, "famille_id": 2, "code": "CEM II/A-S", "description": "Ciment Portland au laitier"},
+    { "id": 6, "famille_id": 2, "code": "CEM II/B-S", "description": "Ciment Portland au laitier"},
+    { "id": 7, "famille_id": 2, "code": "CEM II/A-D", "description": "Ciment Portland à la fumée de silice"},
+    { "id": 8, "famille_id": 2, "code": "CEM II/A-P", "description": "Ciment Portland à la pouzzolane naturelle"},
+    { "id": 9, "famille_id": 2, "code": "CEM II/B-P", "description": "Ciment Portland à la pouzzolane naturelle"},
+    { "id": 10, "famille_id": 2, "code": "CEM II/A-Q", "description": "Ciment Portland à la pouzzolane naturelle calcinée"},
+    { "id": 11, "famille_id": 2, "code": "CEM II/B-Q", "description": "Ciment Portland à la pouzzolane naturelle calcinée"},
+    { "id": 12, "famille_id": 2, "code": "CEM II/A-V", "description": "Ciment Portland aux cendres volantes"},
+    { "id": 13, "famille_id": 2, "code": "CEM II/B-V", "description": "Ciment Portland aux cendres volantes"},
+    { "id": 14, "famille_id": 2, "code": "CEM II/A-W", "description": "Ciment Portland aux cendres volantes"},
+    { "id": 15, "famille_id": 2, "code": "CEM II/B-W", "description": "Ciment Portland aux cendres volantes"},
+    { "id": 16, "famille_id": 2, "code": "CEM II/A-T", "description": "Ciment Portland aux schistes calcinés"},
+    { "id": 17, "famille_id": 2, "code": "CEM II/B-T", "description": "Ciment Portland aux schistes calcinés"},
+    { "id": 18, "famille_id": 2, "code": "CEM II/A-L", "description": "Ciment Portland au calcaire"},
+    { "id": 19, "famille_id": 2, "code": "CEM II/B-L", "description": "Ciment Portland au calcaire"},
+    { "id": 20, "famille_id": 2, "code": "CEM II/A-LL", "description": "Ciment Portland au calcaire"},
+    { "id": 21, "famille_id": 2, "code": "CEM II/B-LL", "description": "Ciment Portland au calcaire"},
+    { "id": 22, "famille_id": 2, "code": "CEM II/A-M", "description": "Ciment Portland composé"},
+    { "id": 23, "famille_id": 2, "code": "CEM II/B-M", "description": "Ciment Portland composé"},
+
+    { "id": 24, "famille_id": 3, "code": "CEM III/A", "description": "Ciment Haut fourneau"},
+    { "id": 25, "famille_id": 3, "code": "CEM III/B", "description": "Ciment Haut fourneau"},
+    { "id": 26, "famille_id": 3, "code": "CEM III/C", "description": "Ciment Haut fourneau"},
+    { "id": 27, "famille_id": 3, "code": "CEM III/B-SR", "description": "Ciment Haut fourneau SR" },
+    { "id": 28, "famille_id": 3, "code": "CEM III/C-SR", "description": "Ciment Haut fourneau SR" },
+
+    { "id": 29, "famille_id": 4, "code": "CEM IV/A", "description": "Ciment Pouzzolanique"},
+    { "id": 30, "famille_id": 4, "code": "CEM IV/B", "description": "Ciment Pouzzolanique"},
+    { "id": 31, "famille_id": 4, "code": "CEM IV/A-SR", "description": "Ciment Pouzzolanique SR" },
+    { "id": 32, "famille_id": 4, "code": "CEM IV/B-SR", "description": "Ciment Pouzzolanique SR" },
+
+    { "id": 33, "famille_id": 5, "code": "CEM V/A", "description": "Ciment Composé"},
+    { "id": 34, "famille_id": 5, "code": "CEM V/B", "description": "Ciment Composé"}
   ],
-"physique": [
-    {
-      "id": 4 ,
-      "parametre": "Temps debut de prise",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-3",
-      "categorie": "physique",
-      "ciment_soumis": "Tous",
-      "frequence_courante": "2/semaine",
-      "frequence_admission": "4/semaine"
-    },
-    {
-      "id": 5 ,
-      "parametre": "Stabilité (expansion)",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-3",
-      "categorie": "physique",
-      "ciment_soumis": "Tous",
-      "frequence_courante": "1/semaine",
-      "frequence_admission": "4/semaine"
-    },
-        {
-          "id": 6 ,
-      "parametre": "Chaleur d’hydratation",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-8 ou EN 196-9",
-      "categorie": "physique",
-      "ciment_soumis": "Ciments courants à faible chaleur d’hydratation",
-      "frequence_courante": "1/mois",
-      "frequence_admission": "1/semaine"
-    }
-  ],
-  "chimique": [
-    {
-      "id": 7 ,
-      "parametre": "Perte au feu",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-2",
-      "categorie": "chimique",
-      "ciment_soumis": "CEM I, CEM III",
-      "frequence_courante": "2/mois",
-      "frequence_admission": "1/semaine"
-    },
-    {
-      "id": 8 ,
-      "parametre": "Résidu insoluble",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-2",
-      "categorie": "chimique",
-      "ciment_soumis": "CEM I, CEM III",
-      "frequence_courante": "2/mois",
-      "frequence_admission": "1/semaine"
-    },
-    {
-      "id": 9 ,
-      "parametre": "Teneur en sulfate",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-2",
-      "categorie": "chimique",
-      "ciment_soumis": "Tous",
-      "frequence_courante": "2/semaine",
-      "frequence_admission": "4/semaine"
-    },
-    {
-      "id": 10 ,
-      "parametre": "Teneur en chlorure",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-2",
-      "categorie": "chimique",
-      "ciment_soumis": "Tous",
-      "frequence_courante": "2/mois",
-      "frequence_admission": "1/semaine"
-    },
-    {
-      "id": 11 ,
-      "parametre": "C3A dans le clinker",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-2 (calc)",
-      "categorie": "chimique",
-      "ciment_soumis": "CEM I-SR 0, CEM I-SR 3, CEM I-SR 5, CEM II/A-SR, CEM IV/B-SR",
-      "frequence_courante": "2/mois",
-      "frequence_admission": "1/semaine"
-    },
-    {
-      "id": 12 ,
-      "parametre": "C3A dans le clinker",
-      "type_controle": null,
-      "methode_reference": "EN 196-2 (calc)",
-      "categorie": "chimique",
-      "ciment_soumis": "CEM II/A-SR, CEM IV/B-SR",
-      "frequence_courante": null,
-      "frequence_admission": null
-    },
-    {
-      "id": 13 ,
-      "parametre": "Pouzzolanicité",
-      "type_controle": "attribut",
-      "methode_reference": "EN 196-5",
-      "categorie": "chimique",
-      "ciment_soumis": "CEM IV",
-      "frequence_courante": "2/mois",
-      "frequence_admission": "1/semaine"
-    }
-  ]
-},
+
+
 
   "valeurs_statistiques": [
     { "categorie": "mecanique", "sous_type": "limite_inferieure", "percentile_pk": 5.00, "prob_acceptation_cr": 5.00 },
