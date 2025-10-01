@@ -14,6 +14,78 @@
   max-width: 1200px;
 }
 
+/* Ajoutez ceci dans votre fichier ParametreEntreprise.css */
+
+.action-buttons {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.primary-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.secondary-btn {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.danger-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.primary-btn:hover {
+  background-color: #0056b3;
+}
+
+.secondary-btn:hover {
+  background-color: #545b62;
+}
+
+.danger-btn:hover {
+  background-color: #c82333;
+}
+
+.validation-msg {
+  padding: 10px;
+  margin: 15px 0;
+  border-radius: 5px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.validation-msg.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.validation-msg.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+
 .paramh h1 {
   color: #18212b;
   background-color: #ffffff;
