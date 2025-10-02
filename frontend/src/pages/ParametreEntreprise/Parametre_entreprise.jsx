@@ -15,6 +15,10 @@ const ParametreEntreprise = () => {
     sigle: "",
     nom_raison_sociale: "",
     adresse: "",
+    numero_identification: "",
+    telephone: "",
+    email: "",
+    photo: null,
     types_ciment: [],
   });
 
@@ -23,6 +27,10 @@ const ParametreEntreprise = () => {
     sigle: "",
     nom_raison_sociale: "",
     adresse: "",
+    numero_identification: "",
+    telephone: "",
+    email: "",
+    photo: null,
     types_ciment: [],
   });
 
@@ -67,27 +75,58 @@ const ParametreEntreprise = () => {
     setValidationMessage("");
   };
 
-  const handleSaveNewClient = async () => {
-    try {
-      const res = await fetch("http://localhost:5000/api/clients", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newClient),
-      });
-      const savedClient = await res.json();
-      setClientsData([...clientsData, savedClient]);
-      setNewClient({
-        sigle: "",
-        nom_raison_sociale: "",
-        adresse: "",
-        types_ciment: [],
-      });
-      setShowAddClient(false);
-    } catch (err) {
-      console.error("❌ Erreur ajout client:", err);
-    }
-  };
+const handleSaveNewClient = async () => {
+  try {
+    // 1. D'abord créer le client sans photo
+    const requestBody = {
+      sigle: newClient.sigle,
+      nom_raison_sociale: newClient.nom_raison_sociale,
+      adresse: newClient.adresse,
+      numero_identification: newClient.numero_identification,
+      telephone: newClient.telephone,
+      email: newClient.email,
+      types_ciment: newClient.types_ciment,
+    };
 
+    const res = await fetch("http://localhost:5000/api/clients", {
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText);
+    }
+
+    const savedClient = await res.json();
+    const newClientId = savedClient.id;
+
+    // 2. Ensuite uploader la photo si elle existe
+    if (newClient.photo) {
+      await uploadClientPhoto(newClientId, newClient.photo);
+    }
+
+    setClientsData([...clientsData, savedClient]);
+    setNewClient({
+      sigle: "",
+      nom_raison_sociale: "",
+      adresse: "",
+      numero_identification: "",
+      telephone: "",
+      email: "",
+      photo: null,
+      types_ciment: [],
+    });
+    setShowAddClient(false);
+    alert("✅ Client ajouté avec succès");
+  } catch (err) {
+    console.error("❌ Erreur ajout client:", err);
+    alert(`❌ Erreur: ${err.message}`);
+  }
+};
   const openEditClient = () => {
     if (!selectedClientId) {
       alert("Veuillez sélectionner un client à modifier");
@@ -100,126 +139,147 @@ const ParametreEntreprise = () => {
         sigle: client.sigle,
         nom_raison_sociale: client.nom_raison_sociale,
         adresse: client.adresse,
-        types_ciment: client.types_ciment.map((tc) => tc.id), // IDs only
+        numero_identification: client.numero_identification || "",
+        telephone: client.telephone || "",
+        email: client.email || "",
+        photo: null, // Reset photo file, keep existing photo URL
+        types_ciment: client.types_ciment.map((tc) => tc.id),
       });
       setShowEditClient(true);
     }
   };
 
-  const handleUpdateClient = async () => {
-    if (!window.confirm("⚠️ Voulez-vous vraiment mettre à jour ce client ?")) return;
-
-    try {
-      const payload = {
-        ...editClient,
-        types_ciment: editClient.types_ciment, // always IDs
-      };
-
-      const res = await fetch(`http://localhost:5000/api/clients/${editClient.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        setValidationMessage("✅ Client modifié avec succès");
-        fetchClients();
-        setShowEditClient(false);
-        setTimeout(() => setValidationMessage(""), 5000);
-      } else {
-        const errorData = await res.json();
-        setValidationMessage(`❌ Erreur: ${errorData.message}`);
-      }
-    } catch (err) {
-      console.error("❌ Erreur modification client:", err);
-      setValidationMessage("❌ Erreur lors de la modification du client");
-    }
-  };
-
-const handleDeleteClient = async () => {
-  if (!selectedClientId) {
-    alert("Veuillez sélectionner un client à supprimer");
-    return;
-  }
-
-  const client = clientsData.find((c) => c.id === parseInt(selectedClientId));
-  if (!client) {
-    alert("Client non trouvé");
-    return;
-  }
+const handleUpdateClient = async () => {
+  if (!window.confirm("⚠️ Voulez-vous vraiment mettre à jour ce client ?")) return;
 
   try {
-    console.log("🔍 Vérification des échantillons via API échantillons...");
-    
-    // UTILISER DIRECTEMENT L'ENDPOINT ÉCHANTILLONS QUI FONCTIONNE
-    const resEchantillons = await fetch(`http://localhost:5000/api/echantillons?client_id=${selectedClientId}`);
-    
-    if (!resEchantillons.ok) {
-      throw new Error(`Erreur API échantillons: ${resEchantillons.status}`);
-    }
-    
-    const echantillons = await resEchantillons.json();
-    const hasTraitements = echantillons.length > 0;
-    const count = echantillons.length;
+    console.log("🔄 Début modification client ID:", editClient.id);
 
-    console.log(`✅ Client "${client.sigle}" a ${count} échantillon(s)`);
+    // 1. D'abord, mettre à jour les données du client (sans photo)
+    const requestBody = {
+      sigle: editClient.sigle,
+      nom_raison_sociale: editClient.nom_raison_sociale,
+      adresse: editClient.adresse,
+      numero_identification: editClient.numero_identification,
+      telephone: editClient.telephone,
+      email: editClient.email,
+      types_ciment: editClient.types_ciment,
+      // Ne pas envoyer photo_client ici
+    };
 
-    let shouldDelete = false;
+    console.log("🚀 Mise à jour données client...");
 
-    if (count === 0) {
-      // ✅ Client SANS échantillons - confirmation simple
-      shouldDelete = window.confirm(`⚠️ Êtes-vous sûr de vouloir supprimer le client "${client.sigle}" ?\nCe client n'a aucun échantillon enregistré.`);
-    } else {
-      // 🚨 Client AVEC échantillons - confirmation triple
-      const confirm1 = window.confirm(`🚨 ATTENTION CRITIQUE ! Le client "${client.sigle}" a ${count} échantillon(s).\n\nPremière confirmation : Voulez-vous vraiment supprimer ce client ?`);
-      if (!confirm1) return;
-      
-      const confirm2 = window.confirm(`🚨 DEUXIÈME CONFIRMATION : Cette action supprimera également tous les échantillons associés. Confirmez-vous ?`);
-      if (!confirm2) return;
-      
-      const confirm3 = window.confirm(`🚨 DERNIÈRE CONFIRMATION : Êtes-vous ABSOLUMENT certain de vouloir supprimer définitivement ce client et tous ses échantillons ?`);
-      shouldDelete = confirm3;
+    const response = await fetch(`http://localhost:5000/api/clients/${editClient.id}`, {
+      method: "PUT",
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText);
     }
 
-    if (shouldDelete) {
-      console.log("🗑️ Suppression du client en cours...");
-      
-      // Appel à l'API de suppression
-      const resDelete = await fetch(`http://localhost:5000/api/clients/${selectedClientId}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (resDelete.ok) {
-        const result = await resDelete.json();
-        console.log("✅ Suppression réussie:", result);
-        
-        // Mettre à jour l'état local
-        setClientsData(prev => prev.filter(c => c.id !== parseInt(selectedClientId)));
-        setSelectedClientId("");
-        setValidationMessage(result.message || "✅ Client supprimé avec succès");
-        
-        setTimeout(() => setValidationMessage(""), 5000);
-      } else {
-        const errorText = await resDelete.text();
-        console.error("❌ Erreur suppression:", errorText);
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch (e) {
-          errorData = { message: "Erreur lors de la suppression du client" };
-        }
-        alert(errorData.message || "Erreur lors de la suppression du client");
-      }
+    // 2. Ensuite, uploader la photo si une nouvelle photo est sélectionnée
+    if (editClient.photo) {
+      console.log("📸 Upload de la nouvelle photo...");
+      await uploadClientPhoto(editClient.id, editClient.photo);
     }
+
+    const result = await response.json();
+    console.log('✅ Client modifié avec succès:', result);
+
+    setValidationMessage("✅ Client modifié avec succès");
+    fetchClients(); // Recharger la liste pour avoir les nouvelles données
+    setShowEditClient(false);
+    setTimeout(() => setValidationMessage(""), 5000);
+    
   } catch (err) {
-    console.error("❌ Erreur vérification échantillons:", err);
-    
-    // Fallback ultime : demander directement sans vérification
-    const shouldDelete = window.confirm(`Êtes-vous sûr de vouloir supprimer le client "${client.sigle}" ?\n\nImpossible de vérifier les échantillons.`);
-    
-    if (shouldDelete) {
-      try {
+    console.error("❌ Erreur modification client:", err);
+    setValidationMessage(`❌ Erreur: ${err.message}`);
+    alert(`Erreur lors de la modification: ${err.message}`);
+  }
+};
+
+// Fonction séparée pour uploader la photo
+const uploadClientPhoto = async (clientId, photoFile) => {
+  try {
+    // Vérifier la taille du fichier AVANT envoi
+    if (photoFile.size > 500 * 1024) {
+      throw new Error(`Image trop lourde (${(photoFile.size/1024).toFixed(1)}KB). Maximum: 500KB`);
+    }
+
+    const formData = new FormData();
+    formData.append('photo', photoFile);
+
+    console.log(`📤 Upload photo: ${(photoFile.size/1024).toFixed(1)}KB`);
+
+    const response = await fetch(`http://localhost:5000/api/clients/${clientId}/photo`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Erreur upload');
+    }
+
+    const result = await response.json();
+    console.log('✅ Photo uploadée:', result);
+    return result;
+
+  } catch (error) {
+    console.error('❌ Erreur upload:', error);
+    throw error;
+  }
+};
+
+  const handleDeleteClient = async () => {
+    if (!selectedClientId) {
+      alert("Veuillez sélectionner un client à supprimer");
+      return;
+    }
+
+    const client = clientsData.find((c) => c.id === parseInt(selectedClientId));
+    if (!client) {
+      alert("Client non trouvé");
+      return;
+    }
+
+    try {
+      console.log("🔍 Vérification des échantillons via API échantillons...");
+      
+      const resEchantillons = await fetch(`http://localhost:5000/api/echantillons?client_id=${selectedClientId}`);
+      
+      if (!resEchantillons.ok) {
+        throw new Error(`Erreur API échantillons: ${resEchantillons.status}`);
+      }
+      
+      const echantillons = await resEchantillons.json();
+      const count = echantillons.length;
+
+      console.log(`✅ Client "${client.sigle}" a ${count} échantillon(s)`);
+
+      let shouldDelete = false;
+
+      if (count === 0) {
+        shouldDelete = window.confirm(`⚠️ Êtes-vous sûr de vouloir supprimer le client "${client.sigle}" ?\nCe client n'a aucun échantillon enregistré.`);
+      } else {
+        const confirm1 = window.confirm(`🚨 ATTENTION CRITIQUE ! Le client "${client.sigle}" a ${count} échantillon(s).\n\nPremière confirmation : Voulez-vous vraiment supprimer ce client ?`);
+        if (!confirm1) return;
+        
+        const confirm2 = window.confirm(`🚨 DEUXIÈME CONFIRMATION : Cette action supprimera également tous les échantillons associés. Confirmez-vous ?`);
+        if (!confirm2) return;
+        
+        const confirm3 = window.confirm(`🚨 DERNIÈRE CONFIRMATION : Êtes-vous ABSOLUMENT certain de vouloir supprimer définitivement ce client et tous ses échantillons ?`);
+        shouldDelete = confirm3;
+      }
+
+      if (shouldDelete) {
+        console.log("🗑️ Suppression du client en cours...");
+        
         const resDelete = await fetch(`http://localhost:5000/api/clients/${selectedClientId}`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
@@ -227,20 +287,53 @@ const handleDeleteClient = async () => {
 
         if (resDelete.ok) {
           const result = await resDelete.json();
+          console.log("✅ Suppression réussie:", result);
+          
           setClientsData(prev => prev.filter(c => c.id !== parseInt(selectedClientId)));
           setSelectedClientId("");
           setValidationMessage(result.message || "✅ Client supprimé avec succès");
+          
           setTimeout(() => setValidationMessage(""), 5000);
         } else {
-          alert("Erreur lors de la suppression du client");
+          const errorText = await resDelete.text();
+          console.error("❌ Erreur suppression:", errorText);
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch (e) {
+            errorData = { message: "Erreur lors de la suppression du client" };
+          }
+          alert(errorData.message || "Erreur lors de la suppression du client");
         }
-      } catch (deleteErr) {
-        console.error("❌ Erreur suppression finale:", deleteErr);
-        alert("Erreur réseau lors de la suppression");
+      }
+    } catch (err) {
+      console.error("❌ Erreur vérification échantillons:", err);
+      
+      const shouldDelete = window.confirm(`Êtes-vous sûr de vouloir supprimer le client "${client.sigle}" ?\n\nImpossible de vérifier les échantillons.`);
+      
+      if (shouldDelete) {
+        try {
+          const resDelete = await fetch(`http://localhost:5000/api/clients/${selectedClientId}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+          });
+
+          if (resDelete.ok) {
+            const result = await resDelete.json();
+            setClientsData(prev => prev.filter(c => c.id !== parseInt(selectedClientId)));
+            setSelectedClientId("");
+            setValidationMessage(result.message || "✅ Client supprimé avec succès");
+            setTimeout(() => setValidationMessage(""), 5000);
+          } else {
+            alert("Erreur lors de la suppression du client");
+          }
+        } catch (deleteErr) {
+          console.error("❌ Erreur suppression finale:", deleteErr);
+          alert("Erreur réseau lors de la suppression");
+        }
       }
     }
-  }
-};
+  };
 
   const toggleCementType = (typeId, isNewClient = true) => {
     const clientState = isNewClient ? newClient : editClient;
@@ -256,6 +349,17 @@ const handleDeleteClient = async () => {
     setClientState({
       ...clientState,
       types_ciment: updatedTypes,
+    });
+  };
+
+  const handlePhotoChange = (e, isNewClient = true) => {
+    const file = e.target.files[0];
+    const clientState = isNewClient ? newClient : editClient;
+    const setClientState = isNewClient ? setNewClient : setEditClient;
+
+    setClientState({
+      ...clientState,
+      photo: file,
     });
   };
 
@@ -283,7 +387,7 @@ const handleDeleteClient = async () => {
            
         {validationMessage && <p className="validation-msg">{validationMessage}</p>}
 
-        {/* Action buttons - MOVED ABOVE CLIENT INFO */}
+        {/* Action buttons */}
         <div className="action-buttons">
           <button className="primary-btn" onClick={() => setShowAddClient(true)}> 
             Ajouter Nouveau Client 
@@ -300,6 +404,34 @@ const handleDeleteClient = async () => {
         <div className="info-card">
           <h2 className="card-title">Informations Client</h2>
           <div className="client-info-grid">
+            {/* Photo */}
+<div className="form-section photo-section">
+  <label className="form-label">Photo :</label>
+  <div className="photo-container">
+    {selectedClient?.photo_client ? (
+      <img 
+        src={`http://localhost:5000/uploads/${selectedClient.photo_client}`} 
+        alt={selectedClient.sigle}
+        className="client-photo"
+          style={{ 
+    width: '500px',           // 👈 GRANDE TAILLE AFFICHAGE
+    height: 'auto',
+    maxWidth: '100%',
+    borderRadius: '8px',
+    border: '2px solid #ddd'
+  }}
+        onError={(e) => {
+          e.target.style.display = 'none';
+          e.target.nextSibling.style.display = 'block';
+        }}
+      />
+    ) : null}
+    <div className={`no-photo ${selectedClient?.photo_client ? 'hidden' : ''}`}>
+      Aucune photo
+    </div>
+  </div>
+</div>
+
             <div className="form-section">
               <label className="form-label">Sigle :</label>
               <select
@@ -325,6 +457,37 @@ const handleDeleteClient = async () => {
                 readOnly
               />
             </div>
+
+            <div className="form-section">
+              <label className="form-label">Numéro d'identification :</label>
+              <input
+                className="form-input"
+                type="text"
+                value={selectedClient ? (selectedClient.numero_identification || "---") : "---"}
+                readOnly
+              />
+            </div>
+
+            <div className="form-section">
+              <label className="form-label">Téléphone :</label>
+              <input
+                className="form-input"
+                type="text"
+                value={selectedClient ? (selectedClient.telephone || "---") : "---"}
+                readOnly
+              />
+            </div>
+
+            <div className="form-section">
+              <label className="form-label">Email :</label>
+              <input
+                className="form-input"
+                type="text"
+                value={selectedClient ? (selectedClient.email || "---") : "---"}
+                readOnly
+              />
+            </div>
+
             <div className="form-section">
               <label className="form-label">Adresse :</label>
               <input
@@ -363,6 +526,16 @@ const handleDeleteClient = async () => {
             <div className="modal-content">
               <button className="close-btn" onClick={() => setShowAddClient(false)}>✖</button>
               <h3>Ajouter un client</h3>
+              
+              <div className="form-group">
+                <label>Photo :</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, true)}
+                />
+              </div>
+
               <div className="form-group">
                 <label>Sigle :</label>
                 <input
@@ -371,6 +544,7 @@ const handleDeleteClient = async () => {
                   onChange={(e) => setNewClient({ ...newClient, sigle: e.target.value })}
                 />
               </div>
+
               <div className="form-group">
                 <label>Nom / Raison Sociale :</label>
                 <input
@@ -379,6 +553,34 @@ const handleDeleteClient = async () => {
                   onChange={(e) => setNewClient({ ...newClient, nom_raison_sociale: e.target.value })}
                 />
               </div>
+
+              <div className="form-group">
+                <label>Numéro d'identification :</label>
+                <input
+                  type="text"
+                  value={newClient.numero_identification}
+                  onChange={(e) => setNewClient({ ...newClient, numero_identification: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Téléphone :</label>
+                <input
+                  type="text"
+                  value={newClient.telephone}
+                  onChange={(e) => setNewClient({ ...newClient, telephone: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Email :</label>
+                <input
+                  type="email"
+                  value={newClient.email}
+                  onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+                />
+              </div>
+
               <div className="form-group">
                 <label>Adresse :</label>
                 <input
@@ -387,6 +589,7 @@ const handleDeleteClient = async () => {
                   onChange={(e) => setNewClient({ ...newClient, adresse: e.target.value })}
                 />
               </div>
+
               <div className="form-group">
                 <h3>Types de Ciment</h3>
                 <div className="cement-selection">
@@ -404,6 +607,7 @@ const handleDeleteClient = async () => {
                   ))}
                 </div>
               </div>
+
               <div className="modal-actions">
                 <button className="primary-btn" onClick={handleSaveNewClient}>Enregistrer</button>
                 <button className="secondary-btn" onClick={() => setShowAddClient(false)}>Annuler</button>
@@ -418,6 +622,21 @@ const handleDeleteClient = async () => {
             <div className="modal-content">
               <button className="close-btn" onClick={() => setShowEditClient(false)}>✖</button>
               <h3>Modifier le client</h3>
+              
+              <div className="form-group">
+                <label>Photo :</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, false)}
+                />
+                {editClient.photo && (
+                  <div className="photo-preview">
+                    Nouvelle photo sélectionnée: {editClient.photo.name}
+                  </div>
+                )}
+              </div>
+
               <div className="form-group">
                 <label>Sigle :</label>
                 <input
@@ -426,6 +645,7 @@ const handleDeleteClient = async () => {
                   onChange={(e) => setEditClient({ ...editClient, sigle: e.target.value })}
                 />
               </div>
+
               <div className="form-group">
                 <label>Nom / Raison Sociale :</label>
                 <input
@@ -434,6 +654,34 @@ const handleDeleteClient = async () => {
                   onChange={(e) => setEditClient({ ...editClient, nom_raison_sociale: e.target.value })}
                 />
               </div>
+
+              <div className="form-group">
+                <label>Numéro d'identification :</label>
+                <input
+                  type="text"
+                  value={editClient.numero_identification}
+                  onChange={(e) => setEditClient({ ...editClient, numero_identification: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Téléphone :</label>
+                <input
+                  type="text"
+                  value={editClient.telephone}
+                  onChange={(e) => setEditClient({ ...editClient, telephone: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Email :</label>
+                <input
+                  type="email"
+                  value={editClient.email}
+                  onChange={(e) => setEditClient({ ...editClient, email: e.target.value })}
+                />
+              </div>
+
               <div className="form-group">
                 <label>Adresse :</label>
                 <input
@@ -442,6 +690,7 @@ const handleDeleteClient = async () => {
                   onChange={(e) => setEditClient({ ...editClient, adresse: e.target.value })}
                 />
               </div>
+
               <div className="form-group">
                 <h3>Types de Ciment</h3>
                 <h5>Ciment Courant:</h5>
@@ -473,8 +722,8 @@ const handleDeleteClient = async () => {
                     </div>
                   ))}
                 </div>
-                
               </div>
+
               <div className="modal-actions">
                 <button className="primary-btn" onClick={handleUpdateClient}>Mettre à jour</button>
                 <button className="secondary-btn" onClick={() => setShowEditClient(false)}>Annuler</button>
