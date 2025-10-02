@@ -498,6 +498,7 @@ const getAjoutDescription = (code) => {
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
           produitInfo={selectedProduitInfo}
+          phase={phase} // Pass phase
           tableData={tableData}
           ajoutsData={ajoutsData}  
           selectedRows={selectedRows}
@@ -520,6 +521,7 @@ const getAjoutDescription = (code) => {
           clients={clients}
           produits={produits}
           ajoutsData={ajoutsData} 
+          phase={phase} // Pass phase
           onTableDataChange={(data, s, e) => {
             setTableData(data);
             setStartDate(s);
@@ -538,6 +540,7 @@ const getAjoutDescription = (code) => {
           initialEnd={endDate}
           clients={clients}
           produits={produits}
+          phase={phase} // Pass phase
         />
       )}
 
@@ -552,6 +555,7 @@ const getAjoutDescription = (code) => {
           clients={clients}
           produits={produits}
           ajoutsData={ajoutsData} 
+          phase={phase} // Pass phase - THIS IS IMPORTANT!
           onTableDataChange={(data, s, e) => {
             setTableData(data);
             setStartDate(s);
