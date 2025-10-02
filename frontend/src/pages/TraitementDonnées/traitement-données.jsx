@@ -368,96 +368,128 @@ const getAjoutDescription = (code) => {
         </button>
       </div>
       
-      <div className="selectors">
+<div className="selectors">
+  <label>
+    Client:
+    <select value={selectedClient} onChange={(e) => setSelectedClient(e.target.value)}>
+      <option value="">-- Choisir client --</option>
+      {clients.map((c) => (
+        <option key={c.id} value={c.id}>
+          {c.nom_raison_sociale}
+        </option>
+      ))}
+    </select>
+  </label>
+
+  {selectedClient && (
+    <>
+      {/* Phase Selection with Radio Buttons */}
+      <div className="phase-selection">
+        <h4>Phase de Production:</h4>
+        <div className="radio-group">
+          <label className="radio-label">
+            <input
+              type="radio"
+              value="situation_courante"
+              checked={phase === "situation_courante"}
+              onChange={(e) => {
+                setPhase(e.target.value);
+                setShowNewTypeForm(false);
+              }}
+            />
+            <span className="radio-text">Situation Courante</span>
+          </label>
+          
+          <label className="radio-label">
+            <input
+              type="radio"
+              value="nouveau_type"
+              checked={phase === "nouveau_type"}
+              onChange={(e) => {
+                setPhase(e.target.value);
+                setShowNewTypeForm(true);
+              }}
+            />
+            <span className="radio-text">Nouveau Type Produit</span>
+          </label>
+        </div>
+      </div>
+
+      {/* Show existing products for Situation Courante */}
+      {phase === "situation_courante" && (
         <label>
-          Client:
-          <select value={selectedClient} onChange={(e) => setSelectedClient(e.target.value)}>
-            <option value="">-- Choisir client --</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nom_raison_sociale}
+          Produit:
+          <select value={clientTypeCimentId} onChange={(e) => setClientTypeCimentId(e.target.value)}>
+            <option value="">-- Choisir produit --</option>
+            {produits.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nom} 
               </option>
             ))}
           </select>
+          {selectedProduitInfo && (
+            <div className="produit-info">
+              <div><strong>Description:</strong> {selectedProduitInfo.description}</div>
+            </div>
+          )}
         </label>
+      )}
 
-        {selectedClient && (
-          <>
+      {/* Show new product form for Nouveau Type */}
+      {phase === "nouveau_type" && (
+        <div className="new-type-section">
+          <div className="form-container">
+            <h3>Ajouter un Nouveau Type de Ciment</h3>
+            <p><strong>Phase:</strong> Nouveau Type Produit</p>
             <label>
-              Produit:
-              <select value={clientTypeCimentId} onChange={(e) => setClientTypeCimentId(e.target.value)}>
-                <option value="">-- Tous les produits --</option>
-                {produits.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nom} 
-                  </option>
-                ))}
-              </select>
-              {selectedProduitInfo && (
-                <div className="produit-info">
-                  <div><strong>Description:</strong> {selectedProduitInfo.description}</div>
-                </div>
-              )}
-            </label>
-
-            {/* Add Phase Selection */}
-            <label>
-              Phase de Production:
-              <select value={phase} onChange={(e) => setPhase(e.target.value)}>
-                <option value="situation_courante">Situation Courante</option>
-                <option value="nouveau_type">Nouveau Type Produit</option>
+              Sélectionner le type de ciment:
+              <select value={newCement} onChange={(e) => setNewCement(e.target.value)}>
+                <option value="">-- Choisir ciment --</option>
+                {cementList.map((cement) => {
+                  const clientHasCement = produits.some(p => p.id === cement.id);
+                  return (
+                    <option key={cement.id} value={cement.id} disabled={clientHasCement}>
+                      {cement.code} - {cement.description} {cement.famille ? `(${cement.famille.nom})` : ''} {clientHasCement ? "(Déjà associé)" : ""}
+                    </option>
+                  );
+                })}
               </select>
             </label>
-
-            <button className="new-type-produit-btn" onClick={() => {
-              setPhase("nouveau_type");
-              setShowNewTypeForm(true);
-            }} disabled={!selectedClient}>
-              Nouveau Type Produit
-            </button>
-            
-            {clientTypeCimentId && (
-              <div className="import-section">
-                <label>
-                  Importer un fichier Excel:
-                  <input type="file" accept=".xlsx,.xls" onChange={handleFileImport} />
-                  <small>Phase: {phase === 'nouveau_type' ? 'Nouveau Type Produit' : 'Situation Courante'}</small>
-                </label>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* New Cement Type Form */}
-      {showNewTypeForm && (
-        <div className="form-container">
-          <h3>Ajouter un Nouveau Type de Ciment</h3>
-          <p><strong>Phase:</strong> {phase === 'nouveau_type' ? 'Nouveau Type Produit' : 'Situation Courante'}</p>
-          <label>
-            Sélectionner le type de ciment:
-            <select value={newCement} onChange={(e) => setNewCement(e.target.value)}>
-              <option value="">-- Choisir ciment --</option>
-              {cementList.map((cement) => {
-                const clientHasCement = produits.some(p => p.id === cement.id);
-                return (
-                  <option key={cement.id} value={cement.id} disabled={clientHasCement}>
-                    {cement.code} - {cement.description} {cement.famille ? `(${cement.famille.nom})` : ''} {clientHasCement ? "(Déjà associé)" : ""}
-                  </option>
-                );
-              })}
-            </select>
-          </label>
-          <div className="form-buttons">
-            <button onClick={addCementForClient}>Ajouter</button>
-            <button onClick={() => { 
-              setShowNewTypeForm(false); 
-              setNewCement("");
-              setPhase("situation_courante"); // Reset to default
-            }}>Annuler</button>
+            <div className="form-buttons">
+              <button onClick={addCementForClient}>Ajouter</button>
+              <button onClick={() => { 
+                setNewCement("");
+                setPhase("situation_courante");
+              }}>Annuler</button>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Import section - only show when a product is selected in Situation Courante */}
+      {phase === "situation_courante" && clientTypeCimentId && (
+        <div className="import-section">
+          <label>
+            Importer un fichier Excel:
+            <input type="file" accept=".xlsx,.xls" onChange={handleFileImport} />
+            <small>Phase: Situation Courante</small>
+          </label>
+        </div>
+      )}
+
+      {/* Import section for Nouveau Type - only show when a new cement is selected */}
+      {phase === "nouveau_type" && newCement && (
+        <div className="import-section">
+          <label>
+            Importer un fichier Excel:
+            <input type="file" accept=".xlsx,.xls" onChange={handleFileImport} />
+            <small>Phase: Nouveau Type Produit</small>
+          </label>
+        </div>
+      )}
+    </>
+  )}
+</div>
 
       {/* Pass the phase to child components */}
       {activeTab === "donnees" && (
@@ -466,7 +498,6 @@ const getAjoutDescription = (code) => {
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
           produitInfo={selectedProduitInfo}
-          phase={phase} // Pass phase
           tableData={tableData}
           ajoutsData={ajoutsData}  
           selectedRows={selectedRows}
@@ -489,7 +520,6 @@ const getAjoutDescription = (code) => {
           clients={clients}
           produits={produits}
           ajoutsData={ajoutsData} 
-          phase={phase} // Pass phase
           onTableDataChange={(data, s, e) => {
             setTableData(data);
             setStartDate(s);
@@ -508,7 +538,6 @@ const getAjoutDescription = (code) => {
           initialEnd={endDate}
           clients={clients}
           produits={produits}
-          phase={phase} // Pass phase
         />
       )}
 
@@ -523,7 +552,6 @@ const getAjoutDescription = (code) => {
           clients={clients}
           produits={produits}
           ajoutsData={ajoutsData} 
-          phase={phase} // Pass phase - THIS IS IMPORTANT!
           onTableDataChange={(data, s, e) => {
             setTableData(data);
             setStartDate(s);
