@@ -49,6 +49,18 @@ const ParametreEntreprise = () => {
       .catch((err) => console.error("❌ Erreur fetch types:", err));
   };
 
+  // Vérifier si le client a des traitements
+  const checkClientHasTraitements = async (clientId) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/clients/${clientId}/traitements`);
+      const data = await res.json();
+      return data.hasTraitements || false;
+    } catch (err) {
+      console.error("❌ Erreur vérification traitements:", err);
+      return false;
+    }
+  };
+
   // Handlers
   const handleClientChange = (e) => {
     setSelectedClientId(e.target.value);
@@ -124,48 +136,109 @@ const ParametreEntreprise = () => {
     }
   };
 
- const handleDeleteClient = async () => {
+const handleDeleteClient = async () => {
   if (!selectedClientId) {
     alert("Veuillez sélectionner un client à supprimer");
     return;
   }
-  if (!window.confirm("⚠️ Voulez-vous vraiment supprimer ce client ?")) return;
+
+  const client = clientsData.find((c) => c.id === parseInt(selectedClientId));
+  if (!client) {
+    alert("Client non trouvé");
+    return;
+  }
 
   try {
-    const res = await fetch(`http://localhost:5000/api/clients/${selectedClientId}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-    });
+    console.log("🔍 Vérification des échantillons via API échantillons...");
+    
+    // UTILISER DIRECTEMENT L'ENDPOINT ÉCHANTILLONS QUI FONCTIONNE
+    const resEchantillons = await fetch(`http://localhost:5000/api/echantillons?client_id=${selectedClientId}`);
+    
+    if (!resEchantillons.ok) {
+      throw new Error(`Erreur API échantillons: ${resEchantillons.status}`);
+    }
+    
+    const echantillons = await resEchantillons.json();
+    const hasTraitements = echantillons.length > 0;
+    const count = echantillons.length;
 
-    // Try to parse JSON only if server returned JSON-like content.
-    // But first handle ok vs not ok to avoid parsing errors on empty responses.
-    if (res.ok) {
-      // success: parse message if present
-      let data;
-      try {
-        data = await res.json();
-      } catch (e) {
-        // No JSON body — fallback message
-        data = { message: "Client supprimé" };
-      }
+    console.log(`✅ Client "${client.sigle}" a ${count} échantillon(s)`);
 
-      setClientsData((prev) => prev.filter((c) => c.id !== parseInt(selectedClientId, 10)));
-      setSelectedClientId("");
-      setValidationMessage(data.message || "✅ Client supprimé avec succès");
-      setTimeout(() => setValidationMessage(""), 5000);
+    let shouldDelete = false;
+
+    if (count === 0) {
+      // ✅ Client SANS échantillons - confirmation simple
+      shouldDelete = window.confirm(`⚠️ Êtes-vous sûr de vouloir supprimer le client "${client.sigle}" ?\nCe client n'a aucun échantillon enregistré.`);
     } else {
-      // failed: try to show server message
-      let errData;
-      try {
-        errData = await res.json();
-      } catch (e) {
-        errData = { message: "Erreur lors de la suppression" };
+      // 🚨 Client AVEC échantillons - confirmation triple
+      const confirm1 = window.confirm(`🚨 ATTENTION CRITIQUE ! Le client "${client.sigle}" a ${count} échantillon(s).\n\nPremière confirmation : Voulez-vous vraiment supprimer ce client ?`);
+      if (!confirm1) return;
+      
+      const confirm2 = window.confirm(`🚨 DEUXIÈME CONFIRMATION : Cette action supprimera également tous les échantillons associés. Confirmez-vous ?`);
+      if (!confirm2) return;
+      
+      const confirm3 = window.confirm(`🚨 DERNIÈRE CONFIRMATION : Êtes-vous ABSOLUMENT certain de vouloir supprimer définitivement ce client et tous ses échantillons ?`);
+      shouldDelete = confirm3;
+    }
+
+    if (shouldDelete) {
+      console.log("🗑️ Suppression du client en cours...");
+      
+      // Appel à l'API de suppression
+      const resDelete = await fetch(`http://localhost:5000/api/clients/${selectedClientId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (resDelete.ok) {
+        const result = await resDelete.json();
+        console.log("✅ Suppression réussie:", result);
+        
+        // Mettre à jour l'état local
+        setClientsData(prev => prev.filter(c => c.id !== parseInt(selectedClientId)));
+        setSelectedClientId("");
+        setValidationMessage(result.message || "✅ Client supprimé avec succès");
+        
+        setTimeout(() => setValidationMessage(""), 5000);
+      } else {
+        const errorText = await resDelete.text();
+        console.error("❌ Erreur suppression:", errorText);
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { message: "Erreur lors de la suppression du client" };
+        }
+        alert(errorData.message || "Erreur lors de la suppression du client");
       }
-      alert(errData.message || "Erreur lors de la suppression du client");
     }
   } catch (err) {
-    console.error("❌ Erreur suppression client:", err);
-    alert("Erreur réseau lors de la suppression du client");
+    console.error("❌ Erreur vérification échantillons:", err);
+    
+    // Fallback ultime : demander directement sans vérification
+    const shouldDelete = window.confirm(`Êtes-vous sûr de vouloir supprimer le client "${client.sigle}" ?\n\nImpossible de vérifier les échantillons.`);
+    
+    if (shouldDelete) {
+      try {
+        const resDelete = await fetch(`http://localhost:5000/api/clients/${selectedClientId}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (resDelete.ok) {
+          const result = await resDelete.json();
+          setClientsData(prev => prev.filter(c => c.id !== parseInt(selectedClientId)));
+          setSelectedClientId("");
+          setValidationMessage(result.message || "✅ Client supprimé avec succès");
+          setTimeout(() => setValidationMessage(""), 5000);
+        } else {
+          alert("Erreur lors de la suppression du client");
+        }
+      } catch (deleteErr) {
+        console.error("❌ Erreur suppression finale:", deleteErr);
+        alert("Erreur réseau lors de la suppression");
+      }
+    }
   }
 };
 
@@ -212,8 +285,15 @@ const ParametreEntreprise = () => {
 
         {/* Action buttons - MOVED ABOVE CLIENT INFO */}
         <div className="action-buttons">
-          <button className="primary-btn" onClick={() => setShowAddClient(true)}> Ajouter Nouveau Client </button>
-          <button className="secondary-btn" onClick={openEditClient}> Modifier Client </button>
+          <button className="primary-btn" onClick={() => setShowAddClient(true)}> 
+            Ajouter Nouveau Client 
+          </button>
+          <button className="secondary-btn" onClick={openEditClient}> 
+            Modifier Client 
+          </button>
+          <button className="danger-btn" onClick={handleDeleteClient}> 
+            Supprimer Client 
+          </button>
         </div>
             
         {/* Informations client */}

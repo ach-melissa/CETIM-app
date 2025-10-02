@@ -231,13 +231,9 @@
   letter-spacing: 0.5px;
 }
 
-.parameter-table tr:nth-child(even) {
-  background: #fafbfc;
-}
 
-.parameter-table tr:hover {
-  background: #f0f4f8;
-}
+
+
 
 /* ===== FILTER SECTION ===== */
 .filter-section {

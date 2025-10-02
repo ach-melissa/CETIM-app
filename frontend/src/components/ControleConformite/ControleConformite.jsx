@@ -3,32 +3,27 @@ import './ControleConformite.css';
 import { useData } from "../../context/DataContext";
 
 const calculateStats = (data, key) => {
- 
-  
   const missingValues = [];
   const values = [];
   
   data.forEach((row, index) => {
     const value = row[key];
     
-    // ✅ CORRECTION AMÉLIORÉE : Détection plus robuste des valeurs manquantes
     const isMissing = 
       value === null || 
       value === undefined || 
       value === "" || 
       value === " " || 
       value === "NULL" || 
-      value === "null" || // Ajout spécifique pour "null" en chaîne
+      value === "null" ||
       value === "undefined" ||
       String(value).trim() === "" ||
-      String(value).toLowerCase() === "null" || // Détection case-insensitive
+      String(value).toLowerCase() === "null" ||
       String(value).toLowerCase() === "undefined";
     
     if (isMissing) {
       missingValues.push({ line: index + 1, value: value, type: typeof value });
-      console.log(`Ligne ${index + 1}: VALEUR MANQUANTE -> "${value}" (type: ${typeof value})`);
     } else {
-      // ✅ CORRECTION : Conversion numérique plus robuste
       try {
         const stringValue = String(value).trim().replace(',', '.');
         const numericValue = parseFloat(stringValue);
@@ -37,54 +32,31 @@ const calculateStats = (data, key) => {
           values.push(numericValue);
         } else {
           missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "NaN or Infinite" });
-          console.log(`Ligne ${index + 1}: VALEUR NON NUMÉRIQUE -> "${value}"`);
         }
       } catch (error) {
         missingValues.push({ line: index + 1, value: value, type: typeof value, reason: "Conversion error" });
-        console.log(`Ligne ${index + 1}: ERREUR CONVERSION -> "${value}"`);
       }
     }
   });
-  
 
-  // ✅ CORRECTION : Vérification plus explicite
   if (values.length === 0) {
-    
-    
-    // Debug supplémentaire : analyser les types de données trouvés
-    const valueTypes = {};
-    data.forEach(row => {
-      const val = row[key];
-      const type = typeof val;
-      valueTypes[type] = (valueTypes[type] || 0) + 1;
-    });
-    console.log(`Types de données pour ${key}:`, valueTypes);
-    
     return { count: 0, min: "-", max: "-", mean: "-", std: "-" };
   }
 
-  const zeroValues = values.filter(v => v === 0);
-
-
-  // ✅ CORRECTION : Utilisation de reduce pour éviter les problèmes de stack
   const count = values.length;
   const min = values.reduce((a, b) => Math.min(a, b), values[0]);
   const max = values.reduce((a, b) => Math.max(a, b), values[0]);
- const sum = values.reduce((a, b) => a + b, 0);
+  const sum = values.reduce((a, b) => a + b, 0);
   const mean = sum / count;
   
-
   const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / count;
-
-  
   const std = Math.sqrt(variance);
-
   
   return {
     count,
     min: min.toFixed(2),
     max: max.toFixed(2),
-    mean: mean.toFixed(2),  // Use calculated mean, not assumed one
+    mean: mean.toFixed(2),
     std: std.toFixed(2),
   };
 };
@@ -113,18 +85,14 @@ const evaluateLimits = (data, key, li, ls, lg) => {
   const countLI = (li !== null && li !== "-") ? values.filter(v => v < parseFloat(li)).length : 0;
   const countLS = (ls !== null && ls !== "-") ? values.filter(v => v > parseFloat(ls)).length : 0;
   
-  // ✅ CORRECTION : Logique améliorée pour countLG selon le type de paramètre
   let countLG = 0;
   
   if (lg !== null && lg !== "-") {
     const lgValue = parseFloat(lg);
     
-    // Paramètres de résistance et temps de début de prise : valeurs INFÉRIEURES à la limite garantie
     if (key === 'rc2j' || key === 'rc7j' || key === 'rc28j' || key === 'prise') {
       countLG = values.filter(v => v < lgValue).length;
-    } 
-    // Autres paramètres (stabilité, SO3, chlorure, etc.) : valeurs SUPÉRIEURES à la limite garantie
-    else {
+    } else {
       countLG = values.filter(v => v > lgValue).length;
     }
   }
@@ -162,27 +130,93 @@ const getKCoefficient = (conformiteData, n, percentile) => {
   return coefficient ? coefficient[kKey] : null;
 };
 
-const checkStatisticalCompliance = (conformiteData, stats, limits, category, limitType) => {
+const checkStatisticalCompliance = (conformiteData, stats, limits, paramKey, limitType) => {
   const { count, mean, std } = stats;
-  if (count < 20 || mean === "-" || std === "-" || 
-      (limitType === "li" && limits.li === "-") || 
-      (limitType === "ls" && limits.ls === "-")) return { satisfied: false, equation: "Données insuffisantes" };
+  
+  if (count < 20 || mean === "-" || std === "-") {
+    return { 
+      satisfied: true,
+      equation: "Données insuffisantes (n < 20)",
+      displayEquation: "Données insuffisantes (n < 20)",
+      canCalculate: false
+    };
+  }
 
   const n = parseInt(count);
   const xBar = parseFloat(mean);
   const s = parseFloat(std);
-  const limitValue = parseFloat(limitType === "li" ? limits.li : limits.ls);
+  
+  let limitValue;
+  let limitExists = false;
+  
+  if (limitType === "li") {
+    limitExists = !(limits.li === "-" || limits.li === null || limits.li === undefined);
+    limitValue = limitExists ? parseFloat(limits.li) : null;
+  } else {
+    limitExists = !(limits.ls === "-" || limits.ls === null || limits.ls === undefined);
+    limitValue = limitExists ? parseFloat(limits.ls) : null;
+  }
 
-  const percentile = category === "mecanique" ? (limitType === "li" ? 5 : 10) : 10;
+  if (!limitExists) {
+    const operator = limitType === "li" ? "-" : "+";
+    const displayEquation = `X̄ ${operator} k·s = ${(limitType === "li" ? xBar - 1.96 * s : xBar + 1.96 * s).toFixed(2)} ≥ -`;
+    
+    return { 
+      satisfied: true,
+      equation: displayEquation,
+      displayEquation: displayEquation,
+      canCalculate: false,
+      noLimit: true
+    };
+  }
+
+  let percentile;
+  
+  if (["rc2j", "rc7j", "rc28j"].includes(paramKey)) {
+    if (limitType === "li") {
+      percentile = 5;
+    } else {
+      percentile = 10;
+    }
+  } else {
+    percentile = 10;
+  }
+
   const k = getKCoefficient(conformiteData, n, percentile);
-  if (!k) return { satisfied: false, equation: "Coefficient K non disponible" };
+  if (!k) {
+    return { 
+      satisfied: true,
+      equation: `Coefficient K non disponible pour n=${n}, pk=${percentile}`,
+      displayEquation: `Coefficient K non disponible`,
+      canCalculate: false
+    };
+  }
 
   const equationValue = limitType === "li" ? xBar - k * s : xBar + k * s;
+  
   const satisfied = limitType === "li" ? equationValue >= limitValue : equationValue <= limitValue;
+
+  const operator = limitType === "li" ? "-" : "+";
+  const comparison = limitType === "li" ? "≥" : "≤";
+  
+  const displayEquation = `X̄ ${operator} k·s = ${equationValue.toFixed(2)} ${comparison} ${limitValue}`;
+  const detailedEquation = `X̄ ${operator} k·s = ${xBar.toFixed(2)} ${operator} ${k}×${s.toFixed(2)} = ${equationValue.toFixed(2)} ${comparison} ${limitValue}`;
 
   return {
     satisfied,
-    equation: `x ${limitType === "li" ? "-" : "+"} k·s = ${equationValue.toFixed(2)} ${limitType === "li" ? "≥" : "≤"} ${limitValue}`
+    equation: detailedEquation,
+    displayEquation: displayEquation,
+    canCalculate: true,
+    details: {
+      n,
+      xBar,
+      s,
+      k,
+      equationValue,
+      limitValue,
+      limitExists,
+      percentile
+    }
   };
 };
 
@@ -193,9 +227,9 @@ const getKaValue = (conditionsStatistiques, pk) => {
 
 const evaluateStatisticalCompliance = (data, key, li, ls, paramType, conditionsStatistiques) => {
   const stats = calculateStats(data, key);
-  if (!stats.count) return { equation: "Données insuffisantes", satisfied: false };
+  if (!stats.count) return { equation: "Données insuffisantes", satisfied: true };
 
-  let result = { equation: "", satisfied: false };
+  let result = { equation: "", satisfied: true };
 
   if (["rc2j", "rc7j", "rc28j"].includes(paramType)) {
     if (li) {
@@ -238,25 +272,53 @@ const evaluateStatisticalCompliance = (data, key, li, ls, paramType, conditionsS
 
 const checkEquationSatisfaction = (values, limits, conditionsStatistiques = []) => {
   if (!conditionsStatistiques || conditionsStatistiques.length === 0) {
-    return { satisfied: false, equation: "Conditions non chargées", displayText: "Conditions non chargées" };
+    return { 
+      satisfied: true,
+      equation: "Conditions non chargées", 
+      displayText: "Conditions non chargées",
+      canCalculate: false
+    };
   }
 
-  if (!Array.isArray(values)) {
-    return { satisfied: false, equation: "Données manquantes", displayText: "Données manquantes" };
+  if (!Array.isArray(values) || values.length === 0) {
+    return { 
+      satisfied: true,
+      equation: "Données insuffisantes", 
+      displayText: "Données insuffisantes",
+      canCalculate: false
+    };
   }
 
   const n = values.length;
-  let cd = values.filter(
-    (v) =>
-      (limits.limit_inf !== null && parseFloat(v) < parseFloat(limits.limit_inf)) ||
-      (limits.limit_max !== null && parseFloat(v) > parseFloat(limits.limit_max))
-  ).length;
+  
+  const hasLI = limits.li !== "-" && limits.li !== null && limits.li !== undefined;
+  const hasLS = limits.ls !== "-" && limits.ls !== null && limits.ls !== undefined;
+  
+  if (!hasLI && !hasLS) {
+    return {
+      satisfied: true,
+      equation: "Pas de limites définies",
+      displayText: "Pas de limites définies",
+      canCalculate: false,
+      noLimits: true
+    };
+  }
+
+  let cd = values.filter(v => {
+    const numericValue = parseFloat(v);
+    if (isNaN(numericValue)) return false;
+    
+    if (hasLI && numericValue < parseFloat(limits.li)) return true;
+    if (hasLS && numericValue > parseFloat(limits.ls)) return true;
+    
+    return false;
+  }).length;
 
   let ca = 0;
   if (n < 20) {
     ca = 0;
   } else if (n > 136) {
-    ca = 0.075 * (n - 30);
+    ca = Math.ceil(0.075 * (n - 30));
   } else {
     const condition = conditionsStatistiques.find(
       (c) => n >= c.n_min && n <= c.n_max
@@ -267,12 +329,14 @@ const checkEquationSatisfaction = (values, limits, conditionsStatistiques = []) 
   }
 
   const satisfied = cd <= ca;
-  const equationText = `Cd = ${cd} ${satisfied ? '≤' : '≥'} Ca = ${ca}`;
+  const equationText = `Cd = ${cd} ${satisfied ? '≤' : '>'} Ca = ${ca}`;
   
   return {
     satisfied,
     equation: equationText,
-    displayText: equationText
+    displayText: equationText,
+    canCalculate: true,
+    details: { cd, ca, n }
   };
 };
 
@@ -284,6 +348,7 @@ const ControleConformite = ({
   clients = [], 
   produits = [] ,
   ajoutsData = {},
+   phase,
 }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
@@ -294,6 +359,16 @@ const ControleConformite = ({
   const [conditionsStatistiques, setConditionsStatistiques] = useState([]);
   const [debugInfo, setDebugInfo] = useState("");
   const debugLogRef = useRef([]);
+const [coverageRequirements, setCoverageRequirements] = useState({
+  status: false,
+  missing: [],
+  hasData: {},
+  requirements: {},
+  coverageResults: {},
+  coverageStatus: "unknown",
+  productionPhase: ""
+});
+
 
   const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
   const ajoutProducts = [
@@ -304,7 +379,6 @@ const ControleConformite = ({
     "CEM II/A-M", "CEM II/B-M"
   ];
 
-  // Get product type and famille from produitInfo with fallbacks
   const selectedProductType = produitInfo?.nom || produitInfo?.code || "";
   const selectedProductFamille = produitInfo?.famille?.code || "";
   const selectedProductFamilleName = produitInfo?.famille?.nom || "";
@@ -318,7 +392,12 @@ const ControleConformite = ({
   const finalFamilleCode = selectedProductFamille || determineFamilleFromType(selectedProductType);
   const finalFamilleName = selectedProductFamilleName || finalFamilleCode;
 
-  // Map front-end keys -> JSON keys
+  // ✅ NOUVEAU: Déterminer si la famille est CEM I ou CEM III
+  const isCemIOrCemIII = useMemo(() => {
+    const famille = finalFamilleCode.toUpperCase();
+    return famille === "CEM I" || famille === "CEM III";
+  }, [finalFamilleCode]);
+
   const keyMapping = {
     rc2j: "resistance_2j",
     rc7j: "resistance_7j",
@@ -333,35 +412,38 @@ const ControleConformite = ({
     ajt: "ajout",
     c3a: "C3A",
   };
+  
   const getAjoutDescription = (code, ajoutsData) => {
-  if (!code || !ajoutsData) return "";
-  const parts = code.split("-");
-  const descriptions = parts.map((part) => {
-    const ajout = ajoutsData[part];
-    return ajout ? ajout.description : part;
-  });
-  return descriptions.join(" + ");
-};
+    if (!code || !ajoutsData) return "";
+    const parts = code.split("-");
+    const descriptions = parts.map((part) => {
+      const ajout = ajoutsData[part];
+      return ajout ? ajout.description : part;
+    });
+    return descriptions.join(" + ");
+  };
 
-
-  // Parameters configuration
+  // ✅ MODIFICATION: Inclure "residu_insoluble" et "pert_au_feu" seulement si CEM I ou CEM III
   const timeDependentParams = [
     { key: "prise", label: "Temp debut de prise", jsonKey: "temps_debut_de_prise" },
-    { key: "pfeu", label: "Perte au Feu", jsonKey: "pert_feu" },
-    { key: "r_insoluble", label: "Résidu Insoluble", jsonKey: "residu_insoluble" },
     { key: "so3", label: "Teneur en sulfate", jsonKey: "sulfat" },
     { key: "chlorure", label: "Chlorure", jsonKey: "chlore" },
     { key: "hydratation", label: "Chaleur d'Hydratation", jsonKey: "chaleur_hydratation" },
   ];
 
-  const deviationOnlyParams = [
-  { 
-    key: "ajout_percent", 
-    label: `Ajout: ${getAjoutDescription(produitInfo?.type_ajout, ajoutsData)}`, 
-    jsonKey: "ajout" 
-  }
-];
+  // ✅ AJOUT: Paramètres conditionnels pour CEM I et CEM III
+  const conditionalTimeDependentParams = isCemIOrCemIII ? [
+    { key: "pfeu", label: "Perte au Feu", jsonKey: "pert_feu" },
+    { key: "r_insoluble", label: "Résidu Insoluble", jsonKey: "residu_insoluble" },
+  ] : [];
 
+  const deviationOnlyParams = [
+    { 
+      key: "ajout_percent", 
+      label: `Ajout: ${getAjoutDescription(produitInfo?.type_ajout, ajoutsData)}`, 
+      jsonKey: "ajout" 
+    }
+  ];
 
   const alwaysMesureParams = [
     { key: "rc2j", label: "Résistance courante 2 jrs" },
@@ -374,8 +456,9 @@ const ControleConformite = ({
     { key: "pouzzolanicite", label: "Pouzzolanicité" }
   ];
 
-  // Add C3A to time-dependent params if needed
-  const allTimeDependentParams = [...timeDependentParams];
+  // ✅ MODIFICATION: Combiner les paramètres time-dependent avec les paramètres conditionnels
+  const allTimeDependentParams = [...timeDependentParams, ...conditionalTimeDependentParams];
+  
   if (c3aProducts.includes(selectedProductType)) {
     allTimeDependentParams.push({ key: "c3a", label: "C3A", jsonKey: "c3a" });
   }
@@ -390,7 +473,6 @@ const ControleConformite = ({
 
   const classes = ["32.5 L", "32.5 N", "32.5 R", "42.5 L", "42.5 N", "42.5 R", "52.5 L", "52.5 N", "52.5 R"];
 
-  // Data fetching effects
   useEffect(() => {
     const fetchMockDetails = async () => {
       try {
@@ -449,7 +531,40 @@ const ControleConformite = ({
 
   const dataToUse = filteredTableData || [];
 
-  // Debug logging function
+  // Add this useEffect after the existing useEffects
+// Dans le useEffect, passez conformiteData :
+useEffect(() => {
+  if (dataToUse.length > 0) {
+    const allParamKeys = [
+      "rc2j", "rc7j", "rc28j", "prise", "stabilite", "so3",
+      "chlorure", "hydratation", "pfeu", "r_insoluble", "c3a", "pouzzolanicite", "ajout"
+    ];
+    
+    const productionPhase = phase || 'situation_courante';
+    const coverage = checkDataCoverageRequirements(dataToUse, productionPhase, allParamKeys, conformiteData);
+    setCoverageRequirements(coverage);
+    
+    addDebugLog(`Coverage check: ${coverage.coverageStatus} for ${coverage.productionPhase}`);
+    if (!coverage.status) {
+      addDebugLog(`Missing coverage: ${coverage.missing.length} periods`);
+    }
+  }
+}, [dataToUse, phase, conformiteData]);
+
+  // ✅ NOUVEAU: Fonction pour vérifier si un paramètre a des données
+  const hasDataForParameter = useCallback((paramKey) => {
+    if (!dataToUse || dataToUse.length === 0) return false;
+    
+    const hasData = dataToUse.some(row => {
+      const value = row[paramKey];
+      return value !== null && value !== undefined && value !== "" && value !== " " && 
+             String(value).trim() !== "" && String(value).toLowerCase() !== "null" && 
+             String(value).toLowerCase() !== "undefined";
+    });
+    
+    return hasData;
+  }, [dataToUse]);
+
   const addDebugLog = useCallback((message) => {
     debugLogRef.current.push(`${new Date().toLocaleTimeString()}: ${message}`);
     if (debugLogRef.current.length > 50) {
@@ -474,7 +589,6 @@ const ControleConformite = ({
 
     const familleData = parameterData[finalFamilleCode];
 
-    // For "ajout" parameter, the structure is different
     if (key === "ajt") {
       const ajoutCode = selectedProductType.split('/').pop()?.split('-').pop()?.trim();
       if (!ajoutCode || !familleData[ajoutCode]) {
@@ -491,7 +605,6 @@ const ControleConformite = ({
       };
     }
 
-    // For other parameters, search for the class data
     let classData = null;
     
     if (Array.isArray(familleData)) {
@@ -529,7 +642,6 @@ const ControleConformite = ({
     };
   }, [mockDetails, keyMapping, finalFamilleCode, selectedProductType, addDebugLog]);
 
-  // Temporal coverage check
   const checkTemporalCoverage = useCallback((data, paramKeys) => {
     if (!data || data.length === 0) {
       return { status: false, missing: [], hasData: {} };
@@ -580,6 +692,206 @@ const ControleConformite = ({
     };
   }, []);
 
+
+const checkDataCoverageRequirements = (data, productionPhase, paramKeys, conformiteData) => {
+  if (!data || data.length === 0) {
+    return { 
+      status: false, 
+      missing: [], 
+      hasData: {},
+      requirements: {},
+      coverageStatus: "no_data",
+      productionPhase: productionPhase
+    };
+  }
+
+  const sorted = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const startDate = new Date(sorted[0].date);
+  const endDate = new Date(sorted[sorted.length - 1].date);
+  
+  // Récupérer les fréquences depuis le JSON
+  const getFrequencyRequirements = () => {
+    if (!conformiteData || !conformiteData.frequence_essais) {
+      return {};
+    }
+    
+    const phaseKey = productionPhase === 'nouveau_type' ? 'nouveau_type_produit' : 'situation_courante';
+    const params = conformiteData.frequence_essais[phaseKey]?.parametres || [];
+    
+    const requirements = {
+      weekly: { minResults: 0, params: [] },
+      weekly_other: { minResults: 0, params: [] },
+      monthly: { minResults: 0, params: [] },
+      monthly_other: { minResults: 0, params: [] }
+    };
+    
+    params.forEach(param => {
+      if (param.frequence === 4) {
+        requirements.weekly.params.push(param.parametre);
+        requirements.weekly.minResults = 4;
+      } else if (param.frequence === 2 && param.description.includes('semaine')) {
+        requirements.weekly.params.push(param.parametre);
+        requirements.weekly.minResults = 2;
+      } else if (param.frequence === 1 && param.description.includes('semaine')) {
+        requirements.weekly_other.params.push(param.parametre);
+        requirements.weekly_other.minResults = 1;
+      } else if (param.frequence === 2 && param.description.includes('mois')) {
+        requirements.monthly.params.push(param.parametre);
+        requirements.monthly.minResults = 2;
+      } else if (param.frequence === 1 && param.description.includes('mois')) {
+        requirements.monthly_other.params.push(param.parametre);
+        requirements.monthly_other.minResults = 1;
+      }
+    });
+    
+    return requirements;
+  };
+
+  const requirements = getFrequencyRequirements();
+  
+  const missingWindows = [];
+  const coverageResults = {};
+
+  // Vérifier d'abord quels paramètres ont des données
+  const paramsWithData = {};
+  paramKeys.forEach(key => {
+    paramsWithData[key] = sorted.some(row => {
+      const value = row[key];
+      return value !== null && value !== undefined && value !== "" && value !== " ";
+    });
+  });
+
+  // Check weekly coverage seulement pour les paramètres avec données
+  Object.keys(requirements).forEach(reqType => {
+    if (reqType.includes('weekly')) {
+      const requirement = requirements[reqType];
+      
+      requirement.params.forEach(paramKey => {
+        // Ignorer les paramètres sans données
+        if (!paramsWithData[paramKey]) return;
+        
+        let currentStart = new Date(startDate);
+        const paramMissingWindows = [];
+        
+        while (currentStart <= endDate) {
+          const currentEnd = new Date(currentStart);
+          currentEnd.setDate(currentEnd.getDate() + 6);
+
+          const weekResults = sorted.filter(row => {
+            const d = new Date(row.date);
+            const hasValue = row[paramKey] !== null && 
+                            row[paramKey] !== undefined && 
+                            row[paramKey] !== "" &&
+                            row[paramKey] !== " ";
+            return d >= currentStart && d <= currentEnd && hasValue;
+          });
+
+          if (weekResults.length < requirement.minResults) {
+            paramMissingWindows.push({
+              start: currentStart.toISOString().split("T")[0],
+              end: currentEnd.toISOString().split("T")[0],
+              found: weekResults.length,
+              required: requirement.minResults,
+              parameter: paramKey,
+              period: 'weekly'
+            });
+          }
+
+          currentStart.setDate(currentStart.getDate() + 7);
+        }
+
+        if (paramMissingWindows.length > 0) {
+          coverageResults[paramKey] = {
+            status: false,
+            missingWindows: paramMissingWindows,
+            requirement: `${requirement.minResults} résultats par semaine`,
+            type: 'weekly'
+          };
+          missingWindows.push(...paramMissingWindows);
+        } else {
+          coverageResults[paramKey] = {
+            status: true,
+            requirement: `${requirement.minResults} résultats par semaine`,
+            type: 'weekly'
+          };
+        }
+      });
+    }
+  });
+
+  // Check monthly coverage seulement pour les paramètres avec données
+  Object.keys(requirements).forEach(reqType => {
+    if (reqType.includes('monthly')) {
+      const requirement = requirements[reqType];
+      
+      requirement.params.forEach(paramKey => {
+        // Ignorer les paramètres sans données
+        if (!paramsWithData[paramKey]) return;
+        
+        let currentStart = new Date(startDate);
+        const paramMissingWindows = [];
+        
+        while (currentStart <= endDate) {
+          const currentEnd = new Date(currentStart);
+          currentEnd.setMonth(currentEnd.getMonth() + 1);
+          currentEnd.setDate(currentEnd.getDate() - 1);
+
+          const monthResults = sorted.filter(row => {
+            const d = new Date(row.date);
+            const hasValue = row[paramKey] !== null && 
+                            row[paramKey] !== undefined && 
+                            row[paramKey] !== "" &&
+                            row[paramKey] !== " ";
+            return d >= currentStart && d <= currentEnd && hasValue;
+          });
+
+          if (monthResults.length < requirement.minResults) {
+            paramMissingWindows.push({
+              start: currentStart.toISOString().split("T")[0],
+              end: currentEnd.toISOString().split("T")[0],
+              found: monthResults.length,
+              required: requirement.minResults,
+              parameter: paramKey,
+              period: 'monthly'
+            });
+          }
+
+          currentStart.setMonth(currentStart.getMonth() + 1);
+        }
+
+        if (paramMissingWindows.length > 0) {
+          coverageResults[paramKey] = {
+            status: false,
+            missingWindows: paramMissingWindows,
+            requirement: `${requirement.minResults} résultats par mois`,
+            type: 'monthly'
+          };
+          missingWindows.push(...paramMissingWindows);
+        } else {
+          coverageResults[paramKey] = {
+            status: true,
+            requirement: `${requirement.minResults} résultats par mois`,
+            type: 'monthly'
+          };
+        }
+      });
+    }
+  });
+
+  return {
+    status: missingWindows.length === 0,
+    missing: missingWindows,
+    hasData: paramsWithData,
+    requirements: requirements,
+    coverageResults: coverageResults,
+    coverageStatus: missingWindows.length === 0 ? "adequate" : "insufficient",
+    productionPhase: productionPhase,
+    dataPoints: sorted.length,
+    periodCovered: `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`
+  };
+};
+
+
   const timeDependentCoverage = useMemo(() => {
     const paramKeys = allTimeDependentParams.map(p => p.jsonKey || p.key);
     return checkTemporalCoverage(dataToUse, paramKeys);
@@ -589,38 +901,484 @@ const ControleConformite = ({
     allParameters.reduce((acc, param) => ({ ...acc, [param.key]: calculateStats(dataToUse, param.key) }), {}),
   [allParameters, dataToUse]);
 
-  const calculateClassConformity = (classCompliance, statisticalCompliance, conditionsStatistiques) => {
-    const statisticalResults = Object.values(statisticalCompliance);
-    const allStatisticalSatisfied = statisticalResults.every(result => 
-      result && result.satisfied !== false
-    );
-
-    let allAttributeSatisfied = true;
-    Object.keys(classCompliance).forEach(paramKey => {
-      const compliance = classCompliance[paramKey];
-      if (compliance.values && compliance.values.length > 0) {
-        const attributeResult = checkEquationSatisfaction(
-          compliance.values,
-          compliance.limits,
-          conditionsStatistiques
-        );
-        if (!attributeResult.satisfied) {
-          allAttributeSatisfied = false;
-        }
+const calculateClassConformity = (classCompliance, statisticalCompliance, conditionsStatistiques, classe) => {
+  console.log("=== CALCUL DE CONFORMITÉ ===");
+  
+  const hasHighDeviations = Object.keys(classCompliance).some(paramKey => {
+    const compliance = classCompliance[paramKey];
+    if (compliance.stats) {
+      if (compliance.stats.percentLI !== "-" && parseFloat(compliance.stats.percentLI) > 5) {
+        console.log(`❌ High LI deviation: ${paramKey} = ${compliance.stats.percentLI}%`);
+        return true;
       }
-    });
+      if (compliance.stats.percentLS !== "-" && parseFloat(compliance.stats.percentLS) > 5) {
+        console.log(`❌ High LS deviation: ${paramKey} = ${compliance.stats.percentLS}%`);
+        return true;
+      }
+      if (compliance.stats.percentLG !== "-" && parseFloat(compliance.stats.percentLG) > 5) {
+        console.log(`❌ High LG défaut: ${paramKey} = ${compliance.stats.percentLG}%`);
+        return true;
+      }
+    }
+    return false;
+  });
 
-    const hasGarantieDeviations = Object.keys(classCompliance).some(paramKey => {
-      const compliance = classCompliance[paramKey];
-      return compliance.stats && compliance.stats.percentLG !== "-" && 
-             parseFloat(compliance.stats.percentLG) > 0;
-    });
+  const hasUnsatisfiedMesures = Object.keys(statisticalCompliance).some(key => {
+    const compliance = statisticalCompliance[key];
+    const isUnsatisfied = compliance && compliance.canCalculate && !compliance.satisfied;
+    if (isUnsatisfied) {
+      console.log(`❌ Unsatisfied mesure: ${key} = ${compliance.equation}`);
+    }
+    return isUnsatisfied;
+  });
 
-    return allStatisticalSatisfied && allAttributeSatisfied && !hasGarantieDeviations;
+  let hasUnsatisfiedAttributs = false;
+  Object.keys(classCompliance).forEach(paramKey => {
+    const compliance = classCompliance[paramKey];
+    if (compliance.values && compliance.values.length > 0) {
+      const attributeResult = checkEquationSatisfaction(
+        compliance.values,
+        compliance.limits,
+        conditionsStatistiques
+      );
+      if (attributeResult.canCalculate && !attributeResult.satisfied) {
+        console.log(`❌ Unsatisfied attribute: ${paramKey} = ${attributeResult.equation}`);
+        hasUnsatisfiedAttributs = true;
+      }
+    }
+  });
+
+  // ✅ INFORMATION SEULEMENT: Analyse de la couverture (pas un critère de conformité)
+  const coverageAnalysis = {
+    adequate: [],
+    insufficient: [],
+    warnings: []
   };
 
+  // Analyser chaque paramètre critique (pour information seulement)
+  Object.keys(coverageRequirements.coverageResults || {}).forEach(paramKey => {
+    const coverage = coverageRequirements.coverageResults[paramKey];
+    const paramLabel = getParameterLabel(paramKey);
+    
+    if (coverage.status) {
+      coverageAnalysis.adequate.push({
+        parameter: paramKey,
+        label: paramLabel,
+        requirement: coverage.requirement
+      });
+    } else {
+      coverageAnalysis.insufficient.push({
+        parameter: paramKey,
+        label: paramLabel,
+        requirement: coverage.requirement,
+        missingPeriods: coverage.missingWindows.length,
+        sampleCount: coverageRequirements.hasData[paramKey] ? 'Avec données' : 'Sans données'
+      });
+    }
+  });
+
+  // Vérifier les paramètres sans données (pour information seulement)
+  const criticalParams = phase === 'nouveau_type' 
+    ? ["rc2j", "rc7j", "rc28j", "prise", "stabilite", "so3", "chlorure", "hydratation", "pfeu", "r_insoluble", "c3a", "pouzzolanicite"]
+    : ["rc2j", "rc7j", "rc28j", "prise", "so3", "stabilite", "chlorure", "hydratation", "pfeu", "r_insoluble", "c3a", "pouzzolanicite"];
+
+  criticalParams.forEach(paramKey => {
+    if (!coverageRequirements.hasData[paramKey]) {
+      coverageAnalysis.warnings.push({
+        parameter: paramKey,
+        label: getParameterLabel(paramKey),
+        message: "Aucune donnée disponible"
+      });
+    }
+  });
+
+  // ✅ LA COUVERTURE N'EST PAS UN CRITÈRE DE CONFORMITÉ
+  const isClassConforme = !hasHighDeviations && !hasUnsatisfiedMesures && !hasUnsatisfiedAttributs;
+
+  console.log(`📊 Class Conformity Result:`, {
+    hasHighDeviations,
+    hasUnsatisfiedMesures,
+    hasUnsatisfiedAttributs,
+    coverageAnalysis, // Information seulement
+    isClassConforme // Ne dépend pas de la couverture
+  });
+  console.log("=== FIN CALCUL CONFORMITÉ ===");
+
+  return {
+    isClassConforme,
+    coverageAnalysis, // Information pour l'affichage seulement
+    hasHighDeviations,
+    hasUnsatisfiedMesures,
+    hasUnsatisfiedAttributs
+  };
+};
+
+
+// Ajoutez cette fonction après les autres fonctions helpers
+const getParameterLabel = (paramKey) => {
+  const paramMap = {
+    rc2j: "Résistance 2j",
+    rc7j: "Résistance 7j", 
+    rc28j: "Résistance 28j",
+    prise: "Temps début prise",
+    stabilite: "Stabilité",
+    so3: "SO3",
+    chlorure: "Chlorure",
+    hydratation: "Chaleur d'hydratation",
+    pfeu: "Perte au feu",
+    r_insoluble: "Résidu insoluble",
+    c3a: "C3A",
+    pouzzolanicite: "Pouzzolanicité"
+  };
+  return paramMap[paramKey] || paramKey;
+};
+
+
+  const getDeviationParameters = (classe) => {
+    const isLowClass = ["32.5 L", "32.5 N", "42.5 L"].includes(classe);
+    
+    // ✅ MODIFICATION: Inclure "r_insoluble" et "pfeu" seulement si CEM I ou CEM III
+    const baseLSParams = ["rc28j", "stabilite", "so3", "chlorure"];
+    const baseLGParams = isLowClass 
+      ? ["rc7j", "rc28j", "prise", "stabilite", "so3", "chlorure"]
+      : ["rc2j", "rc28j", "prise", "stabilite", "so3", "chlorure"];
+
+    // Ajouter les paramètres conditionnels
+    if (isCemIOrCemIII) {
+      baseLSParams.push("r_insoluble", "pfeu");
+      baseLGParams.push("r_insoluble", "pfeu");
+    }
+    
+    return {
+      li: isLowClass 
+        ? ["rc7j", "rc28j", "prise"]
+        : ["rc2j", "rc28j", "prise"],
+      ls: baseLSParams,
+      lg: baseLGParams
+    };
+  };
+
+  const renderDeviationSection = (classe, classCompliance, type) => {
+    const params = getDeviationParameters(classe);
+    const parametersToShow = params[type];
+    
+    const sectionTitles = {
+      li: "Déviations Limites inférieures",
+      ls: "Déviations Limites supérieures", 
+      lg: "Défauts Limites garanties"
+    };
+
+    const deviationLabels = {
+      li: "Déviation",
+      ls: "Déviation",
+      lg: "Défaut"
+    };
+
+    // ✅ FILTRE: Ne garder que les paramètres qui ont des données
+    const parametersWithData = parametersToShow.filter(paramKey => {
+      const hasData = hasDataForParameter(paramKey);
+      if (!hasData) {
+        console.log(`📊 Hiding parameter ${paramKey} from ${sectionTitles[type]} - no data`);
+      }
+      return hasData;
+    });
+
+    // ✅ FILTRE: Pour les paramètres spéciaux (ajout, C3A), vérifier s'ils ont des données
+    const showAjoutInSection = showAjout && hasDataForParameter("ajout_percent");
+    const showC3AInSection = showC3A && hasDataForParameter("c3a");
+
+    return (
+      <div className="section-box">
+        <h4>{sectionTitles[type]}</h4>
+        <div className="parameter-list">
+          {parametersWithData.map(paramKey => {
+            const param = allParameters.find(p => p.key === paramKey) || 
+                         deviationOnlyParams.find(p => p.key === paramKey);
+            
+            if (!param) return null;
+
+            const compliance = classCompliance[param.key];
+            if (!compliance) return null;
+
+            const { stats, limits } = compliance;
+            
+            const hasData = stats.count > 0;
+            if (!hasData) return null;
+            
+            const percentValue = type === 'li' ? stats.percentLI : 
+                               type === 'ls' ? stats.percentLS : 
+                               stats.percentLG;
+            
+            const limitValue = type === 'li' ? limits.li : 
+                             type === 'ls' ? limits.ls : 
+                             limits.lg;
+
+            const hasLimit = limitValue !== "-" && limitValue !== null && limitValue !== undefined;
+            
+            let displayText = "Aucune déviation";
+            let deviationText = `${deviationLabels[type]}`;
+            
+            if (hasLimit) {
+              const hasDeviation = percentValue !== "-" && parseFloat(percentValue) > 0;
+              
+              if (hasDeviation) {
+                if (type === 'li') {
+                  displayText = `${percentValue}% < ${limitValue}`;
+                } else if (type === 'ls') {
+                  displayText = `${percentValue}% > ${limitValue}`;
+                } else if (type === 'lg') {
+                  if (['rc2j', 'rc7j', 'rc28j', 'prise'].includes(paramKey)) {
+                    displayText = `${percentValue}% < ${limitValue}`;
+                  } else {
+                    displayText = `${percentValue}% > ${limitValue}`;
+                  }
+                }
+                deviationText = `${deviationLabels[type]}=${percentValue}%`;
+              } else {
+                if (type === 'li') {
+                  displayText = `0.00% < ${limitValue}`;
+                } else if (type === 'ls') {
+                  displayText = `0.00% > ${limitValue}`;
+                } else if (type === 'lg') {
+                  if (['rc2j', 'rc7j', 'rc28j', 'prise'].includes(paramKey)) {
+                    displayText = `0.00% < ${limitValue}`;
+                  } else {
+                    displayText = `0.00% > ${limitValue}`;
+                  }
+                }
+                deviationText = `${deviationLabels[type]}=0.00%`;
+              }
+            } else {
+              displayText = `0.00% < -`;
+              deviationText = `${deviationLabels[type]}=0.00%`;
+            }
+
+            return (
+              <div key={param.key} className="parameter-item">
+                <span>{param.label}</span>
+                <span>{displayText}</span>
+                <span>{deviationText}</span>
+              </div>
+            );
+          })}
+
+          {/* ✅ FILTRE: Afficher ajout seulement s'il a des données */}
+          {showAjoutInSection && type === 'li' && classCompliance.ajout_percent && classCompliance.ajout_percent.stats.count > 0 && (
+            <div className="parameter-item">
+              <span>Ajout: {getAjoutDescription(produitInfo?.type_ajout, ajoutsData)}</span>
+              <span>
+                {classCompliance.ajout_percent?.stats?.percentLI !== "-" && classCompliance.ajout_percent?.limits?.li !== "-"
+                  ? `${classCompliance.ajout_percent.stats.percentLI}% < ${classCompliance.ajout_percent.limits.li}` 
+                  : "0.00% < -"}
+              </span>
+              <span>
+                {`Déviation=${classCompliance.ajout_percent?.stats?.percentLI !== "-" ? classCompliance.ajout_percent.stats.percentLI : "0.00"}%`}
+              </span>
+            </div>
+          )}
+
+          {showAjoutInSection && type === 'ls' && classCompliance.ajout_percent && classCompliance.ajout_percent.stats.count > 0 && (
+            <div className="parameter-item">
+              <span>Ajout: {getAjoutDescription(produitInfo?.type_ajout, ajoutsData)}</span>
+              <span>
+                {classCompliance.ajout_percent?.stats?.percentLS !== "-" && classCompliance.ajout_percent?.limits?.ls !== "-"
+                  ? `${classCompliance.ajout_percent.stats.percentLS}% > ${classCompliance.ajout_percent.limits.ls}` 
+                  : "0.00% > -"}
+              </span>
+              <span>
+                {`Déviation=${classCompliance.ajout_percent?.stats?.percentLS !== "-" ? classCompliance.ajout_percent.stats.percentLS : "0.00"}%`}
+              </span>
+            </div>
+          )}
+
+          {/* ✅ FILTRE: Afficher C3A seulement s'il a des données */}
+          {showC3AInSection && type === 'ls' && classCompliance.c3a && classCompliance.c3a.stats.count > 0 && (
+            <div className="parameter-item">
+              <span>C3A</span>
+              <span>
+                {classCompliance.c3a?.stats?.percentLS !== "-" && classCompliance.c3a?.limits?.ls !== "-"
+                  ? `${classCompliance.c3a.stats.percentLS}% > ${classCompliance.c3a.limits.ls}` 
+                  : "0.00% > -"}
+              </span>
+              <span>
+                {`Déviation=${classCompliance.c3a?.stats?.percentLS !== "-" ? classCompliance.c3a.stats.percentLS : "0.00"}%`}
+              </span>
+            </div>
+          )}
+
+          {showC3AInSection && type === 'lg' && classCompliance.c3a && classCompliance.c3a.stats.count > 0 && (
+            <div className="parameter-item">
+              <span>C3A</span>
+              <span>
+                {classCompliance.c3a?.stats?.percentLG !== "-" && classCompliance.c3a?.limits?.lg !== "-"
+                  ? `${classCompliance.c3a.stats.percentLG}% < ${classCompliance.c3a.limits.lg}` 
+                  : "0.00% < -"}
+              </span>
+              <span>
+                {`Défaut=${classCompliance.c3a?.stats?.percentLG !== "-" ? classCompliance.c3a.stats.percentLG : "0.00"}%`}
+              </span>
+            </div>
+          )}
+
+          {/* Message si aucune donnée n'est disponible pour cette section */}
+          {parametersWithData.length === 0 && 
+           !(showAjoutInSection && classCompliance.ajout_percent && classCompliance.ajout_percent.stats.count > 0) &&
+           !(showC3AInSection && classCompliance.c3a && classCompliance.c3a.stats.count > 0) && (
+            <div className="parameter-item">
+              <span>Aucune donnée disponible</span>
+              <span>-</span>
+              <span>-</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Ajoutez cette fonction après getParameterLabel
+const generateGeneralConclusion = (coverageAnalysis, phase, coverageRequirements, conformiteData, dataToUse) => {
+  const conclusions = [];
+  
+  const insufficientParams = coverageAnalysis.insufficient || [];
+  const warningParams = coverageAnalysis.warnings || [];
+  const hasData = coverageRequirements.hasData || {};
+
+  // Fonction pour obtenir le nom français du paramètre
+  const getFrenchParamName = (paramKey) => {
+    const paramMap = {
+      'rc2j': 'Résistance à 2 jours',
+      'rc7j': 'Résistance à 7 jours',
+      'rc28j': 'Résistance à 28 jours',
+      'prise': 'Temps de début de prise',
+      'so3': 'Teneur en sulfate',
+      'stabilite': 'Stabilité',
+      'pfeu': 'Perte au feu',
+      'r_insoluble': 'Résidu insoluble',
+      'chlorure': 'Chlorure',
+      'c3a': 'C3A',
+      'pouzzolanicite': 'Pouzzolanicité',
+      'hydratation': 'Chaleur d\'hydratation',
+      'ajout': 'Ajout'
+    };
+    return paramMap[paramKey] || paramKey;
+  };
+
+  // Récupérer les fréquences depuis le JSON
+  const getFrequencyRequirements = () => {
+    if (!conformiteData || !conformiteData.frequence_essais) {
+      return [];
+    }
+    
+    const phaseKey = phase === 'nouveau_type' ? 'nouveau_type_produit' : 'situation_courante';
+    return conformiteData.frequence_essais[phaseKey]?.parametres || [];
+  };
+
+  const frequencyRequirements = getFrequencyRequirements();
+
+  // Fonction pour vérifier si un paramètre a des données dans le tableau filtré
+  const hasDataInFilteredTable = (paramKey) => {
+    return dataToUse.some(row => {
+      const value = row[paramKey];
+      return value !== null && value !== undefined && value !== "" && value !== " ";
+    });
+  };
+
+  // Fonction pour obtenir les périodes problématiques
+  const getProblematicPeriods = (paramKey) => {
+    const coverage = coverageRequirements.coverageResults[paramKey];
+    if (!coverage || !coverage.missingWindows) return [];
+    
+    return coverage.missingWindows.map(window => {
+      const startDate = new Date(window.start);
+      const endDate = new Date(window.end);
+      const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+      
+      if (window.period === 'weekly') {
+        const weekNumber = Math.ceil((startDate.getDate() + startDate.getDay()) / 7);
+        return `semaine ${weekNumber} de ${monthNames[startDate.getMonth()]}`;
+      } else {
+        return `mois de ${monthNames[startDate.getMonth()]}`;
+      }
+    });
+  };
+
+  // Filtrer seulement les paramètres qui ont des données dans le tableau
+  const paramsWithData = frequencyRequirements.filter(req => 
+    hasDataInFilteredTable(req.parametre)
+  );
+
+  // Vérifier les paramètres problématiques parmi ceux qui ont des données
+  const problematicParams = paramsWithData.filter(req => {
+    const paramKey = req.parametre;
+    const isInsufficient = insufficientParams.some(item => item.parameter === paramKey);
+    return isInsufficient;
+  });
+
+  if (problematicParams.length > 0) {
+    const phaseText = phase === 'nouveau_type' ? 'un nouveau type produit' : 'une situation courante';
+    
+    // Grouper par période problématique
+    const periodsMap = {};
+    
+    problematicParams.forEach(req => {
+      const paramKey = req.parametre;
+      const periods = getProblematicPeriods(paramKey);
+      const paramName = getFrenchParamName(paramKey);
+      
+      periods.forEach(period => {
+        if (!periodsMap[period]) {
+          periodsMap[period] = [];
+        }
+        periodsMap[period].push(paramName);
+      });
+    });
+
+    // Créer les conclusions par période
+    Object.keys(periodsMap).forEach(period => {
+      const paramNames = periodsMap[period].join(', ');
+      conclusions.push(`La fréquence minimale d'essai pour ${phaseText} est non respectée pour le ${period}, cas : ${paramNames}.`);
+    });
+
+  } else {
+    const phaseText = phase === 'nouveau_type' ? 'un nouveau type produit' : 'une situation courante';
+    conclusions.push(`La fréquence minimale d'essai pour ${phaseText} est respectée pour tous les paramètres.`);
+  }
+
+  // Ajouter un message si aucun paramètre n'a de données
+  if (paramsWithData.length === 0) {
+    conclusions.push("Aucune donnée disponible pour l'analyse de couverture.");
+  }
+
+  return conclusions;
+};
+
+// Fonction pour obtenir les mois problématiques
+const getProblematicMonths = (coverageRequirements) => {
+  const months = [];
+  const monthNames = [
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+  ];
+  
+  // Analyser les périodes manquantes pour trouver les mois problématiques
+  Object.keys(coverageRequirements.coverageResults || {}).forEach(paramKey => {
+    const coverage = coverageRequirements.coverageResults[paramKey];
+    if (coverage && !coverage.status) {
+      coverage.missingWindows.forEach(window => {
+        const month = new Date(window.start).getMonth();
+        const monthName = monthNames[month];
+        if (monthName && !months.includes(monthName)) {
+          months.push(monthName);
+        }
+      });
+    }
+  });
+  
+  return months;
+};
+
+
   const renderClassSection = useCallback((classe) => {
-    // Create selectedCement from produitInfo
     const selectedCement = produitInfo ? {
       name: produitInfo.nom || produitInfo.description || "Produit non spécifié",
       type: selectedProductType,
@@ -634,7 +1392,15 @@ const ControleConformite = ({
     
     const allParamsForDeviations = [...allParameters, ...deviationOnlyParams];
 
+    const isLowClass = ["32.5 L", "32.5 N", "42.5 L"].includes(classe);
+    
     allParamsForDeviations.forEach(param => {
+      // ✅ FILTRE: Ne traiter que les paramètres qui ont des données
+      if (!hasDataForParameter(param.key)) {
+        console.log(`📊 Skipping parameter ${param.key} - no data in filtered table`);
+        return;
+      }
+
       const limits = getLimitsByClass(classe, param.key);
       const values = dataToUse.map(r => parseFloat(r[param.key])).filter(v => !isNaN(v));
       const stats = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
@@ -645,335 +1411,356 @@ const ControleConformite = ({
         values 
       };
       
-      if (limits.li !== "-" || limits.ls !== "-") {
-        const category = keyMapping[param.key]?.category;
-        if (limits.li !== "-") statisticalCompliance[`${param.key}_li`] = checkStatisticalCompliance(conformiteData, allStats[param.key], limits, category, "li");
-        if (limits.ls !== "-") statisticalCompliance[`${param.key}_ls`] = checkStatisticalCompliance(conformiteData, allStats[param.key], limits, category, "ls");
+      if (["rc2j", "rc7j", "rc28j"].includes(param.key)) {
+        statisticalCompliance[`${param.key}_li`] = checkStatisticalCompliance(
+          conformiteData, 
+          allStats[param.key], 
+          limits, 
+          param.key,
+          "li"
+        );
+        statisticalCompliance[`${param.key}_ls`] = checkStatisticalCompliance(
+          conformiteData, 
+          allStats[param.key], 
+          limits, 
+          param.key,
+          "ls"
+        );
+      } else {
+        if (limits.li !== "-" && limits.li !== null) {
+          statisticalCompliance[`${param.key}_li`] = checkStatisticalCompliance(
+            conformiteData, 
+            allStats[param.key], 
+            limits, 
+            param.key,
+            "li"
+          );
+        }
+        if (limits.ls !== "-" && limits.ls !== null) {
+          statisticalCompliance[`${param.key}_ls`] = checkStatisticalCompliance(
+            conformiteData, 
+            allStats[param.key], 
+            limits, 
+            param.key,
+            "ls"
+          );
+        }
       }
     });
 
-    // Determine which parameters go in which section
-    const mesureParams = [...alwaysMesureParams];
-    const attributParams = [...alwaysAttributParams];
+    // ✅ FILTRE: Ne garder que les paramètres qui ont des données pour chaque section
+    const mesureParamsWithData = alwaysMesureParams.filter(param => hasDataForParameter(param.key));
+    const attributParamsWithData = alwaysAttributParams.filter(param => hasDataForParameter(param.key));
 
-    // Handle C3A based on temporal coverage
-    if (showC3A) {
+    // ✅ FILTRE: Gérer C3A seulement s'il a des données
+    if (showC3A && hasDataForParameter("c3a")) {
       const c3aParam = allTimeDependentParams.find(p => p.key === "c3a");
       if (c3aParam) {
         const hasDataForC3A = timeDependentCoverage.hasData[c3aParam.jsonKey || c3aParam.key];
         if (timeDependentCoverage.status && hasDataForC3A) {
-          mesureParams.push(c3aParam);
+          mesureParamsWithData.push(c3aParam);
         } else {
-          attributParams.push(c3aParam);
+          attributParamsWithData.push(c3aParam);
         }
       }
     }
 
-    // Handle other time-dependent params
+    // ✅ FILTRE: Gérer les autres paramètres time-dependent seulement s'ils ont des données
     allTimeDependentParams.forEach(param => {
       if (param.key === "c3a") return;
+      if (!hasDataForParameter(param.key)) return;
       
       const paramKey = param.jsonKey || param.key;
       const hasDataForParam = timeDependentCoverage.hasData[paramKey];
       
       if (timeDependentCoverage.status && hasDataForParam) {
-        mesureParams.push(param);
+        if (!mesureParamsWithData.some(p => p.key === param.key)) {
+          mesureParamsWithData.push(param);
+        }
       } else {
-        attributParams.push(param);
+        if (!attributParamsWithData.some(p => p.key === param.key)) {
+          attributParamsWithData.push(param);
+        }
       }
     });
-
-    const isClassConforme = calculateClassConformity(classCompliance, statisticalCompliance, conditionsStatistiques);
-
+const conformityResult = calculateClassConformity(classCompliance, statisticalCompliance, conditionsStatistiques, classe);
+const { isClassConforme, hasCoverageIssues, coverageAnalysis } = conformityResult;
     return (
       <div className="class-section" key={classe}>
         <div className="report-header">
-       <div style={{ marginBottom: "1rem" }}>
-        <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
-          <h2>Contrôle de conformité / classe de résistance</h2>
-        {produitInfo && (
-          <>
-            <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
-          </>
-        )}
-        <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-      </div>
+          <div style={{ marginBottom: "1rem" }}>
+            <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
+            <h2>Contrôle de conformité / classe de résistance</h2>
+            {produitInfo && (
+              <>
+                <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
+                <p><strong>Famille: {finalFamilleName} {isCemIOrCemIII ? "(CEM I ou CEM III)" : ""}</strong></p>
+              </>
+            )}
+            <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
+          </div>
           
           <hr className="strong-hr" />
           <h3>CLASSE {classe}</h3>
 
-          {/* Deviations Sections */}
-          <div className="sections-horizontal">
-            <div className="section-box">
-              <h4>Déviations Limites inférieures</h4>
-              <div className="parameter-list">
-                <div className="parameter-item">
-                  <span>Résistance à court terme à 02 j (RC2J)</span>
-                  <span>{classCompliance.rc2j?.stats?.percentLI !== "-" 
-                    ? `${classCompliance.rc2j.stats.percentLI}% < ${classCompliance.rc2j.limits.li}` 
-                    : "Aucune déviation"}</span>
-                  <span>Déviation={classCompliance.rc2j?.stats?.percentLI}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Résistance courante 28j (RC28J)</span>
-                  <span>{classCompliance.rc28j?.stats?.percentLI !== "-" 
-                    ? `${classCompliance.rc28j.stats.percentLI}% < ${classCompliance.rc28j.limits.li}` 
-                    : "Aucune déviation"}</span>
-                  <span>Déviation={classCompliance.rc28j?.stats?.percentLI}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Temps de début de prise (Prise)</span>
-                  <span>{classCompliance.prise?.stats?.percentLI !== "-" 
-                    ? `${classCompliance.prise.stats.percentLI}% < ${classCompliance.prise.limits.li}` 
-                    : "Aucune déviation"}</span>
-                  <span>Déviation={classCompliance.prise?.stats?.percentLI}%</span>
-                </div>
+          {/* ✅ Afficher les sections de déviations seulement si elles ont des paramètres avec données */}
+          {(getDeviationParameters(classe).li.some(param => hasDataForParameter(param)) || 
+           (showAjout && hasDataForParameter("ajout_percent")) || 
+           (showC3A && hasDataForParameter("c3a"))) && (
+            <div className="sections-horizontal">
+              {renderDeviationSection(classe, classCompliance, 'li')}
+            </div>
+          )}
 
-                {showAjout && classCompliance.ajout_percent && (
-                  <div className="parameter-item">
-                   <span>Ajout: {getAjoutDescription(produitInfo?.type_ajout, ajoutsData)}</span>
+          {(getDeviationParameters(classe).ls.some(param => hasDataForParameter(param)) || 
+           (showAjout && hasDataForParameter("ajout_percent")) || 
+           (showC3A && hasDataForParameter("c3a"))) && (
+            <div className="sections-horizontal">
+              {renderDeviationSection(classe, classCompliance, 'ls')}
+            </div>
+          )}
 
-                    <span>
-                      {classCompliance.ajout_percent?.stats?.percentLI !== "-" 
-                        ? `${classCompliance.ajout_percent.stats.percentLI}% < ${classCompliance.ajout_percent.limits.li}` 
-                        : "Aucune déviation"}
-                    </span>
-                    <span>Déviation={classCompliance.ajout_percent?.stats?.percentLI}%</span>
-                  </div>
-                )}
+          {(getDeviationParameters(classe).lg.some(param => hasDataForParameter(param)) || 
+           (showAjout && hasDataForParameter("ajout_percent")) || 
+           (showC3A && hasDataForParameter("c3a"))) && (
+            <div className="sections-horizontal">
+              {renderDeviationSection(classe, classCompliance, 'lg')}
+            </div>
+          )}
+
+          {/* ✅ Afficher contrôle par mesures seulement s'il y a des paramètres avec données */}
+          {mesureParamsWithData.length > 0 && (
+            <div className="sections-horizontal">
+              <div className="section-box">
+                <h4>Contrôle par Mesures des résistances mécaniques</h4>
+                <div className="parameter-list">
+                  {isLowClass && (
+                    <>
+                      {/* ✅ Afficher rc7j LI seulement s'il a des données */}
+                      {hasDataForParameter("rc7j") && statisticalCompliance[`rc7j_li`] && (
+                        <div className="parameter-item">
+                          <span>Résistance courante 7 jrs LI</span>
+                          <span>
+                            {statisticalCompliance[`rc7j_li`]?.displayEquation || statisticalCompliance[`rc7j_li`]?.equation || "Calcul en cours..."}
+                          </span>
+                          <span>
+                            {statisticalCompliance[`rc7j_li`] ? 
+                              (statisticalCompliance[`rc7j_li`].noLimit ? "Pas de limite définie" :
+                               statisticalCompliance[`rc7j_li`].equation.includes("insuffisantes") || statisticalCompliance[`rc7j_li`].equation.includes("non disponible") ? 
+                                "Données insuffisantes" : 
+                                (statisticalCompliance[`rc7j_li`].satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
+                              : "Calcul en cours..."
+                            }
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* ✅ Afficher rc28j seulement s'il a des données */}
+                      {hasDataForParameter("rc28j") && (
+                        <>
+                          {statisticalCompliance[`rc28j_li`] && (
+                            <div className="parameter-item">
+                              <span>Résistance courante 28 jrs LI</span>
+                              <span>
+                                {statisticalCompliance[`rc28j_li`]?.displayEquation || statisticalCompliance[`rc28j_li`]?.equation || "Calcul en cours..."}
+                              </span>
+                              <span>
+                                {statisticalCompliance[`rc28j_li`] ? 
+                                  (statisticalCompliance[`rc28j_li`].noLimit ? "Pas de limite définie" :
+                                   statisticalCompliance[`rc28j_li`].equation.includes("insuffisantes") || statisticalCompliance[`rc28j_li`].equation.includes("non disponible") ? 
+                                    "Données insuffisantes" : 
+                                    (statisticalCompliance[`rc28j_li`].satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
+                                  : "Calcul en cours..."
+                                }
+                              </span>
+                            </div>
+                          )}
+                          
+                          {statisticalCompliance[`rc28j_ls`] && (
+                            <div className="parameter-item">
+                              <span>Résistance courante 28 jrs LS</span>
+                              <span>
+                                {statisticalCompliance[`rc28j_ls`]?.displayEquation || statisticalCompliance[`rc28j_ls`]?.equation || "Calcul en cours..."}
+                              </span>
+                              <span>
+                                {statisticalCompliance[`rc28j_ls`] ? 
+                                  (statisticalCompliance[`rc28j_ls`].noLimit ? "Pas de limite définie" :
+                                   statisticalCompliance[`rc28j_ls`].equation.includes("insuffisantes") || statisticalCompliance[`rc28j_ls`].equation.includes("non disponible") ? 
+                                    "Données insuffisantes" : 
+                                    (statisticalCompliance[`rc28j_ls`].satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
+                                  : "Calcul en cours..."
+                                }
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {!isLowClass && (
+                    <>
+                      {/* ✅ Afficher rc2j LI seulement s'il a des données */}
+                      {hasDataForParameter("rc2j") && statisticalCompliance[`rc2j_li`] && (
+                        <div className="parameter-item">
+                          <span>Résistance courante 2 jrs LI</span>
+                          <span>
+                            {statisticalCompliance[`rc2j_li`]?.displayEquation || statisticalCompliance[`rc2j_li`]?.equation || "Calcul en cours..."}
+                          </span>
+                          <span>
+                            {statisticalCompliance[`rc2j_li`] ? 
+                              (statisticalCompliance[`rc2j_li`].noLimit ? "Pas de limite définie" :
+                               statisticalCompliance[`rc2j_li`].equation.includes("insuffisantes") || statisticalCompliance[`rc2j_li`].equation.includes("non disponible") ? 
+                                "Données insuffisantes" : 
+                                (statisticalCompliance[`rc2j_li`].satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
+                              : "Calcul en cours..."
+                            }
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* ✅ Afficher rc28j seulement s'il a des données */}
+                      {hasDataForParameter("rc28j") && (
+                        <>
+                          {statisticalCompliance[`rc28j_li`] && (
+                            <div className="parameter-item">
+                              <span>Résistance courante 28 jrs LI</span>
+                              <span>
+                                {statisticalCompliance[`rc28j_li`]?.displayEquation || statisticalCompliance[`rc28j_li`]?.equation || "Calcul en cours..."}
+                              </span>
+                              <span>
+                                {statisticalCompliance[`rc28j_li`] ? 
+                                  (statisticalCompliance[`rc28j_li`].noLimit ? "Pas de limite définie" :
+                                   statisticalCompliance[`rc28j_li`].equation.includes("insuffisantes") || statisticalCompliance[`rc28j_li`].equation.includes("non disponible") ? 
+                                    "Données insuffisantes" : 
+                                    (statisticalCompliance[`rc28j_li`].satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
+                                  : "Calcul en cours..."
+                                }
+                              </span>
+                            </div>
+                          )}
+                          
+                          {statisticalCompliance[`rc28j_ls`] && (
+                            <div className="parameter-item">
+                              <span>Résistance courante 28 jrs LS</span>
+                              <span>
+                                {statisticalCompliance[`rc28j_ls`]?.displayEquation || statisticalCompliance[`rc28j_ls`]?.equation || "Calcul en cours..."}
+                              </span>
+                              <span>
+                                {statisticalCompliance[`rc28j_ls`] ? 
+                                  (statisticalCompliance[`rc28j_ls`].noLimit ? "Pas de limite définie" :
+                                   statisticalCompliance[`rc28j_ls`].equation.includes("insuffisantes") || statisticalCompliance[`rc28j_ls`].equation.includes("non disponible") ? 
+                                    "Données insuffisantes" : 
+                                    (statisticalCompliance[`rc28j_ls`].satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
+                                  : "Calcul en cours..."
+                                }
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {/* ✅ Afficher les autres paramètres de mesure seulement s'ils ont des données */}
+                  {mesureParamsWithData
+                    .filter(param => !["rc2j", "rc7j", "rc28j"].includes(param.key))
+                    .map(param => {
+                      const liCompliance = statisticalCompliance[`${param.key}_li`];
+                      const lsCompliance = statisticalCompliance[`${param.key}_ls`];
+                      
+                      return (
+                        <div key={param.key}>
+                          {liCompliance && (
+                            <div className="parameter-item">
+                              <span>{param.label} LI</span>
+                              <span>{liCompliance.displayEquation || liCompliance.equation}</span>
+                              <span>
+                                {liCompliance.noLimit ? "Pas de limite définie" :
+                                 liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
+                                  "Données insuffisantes" : 
+                                  (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
+                                }
+                              </span>
+                            </div>
+                          )}
+                          {lsCompliance && (
+                            <div className="parameter-item">
+                              <span>{param.label} LS</span>
+                              <span>{lsCompliance.displayEquation || lsCompliance.equation}</span>
+                              <span>
+                                {lsCompliance.noLimit ? "Pas de limite définie" :
+                                 lsCompliance.equation.includes("insuffisantes") || lsCompliance.equation.includes("non disponible") ? 
+                                  "Données insuffisantes" : 
+                                  (lsCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
+                                }
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          <div className="sections-horizontal">
-            <div className="section-box">
-              <h4>Déviations Limites supérieures</h4>
-              <div className="parameter-list">
-                <div className="parameter-item">
-                  <span>Résistance courante 28j (RC28J)</span>
-                  <span>{classCompliance.rc28j?.stats?.percentLS !== "-" 
-                    ? `${classCompliance.rc28j.stats.percentLS}% > ${classCompliance.rc28j.limits.ls}` 
-                    : "Aucune déviation"}</span>
-                  <span>Déviation={classCompliance.rc28j?.stats?.percentLS}%</span>
+          {/* ✅ Afficher contrôle par attributs seulement s'il y a des paramètres avec données */}
+          {attributParamsWithData.length > 0 && (
+            <div className="sections-horizontal">
+              <div className="section-box">
+                <h4>Contrôle par Attributs propriétés physiques & chimiques</h4>
+                <div className="parameter-list">
+                  {attributParamsWithData.map(param => {
+                    const attributeResult = checkEquationSatisfaction(
+                      classCompliance[param.key]?.values || [],
+                      classCompliance[param.key]?.limits || {},
+                      conditionsStatistiques
+                    );
+                    
+                    return (
+                      <div key={param.key} className="parameter-item">
+                        <span>{param.label}</span>
+                        <span>
+                          {attributeResult.displayText}
+                        </span>
+                        <span>
+                          {attributeResult.noLimits ? "Pas de limites définies" :
+                           attributeResult.equation.includes("insuffisantes") || 
+                           attributeResult.equation.includes("manquantes") || 
+                           attributeResult.equation.includes("non chargées") ? 
+                            "Données insuffisantes" : 
+                            (attributeResult.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
+                          }
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="parameter-item">
-                  <span>Stabilité (Stabilite)</span>
-                  <span>{classCompliance.stabilite?.stats?.percentLS !== "-" 
-                    ? `${classCompliance.stabilite.stats.percentLS}% > ${classCompliance.stabilite.limits.ls}` 
-                    : "Aucune déviation"}</span>
-                  <span>Déviation={classCompliance.stabilite?.stats?.percentLS}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Sulfate (SO3)</span>
-                  <span>{classCompliance.so3?.stats?.percentLS !== "-" 
-                    ? `${classCompliance.so3.stats.percentLS}% > ${classCompliance.so3.limits.ls}` 
-                    : "Aucune déviation"}</span>
-                  <span>Déviation={classCompliance.so3?.stats?.percentLS}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Chlorure (Chlorure)</span>
-                  <span>{classCompliance.chlorure?.stats?.percentLS !== "-" 
-                    ? `${classCompliance.chlorure.stats.percentLS}% > ${classCompliance.chlorure.limits.ls}` 
-                    : "Aucune déviation"}</span>
-                  <span>Déviation={classCompliance.chlorure?.stats?.percentLS}%</span>
-                </div>
-
-                {showC3A && classCompliance.c3a && (
-                  <div className="parameter-item">
-                    <span>C3A</span>
-                    <span>
-                      {classCompliance.c3a?.stats?.percentLS !== "-" 
-                        ? `${classCompliance.c3a.stats.percentLS}% > ${classCompliance.c3a.limits.ls}` 
-                        : "Aucune déviation"}
-                    </span>
-                    <span>Déviation={classCompliance.c3a?.stats?.percentLS}%</span>
-                  </div>
-                )}
-
-                {showAjout && classCompliance.ajout_percent && (
-                  <div className="parameter-item">
-                    <span>Ajout: {getAjoutDescription(produitInfo?.type_ajout, ajoutsData)}</span>
-                    <span>
-                      {classCompliance.ajout_percent?.stats?.percentLS !== "-" 
-                        ? `${classCompliance.ajout_percent.stats.percentLS}% > ${classCompliance.ajout_percent.limits.ls}` 
-                        : "Aucune déviation"}
-                    </span>
-                    <span>Déviation={classCompliance.ajout_percent?.stats?.percentLS}%</span>
-                  </div>
-                )}
               </div>
             </div>
-          </div>
+          )}
 
-          <div className="sections-horizontal">
-            <div className="section-box">
-              <h4>Défauts Limites garanties</h4>
-              <div className="parameter-list">
-                <div className="parameter-item">
-                  <span>Résistance à court terme à 02 j (RC2J)</span>
-                  <span>{classCompliance.rc2j?.stats?.percentLG !== "-" 
-                    ? `${classCompliance.rc2j.stats.percentLG}% < ${classCompliance.rc2j.limits.lg}` 
-                    : "Aucun défaut"}</span>
-                  <span>Défaut={classCompliance.rc2j?.stats?.percentLG}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Résistance courante 28j (RC28J)</span>
-                  <span>{classCompliance.rc28j?.stats?.percentLG !== "-" 
-                    ? `${classCompliance.rc28j.stats.percentLG}% < ${classCompliance.rc28j.limits.lg}` 
-                    : "Aucun défaut"}</span>
-                  <span>Défaut={classCompliance.rc28j?.stats?.percentLG}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Temps de début de prise (Prise)</span>
-                  <span>{classCompliance.prise?.stats?.percentLG !== "-" 
-                    ? `${classCompliance.prise.stats.percentLG}% < ${classCompliance.prise.limits.lg}` 
-                    : "Aucun défaut"}</span>
-                  <span>Défaut={classCompliance.prise?.stats?.percentLG}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Stabilité (Stabilite)</span>
-                  <span>{classCompliance.stabilite?.stats?.percentLG !== "-" 
-                    ? `${classCompliance.stabilite.stats.percentLG}% > ${classCompliance.stabilite.limits.lg}` 
-                    : "Aucun défaut"}</span>
-                  <span>Défaut={classCompliance.stabilite?.stats?.percentLG}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Sulfate (SO3)</span>
-                  <span>{classCompliance.so3?.stats?.percentLG !== "-" 
-                    ? `${classCompliance.so3.stats.percentLG}% > ${classCompliance.so3.limits.lg}` 
-                    : "Aucun défaut"}</span>
-                  <span>Défaut={classCompliance.so3?.stats?.percentLG}%</span>
-                </div>
-                <div className="parameter-item">
-                  <span>Chlorure (Chlorure)</span>
-                  <span>{classCompliance.chlorure?.stats?.percentLG !== "-" 
-                    ? `${classCompliance.chlorure.stats.percentLG}% > ${classCompliance.chlorure.limits.lg}` 
-                    : "Aucun défaut"}</span>
-                  <span>Défaut={classCompliance.chlorure?.stats?.percentLG}%</span>
-                </div>
 
-                {showC3A && (
-                  <div className="parameter-item">
-                    <span>C3A</span>
-                    <span>
-                      {classCompliance.c3a?.stats?.percentLG !== "-" 
-                        ? `${classCompliance.c3a.stats.percentLG}% < ${classCompliance.c3a.limits.lg}` 
-                        : "Aucun défaut"}
-                    </span>
-                    <span>Défaut={classCompliance.c3a?.stats?.percentLG}%</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-{/* Contrôle par Mesures */}
-<div className="sections-horizontal">
-  <div className="section-box">
-    <h4>Contrôle par Mesures des résistances mécaniques</h4>
-    <div className="parameter-list">
-      {mesureParams.map(param => {
-        const liCompliance = statisticalCompliance[`${param.key}_li`];
-        const lsCompliance = statisticalCompliance[`${param.key}_ls`];
-        
-        if (param.key === 'rc28j') {
-          return (
-            <div key={param.key}>
-              <div className="parameter-item">
-                <span>{param.label} LI</span>
-                <span>
-                  {liCompliance?.equation || "Données insuffisantes"}
-                </span>
-                <span>
-                  {liCompliance ? 
-                    (liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
-                      "Données insuffisantes" : 
-                      (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
-                    : "Données insuffisantes"
-                  }
-                </span>
-              </div>
-              <div className="parameter-item">
-                <span>{param.label} LS</span>
-                <span>
-                  {lsCompliance?.equation || "Données insuffisantes"}
-                </span>
-                <span>
-                  {lsCompliance ? 
-                    (lsCompliance.equation.includes("insuffisantes") || lsCompliance.equation.includes("non disponible") ? 
-                      "Données insuffisantes" : 
-                      (lsCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
-                    : "Données insuffisantes"
-                  }
-                </span>
-              </div>
-            </div>
-          );
-        } else {
-          return (
-            <div key={param.key} className="parameter-item">
-              <span>{param.label} LI</span>
-              <span>
-                {liCompliance?.equation || "Données insuffisantes"}
-              </span>
-              <span>
-                {liCompliance ? 
-                  (liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
-                    "Données insuffisantes" : 
-                    (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"))
-                  : "Données insuffisantes"
-                }
-              </span>
-            </div>
-          );
-        }
-      })}
+<div className="conclusion-section">
+  <div className="conformity-summary">
+    <h4>CONCLUSION : 
+ {/* SEULEMENT LA CONCLUSION GÉNÉRALE */}
+<div className="conclusion-text">
+  {generateGeneralConclusion(coverageAnalysis, phase, coverageRequirements, conformiteData, dataToUse).map((conclusion, index) => (
+    <div key={index} className="conclusion-line">
+      {conclusion}
     </div>
+  ))}
+</div> 
+</h4>
+  </div>
+
+  {/* Boîte de conformité finale */}
+  <div className={`conformity-box ${isClassConforme ? 'conforme' : 'non-conforme'}`}>
+    <strong>CONFORMITÉ: {isClassConforme ? 'CONFORME' : 'NON CONFORME'}</strong>
   </div>
 </div>
-
-{/* Contrôle par Attributs */}
-<div className="sections-horizontal">
-  <div className="section-box">
-    <h4>Contrôle par Attributs propriétés physiques & chimiques</h4>
-    <div className="parameter-list">
-      {attributParams.map(param => {
-        const attributeResult = checkEquationSatisfaction(
-          classCompliance[param.key]?.values || [],
-          classCompliance[param.key]?.limits || {},
-          conditionsStatistiques
-        );
-        
-        return (
-          <div key={param.key} className="parameter-item">
-            <span>{param.label}</span>
-            <span>
-              {attributeResult.displayText}
-            </span>
-            <span>
-              {attributeResult.equation.includes("insuffisantes") || 
-               attributeResult.equation.includes("manquantes") || 
-               attributeResult.equation.includes("non chargées") ? 
-                "Données insuffisantes" : 
-                (attributeResult.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
-              }
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-</div>
-
-          {/* Class Conclusion */}
-          <div className="conclusion-section">
-            <div className="conformity-summary">
-              <h4>CONCLUSION : {isClassConforme ? 'CONFORME' : 'NON CONFORME'}</h4>
-            </div>
-            <div className={`conformity-box ${isClassConforme ? 'conforme' : 'non-conforme'}`}>
-              <strong>CONFORMITÉ: {isClassConforme ? 'CONFORME' : 'NON CONFORME'}</strong>
-            </div>
-          </div>
           
           <hr className="section-divider" />
         </div>
@@ -984,8 +1771,84 @@ const ControleConformite = ({
     filterPeriod, produitDescription, allParameters, deviationOnlyParams, 
     dataToUse, keyMapping, conformiteData, allStats, getLimitsByClass,
     conditionsStatistiques, timeDependentCoverage, allTimeDependentParams,
-    alwaysMesureParams, alwaysAttributParams, showC3A, showAjout
+    alwaysMesureParams, alwaysAttributParams, showC3A, showAjout, hasDataForParameter,
+    isCemIOrCemIII
   ]);
+
+
+  const renderCoverageInfo = () => {
+  if (!coverageRequirements || coverageRequirements.coverageStatus === "unknown") {
+    return null;
+  }
+
+  return (
+    <div className="coverage-section">
+      <h4>Vérification de la Couverture des Données</h4>
+      <div className={`coverage-status ${coverageRequirements.coverageStatus}`}>
+        <strong>Statut: </strong>
+        {coverageRequirements.coverageStatus === "adequate" ? "✅ Couverture adéquate" : 
+         coverageRequirements.coverageStatus === "insufficient" ? "❌ Couverture insuffisante" : 
+         "📊 En cours d'analyse"}
+        <span style={{marginLeft: '20px', fontSize: '0.9em', color: '#666'}}>
+          (Phase: {coverageRequirements.productionPhase === 'nouveau_type' ? 'Nouveau Type Produit' : 'Situation Courante'})
+        </span>
+      </div>
+      
+      {coverageRequirements.coverageStatus === "insufficient" && (
+        <div className="coverage-details">
+          <h5>Périodes avec données insuffisantes:</h5>
+          <div className="missing-periods">
+            {Object.keys(coverageRequirements.coverageResults).map(paramKey => {
+              const result = coverageRequirements.coverageResults[paramKey];
+              if (result.status) return null;
+              
+              return (
+                <div key={paramKey} className="missing-param">
+                  <strong>{paramKey}</strong> - {result.requirement}
+                  <div className="missing-windows">
+                    {result.missingWindows.slice(0, 3).map((window, idx) => (
+                      <div key={idx} className="missing-window">
+                        {window.start} à {window.end}: {window.found}/{window.required} résultats
+                      </div>
+                    ))}
+                    {result.missingWindows.length > 3 && (
+                      <div>... et {result.missingWindows.length - 3} autres périodes</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      
+      {coverageRequirements.coverageStatus === "adequate" && (
+        <div className="coverage-success">
+          <p>✅ Tous les paramètres respectent les exigences de couverture des données</p>
+          <div className="requirements-summary">
+            <strong>Exigences appliquées:</strong>
+            <ul>
+              {coverageRequirements.productionPhase === "nouveau_type" ? (
+                <>
+                  <li>4 résultats par semaine pour: RC 2j, 7j, 28j, Temps début prise, Stabilité, SO3</li>
+                  <li>1 résultat par semaine pour les autres paramètres</li>
+                </>
+              ) : (
+                <>
+                  <li>2 résultats par semaine pour: RC 2j, 7j, 28j, Temps début prise, SO3</li>
+                  <li>1 résultat par semaine pour: Stabilité</li>
+                  <li>2 résultats par mois pour: Perte au feu, Résidu insoluble, Chlorure, C3A, Pouzzolanicité</li>
+                  <li>1 résultat par mois pour: Chaleur d'hydratation</li>
+                </>
+              )}
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 
   const handleExport = () => alert("Exporting...");
   const handlePrint = () => alert("Printing...");

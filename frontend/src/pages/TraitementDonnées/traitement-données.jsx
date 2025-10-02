@@ -55,7 +55,7 @@ const TraitDonnes = () => {
   const [clientTypeCimentId, setClientTypeCimentId] = useState("");
   const [produitDescription, setProduitDescription] = useState("");
   const [produitFamille, setProduitFamille] = useState("");
-  const [phase, setPhase] = useState("");
+  const [phase, setPhase] = useState("situation_courante");
   const [tableData, setTableData] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
   const [startDate, setStartDate] = useState("");
@@ -175,83 +175,123 @@ const TraitDonnes = () => {
   };
 
   // Handle file import
-  const handleFileImport = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+const handleFileImport = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    if (!selectedClient || !clientTypeCimentId) {
-      alert("Veuillez sélectionner un client et un produit avant d'importer.");
-      return;
-    }
+  if (!selectedClient || !clientTypeCimentId) {
+    alert("Veuillez sélectionner un client et un produit avant d'importer.");
+    return;
+  }
 
-    if (!window.confirm("Êtes-vous sûr de vouloir importer ce fichier ? Les données seront ajoutées à la base de données.")) {
-      return;
-    }
+  const reader = new FileReader();
+  reader.onload = async (evt) => {
+    try {
+      const bstr = evt.target.result;
+      const wb = XLSX.read(bstr, { type: "binary" });
+      const wsname = wb.SheetNames[0];
+      const ws = wb.Sheets[wsname];
+      const importedData = XLSX.utils.sheet_to_json(ws);
 
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      try {
-        const bstr = evt.target.result;
-        const wb = XLSX.read(bstr, { type: "binary" });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const importedData = XLSX.utils.sheet_to_json(ws);
+      console.log("📊 Fichier Excel chargé:", importedData.length, "lignes");
 
-        const formattedRows = importedData.map((row, index) => ({
-          id: Date.now() + index,
-          num_ech: row["N° ech"] || row["Ech"] || "",
-          date_test: formatExcelDate(row["Date"] || row.date_test || ""),
-          rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
-          rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
-          rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
-          prise: row["Début prise(min)"] || "",
-          stabilite: row["Stabilité (mm)"] || "",
-          hydratation: row["Hydratation"] || "",
-          pfeu: row["Perte au feu (%)"] || "",
-          r_insoluble: row["Résidu insoluble (%)"] || "",
-          so3: row["SO3 (%)"] || "",
-          chlorure: row["Cl (%)"] || "",
-          c3a: row["C3A"] || "",
-          ajout_percent: row["Taux d'Ajouts (%)"] || "",
-          type_ajout: row["Type ajout"] || "",
-          source: row["SILO N°"] || "",
-        }));
+      // Formater les données - SIMPLIFIÉ et CORRIGÉ
+      const formattedRows = importedData.map((row, index) => {
+        // Fonction utilitaire pour nettoyer les valeurs
+        const cleanValue = (val) => {
+          if (val === null || val === undefined || val === "" || val === " ") {
+            return null;
+          }
+          // Convertir en string et nettoyer
+          const strVal = String(val).trim();
+          if (strVal === "" || strVal.toLowerCase() === "null" || strVal.toLowerCase() === "undefined") {
+            return null;
+          }
+          return strVal;
+        };
 
-        const res = await fetch("http://localhost:5000/api/echantillons/import", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            clientId: selectedClient,
-            produitId: clientTypeCimentId,
-            rows: formattedRows,
-          }),
-        });
+        const cleanNumeric = (val) => {
+          const cleaned = cleanValue(val);
+          if (cleaned === null) return null;
+          
+          // Remplacer virgule par point pour les nombres
+          const numericStr = cleaned.replace(',', '.');
+          const num = parseFloat(numericStr);
+          return isNaN(num) ? null : num;
+        };
 
-        if (!res.ok) {
-          const error = await res.json();
-          console.error("Import failed:", error);
-          alert("Erreur lors de l'importation des données.");
-          return;
-        }
+        return {
+          num_ech: cleanValue(row["N° ech"] || row["Ech"] || row["Numéro"]),
+          date_test: formatExcelDate(row["Date"] || row["date_test"] || row["DATE"]),
+          // ⚠️ NE PAS INCLURE heure_test
+          rc2j: cleanNumeric(row["RC 2j (Mpa)"] || row["RC2J"] || row["RC 2j"]),
+          rc7j: cleanNumeric(row["RC 7j (Mpa)"] || row["RC7J"] || row["RC 7j"]),
+          rc28j: cleanNumeric(row["RC 28 j (Mpa)"] || row["RC28J"] || row["RC 28j"]),
+          prise: cleanNumeric(row["Début prise(min)"] || row["Prise"] || row["Début prise"]),
+          stabilite: cleanNumeric(row["Stabilité (mm)"] || row["Stabilité"] || row["Stabilite"]),
+          hydratation: cleanNumeric(row["Hydratation"] || row["Chaleur hydratation"]),
+          pfeu: cleanNumeric(row["Perte au feu (%)"] || row["PFEU"] || row["Perte au feu"]),
+          r_insoluble: cleanNumeric(row["Résidu insoluble (%)"] || row["Résidu insoluble"] || row["Residu insoluble"]),
+          so3: cleanNumeric(row["SO3 (%)"] || row["SO3"] || row["SO3"]),
+          chlorure: cleanNumeric(row["Cl (%)"] || row["Chlorure"] || row["Cl"]),
+          c3a: cleanNumeric(row["C3A"] || row["C3A"]),
+          ajout_percent: cleanNumeric(row["Taux d'Ajouts (%)"] || row["Ajout"] || row["Taux ajout"]),
+          type_ajout: cleanValue(row["Type ajout"] || row["Type_ajout"] || row["Type"]),
+          source: cleanValue(row["SILO N°"] || row["Source"] || row["SILO"]),
+          phase: phase, // Utiliser la phase sélectionnée dans l'interface
+        };
+      }).filter(row => row.num_ech || row.date_test); // Filtrer les lignes vides
 
-        alert("Fichier Excel importé et enregistré en base !");
-        setError("");
-        tableRef.current?.refresh();
-        // Reset file input to allow importing another file
-        e.target.value = "";
-      } catch (err) {
-        console.error("Erreur import:", err);
-        alert("Impossible d'importer les données.");
+      console.log("📋 Données formatées pour envoi:", formattedRows);
+
+      if (formattedRows.length === 0) {
+        alert("Aucune donnée valide à importer.");
+        return;
       }
-    };
 
-    reader.onerror = (err) => {
-      console.error("FileReader error:", err);
-      alert("Erreur lors de la lecture du fichier.");
-    };
+      const res = await fetch("http://localhost:5000/api/echantillons/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: selectedClient,
+          produitId: clientTypeCimentId,
+          rows: formattedRows,
+        }),
+      });
 
-    reader.readAsBinaryString(file);
+      console.log("📨 Réponse HTTP:", res.status, res.statusText);
+
+      const result = await res.json();
+      
+      if (!res.ok) {
+        console.error("❌ Erreur serveur:", result);
+        throw new Error(result.details || result.error || `Erreur ${res.status}: ${res.statusText}`);
+      }
+
+      console.log("✅ Import réussi:", result);
+      alert(`✅ ${result.message}`);
+      
+      // Recharger les données
+      if (tableRef.current?.refresh) {
+        tableRef.current.refresh();
+      }
+      
+      // Reset le champ fichier
+      e.target.value = "";
+      
+    } catch (err) {
+      console.error("💥 Erreur complète:", err);
+      alert(`❌ Erreur d'import: ${err.message}`);
+    }
   };
+
+  reader.onerror = (err) => {
+    console.error("❌ Erreur FileReader:", err);
+    alert("Erreur lors de la lecture du fichier.");
+  };
+
+  reader.readAsBinaryString(file);
+};
 
   const handleTableDataChange = (data, start, end) => {
     setTableData(data);
@@ -360,7 +400,19 @@ const getAjoutDescription = (code) => {
               )}
             </label>
 
-            <button className="new-type-produit-btn" onClick={() => setShowNewTypeForm(true)} disabled={!selectedClient}>
+            {/* Add Phase Selection */}
+            <label>
+              Phase de Production:
+              <select value={phase} onChange={(e) => setPhase(e.target.value)}>
+                <option value="situation_courante">Situation Courante</option>
+                <option value="nouveau_type">Nouveau Type Produit</option>
+              </select>
+            </label>
+
+            <button className="new-type-produit-btn" onClick={() => {
+              setPhase("nouveau_type");
+              setShowNewTypeForm(true);
+            }} disabled={!selectedClient}>
               Nouveau Type Produit
             </button>
             
@@ -369,6 +421,7 @@ const getAjoutDescription = (code) => {
                 <label>
                   Importer un fichier Excel:
                   <input type="file" accept=".xlsx,.xls" onChange={handleFileImport} />
+                  <small>Phase: {phase === 'nouveau_type' ? 'Nouveau Type Produit' : 'Situation Courante'}</small>
                 </label>
               </div>
             )}
@@ -380,6 +433,7 @@ const getAjoutDescription = (code) => {
       {showNewTypeForm && (
         <div className="form-container">
           <h3>Ajouter un Nouveau Type de Ciment</h3>
+          <p><strong>Phase:</strong> {phase === 'nouveau_type' ? 'Nouveau Type Produit' : 'Situation Courante'}</p>
           <label>
             Sélectionner le type de ciment:
             <select value={newCement} onChange={(e) => setNewCement(e.target.value)}>
@@ -396,21 +450,25 @@ const getAjoutDescription = (code) => {
           </label>
           <div className="form-buttons">
             <button onClick={addCementForClient}>Ajouter</button>
-            <button onClick={() => { setShowNewTypeForm(false); setNewCement(""); }}>Annuler</button>
+            <button onClick={() => { 
+              setShowNewTypeForm(false); 
+              setNewCement("");
+              setPhase("situation_courante"); // Reset to default
+            }}>Annuler</button>
           </div>
         </div>
       )}
 
-      {/* Pass the produit info to child components */}
+      {/* Pass the phase to child components */}
       {activeTab === "donnees" && (
         <EchantillonsTable
           ref={tableRef}
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
           produitInfo={selectedProduitInfo}
-          phase={phase}
+          phase={phase} // Pass phase
           tableData={tableData}
-           ajoutsData={ajoutsData}  
+          ajoutsData={ajoutsData}  
           selectedRows={selectedRows}
           onTableDataChange={(data, s, e) => {
             setTableData(data);
@@ -430,7 +488,8 @@ const getAjoutDescription = (code) => {
           initialEnd={endDate}
           clients={clients}
           produits={produits}
-            ajoutsData={ajoutsData} 
+          ajoutsData={ajoutsData} 
+          phase={phase} // Pass phase
           onTableDataChange={(data, s, e) => {
             setTableData(data);
             setStartDate(s);
@@ -449,6 +508,7 @@ const getAjoutDescription = (code) => {
           initialEnd={endDate}
           clients={clients}
           produits={produits}
+          phase={phase} // Pass phase
         />
       )}
 
@@ -462,8 +522,8 @@ const getAjoutDescription = (code) => {
           initialEnd={endDate}
           clients={clients}
           produits={produits}
-           ajoutsData={ajoutsData} 
-           
+          ajoutsData={ajoutsData} 
+          phase={phase} // Pass phase - THIS IS IMPORTANT!
           onTableDataChange={(data, s, e) => {
             setTableData(data);
             setStartDate(s);
@@ -482,8 +542,9 @@ const getAjoutDescription = (code) => {
           initialEnd={endDate}
           clients={clients}
           produits={produits}
-          ajoutsData={ajoutsData}   // keep this
-  getAjoutDescription={getAjoutDescription}
+          ajoutsData={ajoutsData}
+          getAjoutDescription={getAjoutDescription}
+          phase={phase} // Pass phase
           onTableDataChange={(data, s, e) => {
             setTableData(data);
             setStartDate(s);

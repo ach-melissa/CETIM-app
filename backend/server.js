@@ -331,91 +331,119 @@ app.delete("/api/types_ciment/:id", (req, res) => {
 
 
 // --- Modifier un client --- //
-app.put("/api/clients/:id", (req, res) => {
+app.put("/api/clients/:id", async (req, res) => {
   const clientId = req.params.id;
   const { sigle, nom_raison_sociale, adresse, types_ciment } = req.body;
-
-  const sqlUpdate = `
-    UPDATE clients 
-    SET sigle = ?, nom_raison_sociale = ?, adresse = ? 
-    WHERE id = ?`;
-  db.query(sqlUpdate, [sigle, nom_raison_sociale, adresse, clientId], (err, result) => {
-    if (err) {
-      console.error("❌ Erreur update client:", err);
-      return res.status(500).json({ message: "Erreur serveur" });
-    }
-
-    // Supprimer les anciens types de ciment liés
-    const sqlDeleteAssoc = "DELETE FROM client_types_ciment WHERE client_id = ?";
-    db.query(sqlDeleteAssoc, [clientId], (err2) => {
-      if (err2) {
-        console.error("❌ Erreur suppression associations:", err2);
-        return res.status(500).json({ message: "Erreur serveur" });
-      }
-
-      // Réinsérer les nouveaux types (ids)
-      if (Array.isArray(types_ciment) && types_ciment.length > 0) {
-        const sqlAssoc = "INSERT INTO client_types_ciment (client_id, typecement_id) VALUES ?";
-        const values = types_ciment.map((typeId) => [clientId, typeId]);
-
-        db.query(sqlAssoc, [values], (err3) => {
-          if (err3) {
-            console.error("❌ Erreur ajout associations:", err3);
-            return res.status(500).json({ message: "Erreur serveur" });
-          }
-
-          // Return success (optionally return updated client object)
-          const sqlGet = `SELECT id, code, description FROM types_ciment WHERE id IN (?)`;
-          db.query(sqlGet, [types_ciment], (err4, rows) => {
-            if (err4) {
-              console.error("❌ Erreur récupération types:", err4);
-              return res.status(500).json({ message: "Erreur serveur" });
-            }
-            res.json({ message: "✅ Client modifié avec succès", types_ciment: rows });
-          });
-        });
-      } else {
-        // No types — respond success
-        res.json({ message: "✅ Client modifié avec succès (sans types de ciment)", types_ciment: [] });
-      }
-    });
-  });
-});
-// --- Delete a client ---
-app.delete("/api/clients/:id", async (req, res) => {
-  const clientId = req.params.id;
 
   try {
     const connection = await promisePool.getConnection();
     await connection.beginTransaction();
 
     try {
-      // Remove associations first
+      // 1. Mettre à jour le client
+      const sqlUpdate = `
+        UPDATE clients 
+        SET sigle = ?, nom_raison_sociale = ?, adresse = ? 
+        WHERE id = ?`;
+      await connection.execute(sqlUpdate, [sigle, nom_raison_sociale, adresse, clientId]);
+
+      // 2. Supprimer les anciens types de ciment liés
       const sqlDeleteAssoc = "DELETE FROM client_types_ciment WHERE client_id = ?";
       await connection.execute(sqlDeleteAssoc, [clientId]);
 
-      // Delete the client
-      const sqlDeleteClient = "DELETE FROM clients WHERE id = ?";
-      const [result] = await connection.execute(sqlDeleteClient, [clientId]);
+      // 3. Réinsérer les nouveaux types
+      if (Array.isArray(types_ciment) && types_ciment.length > 0) {
+        const sqlAssoc = "INSERT INTO client_types_ciment (client_id, typecement_id) VALUES ?";
+        const values = types_ciment.map((typeId) => [clientId, typeId]);
+        await connection.query(sqlAssoc, [values]);
+      }
 
-      if (result.affectedRows === 0) {
+      await connection.commit();
+      connection.release();
+
+      // Répondre avec succès
+      res.json({ 
+        message: "✅ Client modifié avec succès", 
+        types_ciment: types_ciment || [] 
+      });
+
+    } catch (error) {
+      await connection.rollback();
+      connection.release();
+      console.error("❌ Erreur modification client:", error);
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  } catch (err) {
+    console.error("❌ Erreur connexion DB:", err);
+    res.status(500).json({ message: "Erreur de connexion à la base de données" });
+  }
+});
+
+
+// --- Delete a client ---
+// --- Delete a client ---
+app.delete("/api/clients/:id", async (req, res) => {
+  const clientId = req.params.id;
+  console.log(`🗑️ Tentative de suppression du client ID: ${clientId}`);
+
+  try {
+    const connection = await promisePool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // 1. D'abord supprimer les échantillons associés à ce client
+      const sqlDeleteEchantillons = `
+        DELETE e 
+        FROM echantillons e 
+        JOIN client_types_ciment ct ON e.client_type_ciment_id = ct.id 
+        WHERE ct.client_id = ?
+      `;
+      const [resultEchantillons] = await connection.execute(sqlDeleteEchantillons, [clientId]);
+      console.log(`📊 Échantillons supprimés: ${resultEchantillons.affectedRows}`);
+
+      // 2. Supprimer les associations types ciment
+      const sqlDeleteAssoc = "DELETE FROM client_types_ciment WHERE client_id = ?";
+      const [resultAssoc] = await connection.execute(sqlDeleteAssoc, [clientId]);
+      console.log(`📊 Associations supprimées: ${resultAssoc.affectedRows}`);
+
+      // 3. Supprimer le client
+      const sqlDeleteClient = "DELETE FROM clients WHERE id = ?";
+      const [resultClient] = await connection.execute(sqlDeleteClient, [clientId]);
+
+      if (resultClient.affectedRows === 0) {
         await connection.rollback();
         connection.release();
+        console.log("❌ Client non trouvé");
         return res.status(404).json({ message: "Client non trouvé" });
       }
 
       await connection.commit();
       connection.release();
-      return res.json({ message: "✅ Client supprimé avec succès" });
+      
+      console.log("✅ Client supprimé avec succès");
+      return res.json({ 
+        message: "✅ Client supprimé avec succès",
+        deleted: {
+          client: resultClient.affectedRows,
+          echantillons: resultEchantillons.affectedRows,
+          associations: resultAssoc.affectedRows
+        }
+      });
     } catch (error) {
       await connection.rollback();
       connection.release();
       console.error("❌ Erreur suppression client (transaction):", error);
-      return res.status(500).json({ message: "Erreur serveur lors de la suppression du client" });
+      return res.status(500).json({ 
+        message: "Erreur serveur lors de la suppression du client",
+        error: error.message 
+      });
     }
   } catch (err) {
-    console.error("❌ Erreur suppression client:", err);
-    return res.status(500).json({ message: "Erreur serveur" });
+    console.error("❌ Erreur connexion DB:", err);
+    return res.status(500).json({ 
+      message: "Erreur de connexion à la base de données",
+      error: err.message 
+    });
   }
 });
 
@@ -566,6 +594,40 @@ app.get("/api/produits/:clientId", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur lors du chargement des produits" });
   }
 });
+
+// Ajoutez cette route TEMPORAIREMENT pour debugger
+app.get("/api/clients/:id/traitements", async (req, res) => {
+  const clientId = req.params.id;
+  console.log(`🔍 Vérification traitements pour client ID: ${clientId}`);
+
+  try {
+    // Vérifier DIRECTEMENT dans la table echantillons via client_types_ciment
+    const sql = `
+      SELECT COUNT(*) as count 
+      FROM echantillons e
+      JOIN client_types_ciment ct ON e.client_type_ciment_id = ct.id
+      WHERE ct.client_id = ?
+    `;
+
+    const [results] = await promisePool.execute(sql, [clientId]);
+    const hasTraitements = results[0].count > 0;
+    
+    console.log(`📊 Client ${clientId} a ${results[0].count} échantillons dans la table echantillons`);
+
+    res.json({ 
+      success: true,
+      hasTraitements: hasTraitements,
+      count: results[0].count
+    });
+  } catch (err) {
+    console.error("❌ Erreur vérification traitements:", err);
+    res.status(500).json({ 
+      success: false,
+      error: "Erreur serveur" 
+    });
+  }
+});
+
 
 
 app.get("/api/clients/:sigle", async (req, res) => {
@@ -820,65 +882,93 @@ app.post("/api/echantillons/import", async (req, res) => {
   try {
     const { clientId, produitId, rows } = req.body;
 
+    console.log("📥 Début import - données reçues:", { 
+      clientId, 
+      produitId, 
+      rowsCount: rows ? rows.length : 0 
+    });
+
     // Check if all necessary parameters are provided
     if (!clientId || !produitId || !rows) {
-      return res.status(400).json({ error: "Paramètres manquants" });
+      return res.status(400).json({ error: "Paramètres manquants: clientId, produitId ou rows" });
     }
 
-    // Validate that produitId exists in client_types_ciment for this client
-    const checkSql = `
-      SELECT COUNT(*) as count FROM client_types_ciment 
-      WHERE id = ? AND client_id = ?
-    `;
-    const [checkResult] = await promisePool.execute(checkSql, [produitId, clientId]);
+    // Validate that produitId exists in client_types_ciment
+    const checkSql = `SELECT COUNT(*) as count FROM client_types_ciment WHERE id = ?`;
+    const [checkResult] = await promisePool.execute(checkSql, [produitId]);
     
     if (checkResult[0].count === 0) {
-      return res.status(400).json({ error: "Produit non trouvé pour ce client" });
+      return res.status(400).json({ error: `Produit ID ${produitId} non trouvé` });
     }
 
-    // Insert data into the echantillons table with correct column mapping
-    const values = rows.map((row) => [
-      produitId,                    // client_type_ciment_id
-      row.phase || null,           // phase
-      row.num_ech || null,         // num_ech
-      row.date_test || null,       // date_test
-      row.heure_test || null,      // heure_test (NOW INCLUDED)
-      parseFloat(row.rc2j) || null, // rc2j
-      parseFloat(row.rc7j) || null, // rc7j
-      parseFloat(row.rc28j) || null, // rc28j
-      parseFloat(row.prise) || null, // prise
-      parseFloat(row.stabilite) || null, // stabilite
-      parseFloat(row.hydratation) || null, // hydratation
-      parseFloat(row.pfeu) || null, // pfeu
-      parseFloat(row.r_insoluble) || null, // r_insoluble
-      parseFloat(row.so3) || null,  // so3
-      parseFloat(row.chlorure) || null, // chlorure
-      parseFloat(row.c3a) || null,  // c3a
-      parseFloat(row.ajout_percent) || null, // ajout_percent (NOW INCLUDED)
-      row.type_ajout || null,      // type_ajout
-      row.source || null           // source
-    ]);
+    console.log("✅ Produit validé, préparation des données...");
 
-    // SQL query to insert data into the echantillons table with correct columns
+    // Préparer les données pour l'insertion - SANS heure_test
+    const values = rows.map((row, index) => {
+      console.log(`📝 Traitement ligne ${index}:`, row);
+      
+      return [
+        parseInt(produitId),                    // client_type_ciment_id
+        row.phase || 'situation_courante',      // phase
+        row.num_ech || `ECH-${Date.now()}-${index}`, // num_ech avec valeur par défaut
+        row.date_test || null,                  // date_test
+        // ⚠️ HEURE_TEST SUPPRIMÉ - NE PAS L'INCLURE
+        row.rc2j && !isNaN(parseFloat(row.rc2j)) ? parseFloat(row.rc2j) : null,
+        row.rc7j && !isNaN(parseFloat(row.rc7j)) ? parseFloat(row.rc7j) : null,
+        row.rc28j && !isNaN(parseFloat(row.rc28j)) ? parseFloat(row.rc28j) : null,
+        row.prise && !isNaN(parseFloat(row.prise)) ? parseFloat(row.prise) : null,
+        row.stabilite && !isNaN(parseFloat(row.stabilite)) ? parseFloat(row.stabilite) : null,
+        row.hydratation && !isNaN(parseFloat(row.hydratation)) ? parseFloat(row.hydratation) : null,
+        row.pfeu && !isNaN(parseFloat(row.pfeu)) ? parseFloat(row.pfeu) : null,
+        row.r_insoluble && !isNaN(parseFloat(row.r_insoluble)) ? parseFloat(row.r_insoluble) : null,
+        row.so3 && !isNaN(parseFloat(row.so3)) ? parseFloat(row.so3) : null,
+        row.chlorure && !isNaN(parseFloat(row.chlorure)) ? parseFloat(row.chlorure) : null,
+        row.c3a && !isNaN(parseFloat(row.c3a)) ? parseFloat(row.c3a) : null,
+        row.ajout_percent && !isNaN(parseFloat(row.ajout_percent)) ? parseFloat(row.ajout_percent) : null,
+        row.type_ajout || null,
+        row.source || null
+      ];
+    });
+
+    console.log("📋 Données formatées pour insertion:", values.slice(0, 2)); // Afficher seulement les 2 premières
+
+    // SQL query CORRIGÉE - colonnes exactes de votre table
     const sql = `
       INSERT INTO echantillons 
-      (client_type_ciment_id, phase, num_ech, date_test, heure_test, 
-       rc2j, rc7j, rc28j, prise, stabilite, hydratation, pfeu, r_insoluble, 
-       so3, chlorure, c3a, ajout_percent, type_ajout, source)
+      (
+        client_type_ciment_id, phase, num_ech, date_test, 
+        rc2j, rc7j, rc28j, prise, stabilite, hydratation, pfeu, r_insoluble, 
+        so3, chlorure, c3a, ajout_percent, type_ajout, source
+      ) 
       VALUES ?
     `;
 
-    // Execute the query using promisePool for consistency
+    console.log("🚀 Exécution requête SQL...");
+    
+    // Execute the query
     const [result] = await promisePool.query(sql, [values]);
+    
+    console.log("✅ SUCCÈS:", result.affectedRows, "lignes insérées");
     
     res.json({ 
       success: true, 
       insertedRows: result.affectedRows,
       message: `${result.affectedRows} échantillon(s) importé(s) avec succès`
     });
+
   } catch (err) {
-    console.error("Erreur import:", err);
-    res.status(500).json({ error: "Erreur serveur", details: err.message });
+    console.error("❌ ERREUR IMPORT:", {
+      message: err.message,
+      sqlMessage: err.sqlMessage,
+      code: err.code,
+      stack: err.stack
+    });
+    
+    res.status(500).json({ 
+      error: "Erreur lors de l'import", 
+      details: err.message,
+      sqlMessage: err.sqlMessage 
+    });
   }
 });
 
@@ -963,6 +1053,9 @@ app.post("/api/echantillons/delete", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur lors de la suppression" });
   }
 });
+
+
+
 
 
 app.listen(PORT, () => {
