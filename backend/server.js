@@ -8,9 +8,33 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const SECRET_KEY = process.env.SECRET_KEY || 'your-secret-key';
 
+//gérer l'upload de photos
+const multer = require('multer');
+const sharp = require('sharp'); 
+const path = require('path');
+const fs = require('fs');
+
+
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+
+
+// Configuration de multer (mémoire pour traitement)
+// Configuration de multer
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 300 * 1024, // 👈 SEULEMENT 300KB max en entrée
+  }
+});
+
+// Servir les fichiers uploadés statiquement  <-- AJOUTEZ CECI ICI
+app.use('/uploads', express.static('uploads'));
+
 
 // Database connection - use promise version
 const db = mysql.createPool({
@@ -37,20 +61,28 @@ promisePool.getConnection()
   });
 
 
-// --- API Clients --- //
+
 // Get all clients with types_ciment as array of objects
+// --- API Clients - VERSION FINALE --- //
 app.get("/api/clients", async (req, res) => {
   try {
+    console.log("🔍 Récupération des clients...");
+    
     const [rows] = await promisePool.query(`
-      SELECT c.id, c.sigle, c.nom_raison_sociale, c.adresse, c.famillecement, c.methodeessai,
-             t.id AS typecement_id, t.code, t.description,
-             f.id AS famille_id, f.code AS famille_code, f.nom AS famille_nom
+      SELECT 
+        c.id, c.sigle, c.nom_raison_sociale, c.adresse, 
+        c.famillecement, c.methodeessai, c.photo_client, 
+        c.telephone, c.numero_identification, c.email,
+        t.id AS typecement_id, t.code, t.description,
+        f.id AS famille_id, f.code AS famille_code, f.nom AS famille_nom
       FROM clients c
       LEFT JOIN client_types_ciment ct ON c.id = ct.client_id
       LEFT JOIN types_ciment t ON ct.typecement_id = t.id
       LEFT JOIN familles_ciment f ON t.famille_id = f.id
       ORDER BY c.id
     `);
+
+    console.log(`📊 ${rows.length} lignes récupérées de la DB`);
 
     const clients = rows.reduce((acc, row) => {
       let client = acc.find(c => c.id === row.id);
@@ -62,6 +94,10 @@ app.get("/api/clients", async (req, res) => {
           adresse: row.adresse,
           famillecement: row.famillecement,
           methodeessai: row.methodeessai,
+          photo_client: row.photo_client,
+          telephone: row.telephone,
+          numero_identification: row.numero_identification,
+          email: row.email,
           types_ciment: []
         };
         acc.push(client);
@@ -81,10 +117,15 @@ app.get("/api/clients", async (req, res) => {
       return acc;
     }, []);
 
+    console.log(`👥 ${clients.length} clients formatés`);
     res.json(clients);
+
   } catch (err) {
-    console.error("❌ Erreur SQL:", err);
-    res.status(500).json({ error: err.message });
+    console.error("❌ Erreur détaillée /api/clients:", err);
+    res.status(500).json({ 
+      error: "Erreur serveur", 
+      details: err.message 
+    });
   }
 });
 
@@ -102,9 +143,23 @@ app.get("/api/types_ciment", (req, res) => {
     res.json(result);
   });
 });
+
+
+
+
+// --- Add new client --- //
 // --- Add new client --- //
 app.post("/api/clients", async (req, res) => {
-  const { sigle, nom_raison_sociale, adresse, types_ciment } = req.body;
+  const { 
+    sigle, 
+    nom_raison_sociale, 
+    adresse, 
+    types_ciment,
+    photo_client,
+    telephone,
+    numero_identification,
+    email
+  } = req.body;
 
   if (!sigle || !nom_raison_sociale) {
     return res.status(400).json({ message: "Sigle et nom/raison sociale sont requis" });
@@ -116,9 +171,21 @@ app.post("/api/clients", async (req, res) => {
     await connection.beginTransaction();
 
     try {
-      // Insert the new client
-      const sqlInsert = "INSERT INTO clients (sigle, nom_raison_sociale, adresse) VALUES (?, ?, ?)";
-      const [result] = await connection.execute(sqlInsert, [sigle, nom_raison_sociale, adresse]);
+      // Insert the new client with new fields
+      const sqlInsert = `
+        INSERT INTO clients 
+        (sigle, nom_raison_sociale, adresse, photo_client, telephone, numero_identification, email) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `;
+      const [result] = await connection.execute(sqlInsert, [
+        sigle, 
+        nom_raison_sociale, 
+        adresse, 
+        photo_client || null,
+        telephone || null,
+        numero_identification || null,
+        email || null
+      ]);
       const clientId = result.insertId;
 
       // Insert cement type associations if any
@@ -133,7 +200,8 @@ app.post("/api/clients", async (req, res) => {
       
       // Get the complete client data with types
       const [clientRows] = await connection.execute(`
-        SELECT c.id, c.sigle, c.nom_raison_sociale, c.adresse,
+        SELECT c.id, c.sigle, c.nom_raison_sociale, c.adresse, 
+               c.photo_client, c.telephone, c.numero_identification, c.email,
                t.id AS typecement_id, t.code, t.description
         FROM clients c
         LEFT JOIN client_types_ciment ct ON c.id = ct.client_id
@@ -147,6 +215,10 @@ app.post("/api/clients", async (req, res) => {
         sigle: sigle,
         nom_raison_sociale: nom_raison_sociale,
         adresse: adresse,
+        photo_client: photo_client || null,
+        telephone: telephone || null,
+        numero_identification: numero_identification || null,
+        email: email || null,
         types_ciment: []
       };
 
@@ -176,6 +248,8 @@ app.post("/api/clients", async (req, res) => {
     res.status(500).json({ message: "Erreur serveur lors de l'ajout du client" });
   }
 });
+
+
 // Add new cement type
 app.post("/api/types_ciment", (req, res) => {
   const { code, description } = req.body;
@@ -240,55 +314,227 @@ app.delete("/api/types_ciment/:id", (req, res) => {
 
 
 // --- Modifier un client --- //
+// --- Modifier un client - VERSION CORRIGÉE --- //
 app.put("/api/clients/:id", async (req, res) => {
   const clientId = req.params.id;
-  const { sigle, nom_raison_sociale, adresse, types_ciment } = req.body;
+  
+  console.log("=== DEBUT MODIFICATION CLIENT ===");
+  console.log("Client ID:", clientId);
+  console.log("Body:", JSON.stringify(req.body, null, 2));
 
+  // Validation des données requises
+  if (!req.body.sigle || !req.body.nom_raison_sociale) {
+    return res.status(400).json({ 
+      error: "Sigle et nom/raison sociale sont requis" 
+    });
+  }
+
+  const { 
+    sigle, 
+    nom_raison_sociale, 
+    adresse, 
+    types_ciment = [],
+    photo_client,
+    telephone,
+    numero_identification,
+    email
+  } = req.body;
+
+  const connection = await promisePool.getConnection();
+  
   try {
-    const connection = await promisePool.getConnection();
     await connection.beginTransaction();
 
-    try {
-      // 1. Mettre à jour le client
-      const sqlUpdate = `
-        UPDATE clients 
-        SET sigle = ?, nom_raison_sociale = ?, adresse = ? 
-        WHERE id = ?`;
-      await connection.execute(sqlUpdate, [sigle, nom_raison_sociale, adresse, clientId]);
+    // 1. Mettre à jour le client
+    const updateSql = `
+      UPDATE clients 
+      SET sigle = ?, nom_raison_sociale = ?, adresse = ?, 
+          photo_client = ?, telephone = ?, numero_identification = ?, email = ?
+      WHERE id = ?
+    `;
+    
+    const updateParams = [
+      sigle?.trim() || '',
+      nom_raison_sociale?.trim() || '',
+      adresse?.trim() || null,
+      photo_client?.trim() || null,
+      telephone?.trim() || null,
+      numero_identification?.trim() || null,
+      email?.trim() || null,
+      clientId
+    ];
 
-      // 2. Supprimer les anciens types de ciment liés
-      const sqlDeleteAssoc = "DELETE FROM client_types_ciment WHERE client_id = ?";
-      await connection.execute(sqlDeleteAssoc, [clientId]);
+    console.log("Exécution UPDATE avec params:", updateParams);
+    const [updateResult] = await connection.execute(updateSql, updateParams);
 
-      // 3. Réinsérer les nouveaux types
-      if (Array.isArray(types_ciment) && types_ciment.length > 0) {
-        const sqlAssoc = "INSERT INTO client_types_ciment (client_id, typecement_id) VALUES ?";
-        const values = types_ciment.map((typeId) => [clientId, typeId]);
-        await connection.query(sqlAssoc, [values]);
-      }
-
-      await connection.commit();
-      connection.release();
-
-      // Répondre avec succès
-      res.json({ 
-        message: "✅ Client modifié avec succès", 
-        types_ciment: types_ciment || [] 
-      });
-
-    } catch (error) {
-      await connection.rollback();
-      connection.release();
-      console.error("❌ Erreur modification client:", error);
-      res.status(500).json({ message: "Erreur serveur" });
+    if (updateResult.affectedRows === 0) {
+      throw new Error("Aucun client trouvé avec cet ID");
     }
+
+    // 2. Gérer les types de ciment
+    console.log("Types ciment à associer:", types_ciment);
+    
+    // Supprimer les anciennes associations
+    const deleteSql = "DELETE FROM client_types_ciment WHERE client_id = ?";
+    await connection.execute(deleteSql, [clientId]);
+
+    // Ajouter les nouvelles associations si elles existent
+    if (types_ciment.length > 0) {
+      const insertSql = "INSERT INTO client_types_ciment (client_id, typecement_id) VALUES ?";
+      const values = types_ciment.map(typeId => [clientId, parseInt(typeId)]);
+      await connection.query(insertSql, [values]);
+    }
+
+    await connection.commit();
+    
+    console.log("✅ Modification réussie");
+    res.json({ 
+      success: true,
+      message: "Client modifié avec succès",
+      clientId: clientId
+    });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error("❌ ERREUR modification client:", error);
+    res.status(500).json({ 
+      success: false,
+      error: "Erreur lors de la modification du client",
+      details: error.message
+    });
+  } finally {
+    connection.release();
+  }
+});
+
+// Route pour uploader une photo (à ajouter dans server.js)
+app.post('/api/clients/:id/photo', upload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier sélectionné' });
+    }
+
+    console.log(`📸 Taille originale: ${(req.file.size / 1024).toFixed(1)}KB`);
+
+    const clientId = req.params.id;
+    const filename = `client-${Date.now()}.webp`;
+    const uploadDir = 'uploads/clients';
+    
+    // Créer dossier si besoin
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const outputPath = path.join(uploadDir, filename);
+
+    // 🔥 COMPRESSION EXTRÊME POUR PHOTOS TRÈS PETITES
+    await sharp(req.file.buffer)
+      .resize(600, 600, {           // 👈 TRÈS PETIT - 120x120px
+        fit: 'cover',
+        position: 'center',
+        withoutEnlargement: true
+      })
+      .webp({ 
+        quality: 90,                // 👈 QUALITÉ TRÈS ÉLEVÉE
+        effort: 2,                  // 👈 Compression faible pour qualité max
+        lossless: false
+      })
+      .toFile(outputPath);
+
+    const photoPath = `clients/${filename}`;
+
+    // Sauvegarder en base
+    await promisePool.execute(
+      'UPDATE clients SET photo_client = ? WHERE id = ?', 
+      [photoPath, clientId]
+    );
+
+    // Résultats
+    const originalKB = (req.file.size / 1024).toFixed(1);
+    const compressedKB = (fs.statSync(outputPath).size / 1024).toFixed(1);
+    const reduction = Math.round((1 - fs.statSync(outputPath).size / req.file.size) * 100);
+
+    console.log(`✅ PHOTO ULTRA-COMPACTE: ${originalKB}KB → ${compressedKB}KB (${reduction}% réduit!)`);
+
+    res.json({ 
+      success: true, 
+      message: `Photo optimisée: ${compressedKB}KB`,
+      photo_path: photoPath,
+      size_kb: compressedKB
+    });
+
   } catch (err) {
-    console.error("❌ Erreur connexion DB:", err);
-    res.status(500).json({ message: "Erreur de connexion à la base de données" });
+    console.error('❌ Erreur compression:', err);
+    
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ 
+        error: 'Image trop lourde! Maximum 300KB.' 
+      });
+    }
+    
+    res.status(500).json({ error: 'Erreur compression image' });
+  }
+});
+// Route de test pour Sharp
+app.get('/api/test-sharp', async (req, res) => {
+  try {
+    console.log('🧪 Test Sharp...');
+    
+    // Créer une image test
+    const testBuffer = await sharp({
+      create: {
+        width: 100,
+        height: 100,
+        channels: 3,
+        background: { r: 255, g: 0, b: 0 }
+      }
+    })
+    .jpeg()
+    .toBuffer();
+
+    console.log('✅ Sharp fonctionne!');
+    res.json({ success: true, message: 'Sharp fonctionne correctement' });
+    
+  } catch (err) {
+    console.error('❌ Sharp ne fonctionne pas:', err);
+    res.status(500).json({ error: 'Sharp error: ' + err.message });
   }
 });
 
 
+
+// Servir les fichiers uploadés statiquement
+app.use('/uploads', express.static('uploads'));
+
+
+// Route de test pour vérifier que l'API fonctionne
+app.get("/api/test", (req, res) => {
+  res.json({ message: "✅ API fonctionne", timestamp: new Date() });
+});
+
+// Route pour vérifier un client spécifique
+app.get("/api/clients/:id", async (req, res) => {
+  try {
+    const clientId = req.params.id;
+    const [rows] = await promisePool.query(`
+      SELECT c.*, 
+             t.id AS typecement_id, t.code, t.description
+      FROM clients c
+      LEFT JOIN client_types_ciment ct ON c.id = ct.client_id
+      LEFT JOIN types_ciment t ON ct.typecement_id = t.id
+      WHERE c.id = ?
+    `, [clientId]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Client non trouvé" });
+    }
+    
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("❌ Erreur GET client:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 // --- Delete a client ---
 // --- Delete a client ---
 app.delete("/api/clients/:id", async (req, res) => {
@@ -536,12 +782,43 @@ app.get("/api/clients/:id/traitements", async (req, res) => {
 
 
 
+
+// Route pour uploader une photo de client
+app.post('/api/clients/:id/photo', upload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier uploadé' });
+    }
+
+    const clientId = req.params.id;
+    const photoPath = `uploads/clients/${req.file.filename}`;
+
+    // Mettre à jour le chemin de la photo dans la base de données
+    const sql = 'UPDATE clients SET photo_client = ? WHERE id = ?';
+    await promisePool.execute(sql, [photoPath, clientId]);
+
+    res.json({ 
+      success: true, 
+      message: 'Photo uploadée avec succès',
+      photo_path: photoPath 
+    });
+  } catch (err) {
+    console.error('❌ Erreur upload photo:', err);
+    res.status(500).json({ error: 'Erreur lors de l\'upload de la photo' });
+  }
+});
+
+// Servir les fichiers uploadés statiquement
+app.use('/uploads', express.static('uploads'));
+
+
 app.get("/api/clients/:sigle", async (req, res) => {
   const sigle = req.params.sigle;
 
   try {
     const sql = `
       SELECT c.id, c.sigle, c.nom_raison_sociale, c.adresse,
+             c.photo_client, c.telephone, c.numero_identification, c.email,
              t.id AS type_ciment_id, t.code AS type_ciment_code, t.description AS type_ciment_description,
              f.id AS famille_id, f.code AS famille_code, f.nom AS famille_nom
       FROM clients c
@@ -563,6 +840,10 @@ app.get("/api/clients/:sigle", async (req, res) => {
       sigle: results[0].sigle,
       nom_raison_sociale: results[0].nom_raison_sociale,
       adresse: results[0].adresse,
+      photo_client: results[0].photo_client,
+      telephone: results[0].telephone,
+      numero_identification: results[0].numero_identification,
+      email: results[0].email,
       types_ciment: []
     };
 
@@ -588,6 +869,9 @@ app.get("/api/clients/:sigle", async (req, res) => {
     res.status(500).json({ error: "Database error" });
   }
 });
+
+
+
 app.get("/api/clients/:sigle/types-ciment", async (req, res) => {
   const sigle = req.params.sigle;
 

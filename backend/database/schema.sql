@@ -147,6 +147,17 @@ INSERT INTO `clients` (`id`, `sigle`, `nom_raison_sociale`, `adresse`, `famillec
 (22, 'HOLCIM', 'Holcim Algerie', 'Oran - Route dArzew', NULL, NULL, NULL),
 (23, 'GRAVAL', 'Graval Construction', 'Constantine - Route El Khroub', NULL, NULL, NULL);
 
+
+ALTER TABLE clients 
+ADD COLUMN photo_client VARCHAR(255) NULL AFTER methodeessai,
+ADD COLUMN telephone VARCHAR(20) NULL AFTER photo_client,
+ADD COLUMN numero_identification VARCHAR(50) NULL AFTER telephone,
+ADD COLUMN email VARCHAR(100) NULL AFTER numero_identification;
+-- Cette commande est correcte - elle supprime juste la colonne problématique
+-- Supprimer la contrainte de clé étrangère
+ALTER TABLE clients DROP FOREIGN KEY fk_clients_typecement;
+-- Maintenant vous pouvez supprimer la colonne
+ALTER TABLE clients DROP COLUMN typecement_id;
 -- --------------------------------------------------------
 
 --
@@ -176,15 +187,13 @@ INSERT INTO `client_types_ciment` (`id`, `client_id`, `typecement_id`) VALUES
 (61, 18, 1),
 (62, 18, 4),
 (63, 18, 33),
-<<<<<<< Updated upstream
 (64, 18, 34),
 (72, 18, 32),
 (73, 18, 20),
 (74, 18, 16),
 (75, 20, 24);
-=======
 (64, 18, 34);
->>>>>>> Stashed changes
+
 
 -- --------------------------------------------------------
 
@@ -632,75 +641,39 @@ CREATE TABLE `types_ciment` (
 
 INSERT INTO `types_ciment` (`id`, `famille_id`, `code`, `description`, `sr`) VALUES
 (1, 1, 'CEM I', 'Ciment Portland', 0),
-<<<<<<< Updated upstream
 (2, 1, 'CEM I-SR 0', 'Ciment Portland SR ', 1),
 (3, 1, 'CEM I-SR 3', 'Ciment Portland SR ', 1),
 (4, 1, 'CEM I-SR 5', 'Ciment Portland SR ', 1),
 (5, 2, 'CEM II/A-S', 'Portland au laitier ', 0),
 (6, 2, 'CEM II/B-S', 'Portland au laitier ', 0),
-(7, 2, 'CEM II/A-D', 'Ciment portland ? la fum?e de silice ', 0),
-(8, 2, 'CEM II/A-P', 'Ciment portland ? la pouzzolane ', 0),
-(9, 2, 'CEM II/B-P', 'Ciment portland ? la pouzzolane ', 0),
-(10, 2, 'CEM II/A-Q', 'Ciment portland ? la pouzzolane ', 0),
-(11, 2, 'CEM II/B-Q', 'Ciment portland ? la pouzzolane ', 0),
+(7, 2, 'CEM II/A-D', 'Ciment portland a la fumee de silice ', 0),
+(8, 2, 'CEM II/A-P', 'Ciment portland a la pouzzolane naturelle', 0),
+(9, 2, 'CEM II/B-P', 'Ciment portland a la pouzzolane naturelle', 0),
+(10, 2, 'CEM II/A-Q', 'Ciment portland a la pouzzolane naturelle calcinee', 0),
+(11, 2, 'CEM II/B-Q', 'Ciment portland a la pouzzolane naturelle calcinee', 0),
 (12, 2, 'CEM II/A-V', 'Ciment portland aux cendres volantes ', 0),
 (13, 2, 'CEM II/B-V', 'Ciment portland aux cendres volantes ', 0),
 (14, 2, 'CEM II/A-W', 'Ciment portland aux cendres volantes ', 0),
 (15, 2, 'CEM II/B-W', 'Ciment portland aux cendres volantes ', 0),
-(16, 2, 'CEM II/A-T', 'Ciment portland aux schistes calcin?s ', 0),
-(17, 2, 'CEM II/B-T', 'Ciment portland aux schistes calcin?s ', 0),
+(16, 2, 'CEM II/A-T', 'Ciment portland aux schistes calcine ', 0),
+(17, 2, 'CEM II/B-T', 'Ciment portland aux schistes calcine ', 0),
 (18, 2, 'CEM II/A-L', 'Ciment portland au calcaire ', 0),
 (19, 2, 'CEM II/B-L', 'Ciment portland au calcaire ', 0),
 (20, 2, 'CEM II/A-LL', 'Ciment portland au calcaire ', 0),
 (21, 2, 'CEM II/B-LL', 'Ciment portland au calcaire ', 0),
-(22, 2, 'CEM II/A-M', 'Ciment portland compos? ', 0),
-(23, 2, 'CEM II/B-M', 'Ciment portland compos? ', 0),
-(24, 3, 'CEM III/A', 'Haut fourneau ', 0),
-(25, 3, 'CEM III/B', 'Haut fourneau ', 0),
-(26, 3, 'CEM III/C', 'Haut fourneau ', 0),
-(27, 3, 'CEM III/B-SR', 'Haut fourneau SR', 1),
-(28, 3, 'CEM III/C-SR', 'Haut fourneau SR', 1),
-(29, 4, 'CEM IV/A', 'Pouzzolanique ', 0),
-(30, 4, 'CEM IV/B', 'Pouzzolanique ', 0),
-(31, 4, 'CEM IV/A-SR', 'Pouzzolanique SR ', 1),
-(32, 4, 'CEM IV/B-SR', 'Pouzzolanique SR ', 1),
-(33, 5, 'CEM V/A', 'Compos? ', 0),
-(34, 5, 'CEM V/B', 'Compos? ', 0);
-=======
-(2, 1, 'CEM I-SR 0', 'Ciment Portland SR (C3A = 0%)', 1),
-(3, 1, 'CEM I-SR 3', 'Ciment Portland SR (C3A ≤ 3%)', 1),
-(4, 1, 'CEM I-SR 5', 'Ciment Portland SR (C3A ≤ 5%)', 1),
-(5, 2, 'CEM II/A-S', 'Portland au laitier 6–20% S', 0),
-(6, 2, 'CEM II/B-S', 'Portland au laitier 21–35% S', 0),
-(7, 2, 'CEM II/A-D', 'Ciment portland à la fumée de silice 6–10% D', 0),
-(8, 2, 'CEM II/A-P', 'Ciment portland à la pouzzolane 6–20% P', 0),
-(9, 2, 'CEM II/B-P', 'Ciment portland à la pouzzolane 21–35% P', 0),
-(10, 2, 'CEM II/A-Q', 'Ciment portland à la pouzzolane 6–20% Q', 0),
-(11, 2, 'CEM II/B-Q', 'Ciment portland à la pouzzolane 21–35% Q', 0),
-(12, 2, 'CEM II/A-V', 'Ciment portland aux cendres volantes 6–20% V', 0),
-(13, 2, 'CEM II/B-V', 'Ciment portland aux cendres volantes 21–35% V', 0),
-(14, 2, 'CEM II/A-W', 'Ciment portland aux cendres volantes 6–20% W', 0),
-(15, 2, 'CEM II/B-W', 'Ciment portland aux cendres volantes 21–35% W', 0),
-(16, 2, 'CEM II/A-T', 'Ciment portland aux schistes calcinés 6–20% T', 0),
-(17, 2, 'CEM II/B-T', 'Ciment portland aux schistes calcinés 21–35% T', 0),
-(18, 2, 'CEM II/A-L', 'Ciment portland au calcaire 6–20% L', 0),
-(19, 2, 'CEM II/B-L', 'Ciment portland au calcaire 21–35% L', 0),
-(20, 2, 'CEM II/A-LL', 'Ciment portland au calcaire 6–20% LL', 0),
-(21, 2, 'CEM II/B-LL', 'Ciment portland au calcaire 21–35% LL', 0),
-(22, 2, 'CEM II/A-M', 'Ciment portland composé 12–20% S D P Q V W T L LL', 0),
-(23, 2, 'CEM II/B-M', 'Ciment portland composé 21–35% S D P Q V W T L LL', 0),
-(24, 3, 'CEM III/A', 'Haut fourneau (36–65% S)', 0),
-(25, 3, 'CEM III/B', 'Haut fourneau (66–80% S)', 0),
-(26, 3, 'CEM III/C', 'Haut fourneau (81–95% S)', 0),
-(27, 3, 'CEM III/B-SR', 'Haut fourneau SR', 1),
-(28, 3, 'CEM III/C-SR', 'Haut fourneau SR', 1),
-(29, 4, 'CEM IV/A', 'Pouzzolanique (11–35% D P Q V W)', 0),
-(30, 4, 'CEM IV/B', 'Pouzzolanique (36–55% D P Q V W)', 0),
-(31, 4, 'CEM IV/A-SR', 'Pouzzolanique SR (C3A ≤ 9%)', 1),
-(32, 4, 'CEM IV/B-SR', 'Pouzzolanique SR (C3A ≤ 9%)', 1),
-(33, 5, 'CEM V/A', 'Composé (18–30% laitier + 18–30% P Q V )', 0),
-(34, 5, 'CEM V/B', 'Composé (31–49% laitier + 31–49% P Q V )', 0);
->>>>>>> Stashed changes
+(22, 2, 'CEM II/A-M', 'Ciment portland compose ', 0),
+(23, 2, 'CEM II/B-M', 'Ciment portland compose ', 0),
+(24, 3, 'CEM III/A', 'Ciment Haut fourneau ', 0),
+(25, 3, 'CEM III/B', 'Ciment Haut fourneau ', 0),
+(26, 3, 'CEM III/C', 'Ciment Haut fourneau ', 0),
+(27, 3, 'CEM III/B-SR', 'Ciment Haut fourneau SR', 1),
+(28, 3, 'CEM III/C-SR', 'Ciment Haut fourneau SR', 1),
+(29, 4, 'CEM IV/A', 'Ciment Pouzzolanique ', 0),
+(30, 4, 'CEM IV/B', 'Ciment Pouzzolanique ', 0),
+(31, 4, 'CEM IV/A-SR', 'Ciment Pouzzolanique SR ', 1),
+(32, 4, 'CEM IV/B-SR', 'Ciment Pouzzolanique SR ', 1),
+(33, 5, 'CEM V/A', 'Ciment Compose ', 0),
+(34, 5, 'CEM V/B', 'Ciment Compose ', 0);
 
 -- --------------------------------------------------------
 
