@@ -82,6 +82,15 @@ function Header() {
               <span>Traitement Données</span>
             </NavLink>
           </li>
+            <li className="header-nav-item">
+            <NavLink 
+              to="/paramutilisateurs" 
+              className={({ isActive }) => `header-nav-link ${isActive ? "active" : ""}`}
+              onClick={() => !isFirstVisit && toggleMenu()}
+            >
+              <span>Parametre Utilisateurs</span>
+            </NavLink>
+          </li>
           <li className="header-nav-item">
             <NavLink 
               to="/historique" 

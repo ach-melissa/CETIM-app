@@ -38,6 +38,97 @@ promisePool.getConnection()
 
 
 // --- API Clients --- //
+// --- API Utilisateurs --- //
+
+// Récupérer tous les utilisateurs (sans mot de passe)
+app.get("/api/utilisateurs", async (req, res) => {
+  try {
+    const [rows] = await promisePool.query(
+      "SELECT id, email, mot_de_passe, role FROM utilisateurs ORDER BY id ASC"
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("❌ Erreur SQL utilisateurs:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+
+// Créer un nouvel utilisateur
+app.post("/api/utilisateurs", async (req, res) => {
+  const { username, email, mot_de_passe, role } = req.body;
+  if (!username || !email || !mot_de_passe || !role) {
+    return res.status(400).json({ error: "Champs requis: username, email, mot_de_passe, role" });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(mot_de_passe, 10);
+    const sql = "INSERT INTO utilisateurs (username, email, mot_de_passe, role) VALUES (?, ?, ?, ?)";
+    const [result] = await promisePool.execute(sql, [username, email, hashedPassword, role]);
+    res.status(201).json({ id: result.insertId, username, email, role });
+  } catch (err) {
+    console.error("❌ Erreur ajout utilisateur:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+
+// Modifier un utilisateur (sauf mot de passe)
+app.put("/api/utilisateurs/:id", async (req, res) => {
+  const { id } = req.params;
+  const { email, role } = req.body;
+
+  try {
+    const sql = "UPDATE utilisateurs SET email = ?, role = ? WHERE id = ?";
+    const [result] = await promisePool.execute(sql, [email, role, id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Utilisateur non trouvé" });
+    }
+
+    res.json({ id, email, role });
+  } catch (err) {
+    console.error("❌ Erreur modif utilisateur:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// Modifier mot de passe
+app.put("/api/utilisateurs/:id/password", async (req, res) => {
+  const { id } = req.params;
+  const { mot_de_passe } = req.body;
+
+  if (!mot_de_passe) return res.status(400).json({ error: "Mot de passe requis" });
+
+  try {
+    const hashedPassword = await bcrypt.hash(mot_de_passe, 10);
+    const sql = "UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?";
+    await promisePool.execute(sql, [hashedPassword, id]);
+    res.json({ message: "Mot de passe mis à jour" });
+  } catch (err) {
+    console.error("❌ Erreur update mot de passe:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// Supprimer un utilisateur
+app.delete("/api/utilisateurs/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const sql = "DELETE FROM utilisateurs WHERE id = ?";
+    const [result] = await promisePool.execute(sql, [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Utilisateur non trouvé" });
+    }
+
+    res.json({ message: "Utilisateur supprimé" });
+  } catch (err) {
+    console.error("❌ Erreur suppression utilisateur:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 // Get all clients with types_ciment as array of objects
 app.get("/api/clients", async (req, res) => {
   try {
@@ -330,25 +421,27 @@ app.delete("/api/clients/:id", async (req, res) => {
 
 
 // --- Login --- //
+
 app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { identifier, password } = req.body; 
+  // identifier can be email or username
 
   try {
-    const sql = `SELECT * FROM utilisateurs WHERE email = ? LIMIT 1`;
-    const [results] = await promisePool.execute(sql, [email]);
+    const sql = `SELECT * FROM utilisateurs WHERE email = ? OR username = ? LIMIT 1`;
+    const [results] = await promisePool.execute(sql, [identifier, identifier]);
     
     if (results.length === 0) {
-      return res.status(401).json({ error: "Email ou mot de passe incorrect" });
+      return res.status(401).json({ error: "Identifiant ou mot de passe incorrect" });
     }
 
     const user = results[0];
     const match = await bcrypt.compare(password, user.mot_de_passe);
     if (!match) {
-      return res.status(401).json({ error: "Email ou mot de passe incorrect" });
+      return res.status(401).json({ error: "Identifiant ou mot de passe incorrect" });
     }
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { id: user.id, username: user.username, email: user.email, role: user.role },
       SECRET_KEY,
       { expiresIn: '2h' }
     );
@@ -359,6 +452,7 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ error: "Database error" });
   }
 });
+
 
 app.post("/api/client_types_ciment", (req, res) => {
   const { clientId, typeCimentId } = req.body;

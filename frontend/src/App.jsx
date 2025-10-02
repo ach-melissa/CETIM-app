@@ -6,7 +6,7 @@ import ParametreEntreprise from "./pages/ParametreEntreprise/Parametre_entrepris
 import TraitDonnes from "./pages/TraitementDonnées/traitement-données.jsx";
 import ParametreNorm from "./pages/ParametreNorm/parametre_norm.jsx";
 import Historique from "./pages/Historique/historique.jsx";
-
+import ParametreUtilisateurs from "./pages/ParametreUtilisateurs/ParametreUtilisateurs.jsx";
 import "./App.css";
 
 export default function App() {
@@ -23,6 +23,7 @@ export default function App() {
       <Route path="/parnorm" element={<ParametreNorm />} />
       <Route path="/parentreprise" element={<ParametreEntreprise />} />
       <Route path="/traitdonnes" element={<TraitDonnes />} />
+      <Route path="/paramutilisateurs" element={<ParametreUtilisateurs />} />
       <Route path="/historique" element={<Historique />} />
 
       {/* Catch-all redirect to login */}
