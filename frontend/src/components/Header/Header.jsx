@@ -70,7 +70,7 @@ function Header() {
               className={({ isActive }) => `header-nav-link ${isActive ? "active" : ""}`}
               onClick={() => !isFirstVisit && toggleMenu()}
             >
-              <span>Paramètre Entreprise</span>
+              <span>Paramètre Clients</span>
             </NavLink>
           </li>
           <li className="header-nav-item">
