@@ -368,7 +368,42 @@ const [coverageRequirements, setCoverageRequirements] = useState({
   coverageStatus: "unknown",
   productionPhase: ""
 });
+// Fonction pour sauvegarder la phase
+const savePhaseToDatabase = async (clientId, produitId, phase) => {
+  try {
+    const response = await fetch('http://localhost:5000/api/save-phase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId, produitId, phase })
+    });
+    
+    if (!response.ok) throw new Error('Erreur sauvegarde phase');
+    
+    const result = await response.json();
+    console.log('✅ Phase sauvegardée:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Erreur sauvegarde phase:', error);
+  }
+};
 
+// Fonction pour récupérer la phase
+const fetchPhaseFromDatabase = async (clientId, produitId) => {
+  try {
+    const response = await fetch(
+      `http://localhost:5000/api/get-phase?clientId=${clientId}&produitId=${produitId}`
+    );
+    
+    if (!response.ok) throw new Error('Erreur récupération phase');
+    
+    const result = await response.json();
+    console.log('✅ Phase récupérée:', result.phase);
+    return result.phase;
+  } catch (error) {
+    console.error('❌ Erreur récupération phase:', error);
+    return 'situation_courante';
+  }
+};
 
   const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
   const ajoutProducts = [
@@ -531,16 +566,17 @@ const [coverageRequirements, setCoverageRequirements] = useState({
 
   const dataToUse = filteredTableData || [];
 
-  // Add this useEffect after the existing useEffects
 // Dans le useEffect, passez conformiteData :
+// Dans le useEffect, utilisez directement la prop `phase`
 useEffect(() => {
-  if (dataToUse.length > 0) {
+  if (dataToUse.length > 0 && phase) {
     const allParamKeys = [
       "rc2j", "rc7j", "rc28j", "prise", "stabilite", "so3",
-      "chlorure", "hydratation", "pfeu", "r_insoluble", "c3a", "pouzzolanicite", "ajout"
+      "chlorure", "hydratation", "pfeu", "r_insoluble", "c3a", "pouzzolanicite", "ajout_percent"
     ];
     
-    const productionPhase = phase || 'situation_courante';
+    // ✅ UTILISER LA PHASE PASSÉE EN PROP
+    const productionPhase = phase;
     const coverage = checkDataCoverageRequirements(dataToUse, productionPhase, allParamKeys, conformiteData);
     setCoverageRequirements(coverage);
     
@@ -549,7 +585,23 @@ useEffect(() => {
       addDebugLog(`Missing coverage: ${coverage.missing.length} periods`);
     }
   }
-}, [dataToUse, phase, conformiteData]);
+}, [dataToUse, phase, conformiteData]); // ✅ phase dans les dépendances
+
+// Au début du composant, vérifiez que la phase est disponible
+useEffect(() => {
+  console.log("📊 Phase actuelle dans ControleConformite:", phase);
+}, [phase]);
+
+// Et dans le rendu conditionnel
+if (!phase) {
+  return (
+    <div className="cement-report-container">
+      <div className="loading-container">
+        <p>Chargement de la phase de production...</p>
+      </div>
+    </div>
+  );
+}
 
   // ✅ NOUVEAU: Fonction pour vérifier si un paramètre a des données
   const hasDataForParameter = useCallback((paramKey) => {
@@ -694,29 +746,36 @@ useEffect(() => {
 
 
 const checkDataCoverageRequirements = (data, productionPhase, paramKeys, conformiteData) => {
-  if (!data || data.length === 0) {
+  if (!data || data.length === 0 || !productionPhase) {
     return { 
       status: false, 
       missing: [], 
       hasData: {},
       requirements: {},
-      coverageStatus: "no_data",
-      productionPhase: productionPhase
+      coverageResults: {},
+      coverageStatus: "no_data_or_phase",
+      productionPhase: productionPhase || 'unknown'
     };
   }
 
+  console.log("🔍 Vérification couverture avec phase:", productionPhase);
+  
   const sorted = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
   const startDate = new Date(sorted[0].date);
   const endDate = new Date(sorted[sorted.length - 1].date);
   
-  // Récupérer les fréquences depuis le JSON
+  // Récupérer les fréquences depuis le JSON en fonction de la phase
   const getFrequencyRequirements = () => {
     if (!conformiteData || !conformiteData.frequence_essais) {
+      console.warn("❌ Données de fréquence non disponibles");
       return {};
     }
     
-    const phaseKey = productionPhase === 'nouveau_type' ? 'nouveau_type_produit' : 'situation_courante';
+    // ✅ UTILISER LA PHASE PASSÉE EN PARAMÈTRE
+    const phaseKey = productionPhase === 'nouveau_type_produit' ? 'nouveau_type_produit' : 'situation_courante';
     const params = conformiteData.frequence_essais[phaseKey]?.parametres || [];
+    
+    console.log(`📋 Exigences pour phase: ${phaseKey}`, params);
     
     const requirements = {
       weekly: { minResults: 0, params: [] },
@@ -1258,7 +1317,7 @@ const generateGeneralConclusion = (coverageAnalysis, phase, coverageRequirements
       'c3a': 'C3A',
       'pouzzolanicite': 'Pouzzolanicité',
       'hydratation': 'Chaleur d\'hydratation',
-      'ajout': 'Ajout'
+      'ajout_percent': 'Ajout'
     };
     return paramMap[paramKey] || paramKey;
   };
@@ -1269,7 +1328,7 @@ const generateGeneralConclusion = (coverageAnalysis, phase, coverageRequirements
       return [];
     }
     
-    const phaseKey = phase === 'nouveau_type' ? 'nouveau_type_produit' : 'situation_courante';
+    const phaseKey = phase === 'nouveau_type_produit' ? 'nouveau_type_produit' : 'situation_courante';
     return conformiteData.frequence_essais[phaseKey]?.parametres || [];
   };
 
@@ -1315,7 +1374,7 @@ const generateGeneralConclusion = (coverageAnalysis, phase, coverageRequirements
   });
 
   if (problematicParams.length > 0) {
-    const phaseText = phase === 'nouveau_type' ? 'un nouveau type produit' : 'une situation courante';
+    const phaseText = phase === 'nouveau_type_produit' ? 'un nouveau type produit' : 'une situation courante';
     
     // Grouper par période problématique
     const periodsMap = {};
@@ -1340,7 +1399,7 @@ const generateGeneralConclusion = (coverageAnalysis, phase, coverageRequirements
     });
 
   } else {
-    const phaseText = phase === 'nouveau_type' ? 'un nouveau type produit' : 'une situation courante';
+    const phaseText = phase === 'nouveau_type_produit' ? 'un nouveau type produit' : 'une situation courante';
     conclusions.push(`La fréquence minimale d'essai pour ${phaseText} est respectée pour tous les paramètres.`);
   }
 
