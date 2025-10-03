@@ -1067,42 +1067,55 @@ app.delete('/api/echantillons/:id', async (req, res) => {
 
 // ... existing code ...
 
-// Import Excel rows into echantillons - UPDATED VERSION
+// === ROUTE D'IMPORT CORRIGÉE - VERSION SIMPLIFIÉE === //
 app.post("/api/echantillons/import", async (req, res) => {
   try {
-    const { clientId, produitId, rows } = req.body;
+    const { clientId, produitId, rows, phase } = req.body;
 
-    console.log("📥 Début import - données reçues:", { 
-      clientId, 
-      produitId, 
-      rowsCount: rows ? rows.length : 0 
-    });
+    console.log("📥 DEBUG - Phase reçue:", phase); // Vérifier la valeur
 
-    // Check if all necessary parameters are provided
-    if (!clientId || !produitId || !rows) {
-      return res.status(400).json({ error: "Paramètres manquants: clientId, produitId ou rows" });
+    // ⭐⭐ CORRECTION : NORMALISER LA VALEUR DE LA PHASE ⭐⭐
+    let phaseToUse = 'situation_courante'; // Valeur par défaut
+    
+    if (phase === 'nouveau_type_produit' || phase === 'nouveau_type') {
+      phaseToUse = 'nouveau_type_produit'; // ⭐⭐ VALEUR CORRECTE ⭐⭐
     }
 
-    // Validate that produitId exists in client_types_ciment
-    const checkSql = `SELECT COUNT(*) as count FROM client_types_ciment WHERE id = ?`;
-    const [checkResult] = await promisePool.execute(checkSql, [produitId]);
+    console.log("🎯 Phase normalisée:", phaseToUse);
+
+    // ⭐⭐ SAUVEGARDER LA PHASE CORRECTE ⭐⭐
+    try {
+      const savePhaseSql = `
+        INSERT INTO phase_selection (client_id, produit_id, phase, created_at, updated_at) 
+        VALUES (?, ?, ?, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE phase = VALUES(phase), updated_at = NOW()
+      `;
+      
+      await promisePool.execute(savePhaseSql, [clientId, produitId, phaseToUse]);
+      console.log(`✅ PHASE SAUVEGARDÉE: ${phaseToUse} pour client ${clientId}, produit ${produitId}`);
+      
+    } catch (phaseError) {
+      console.error('❌ Erreur sauvegarde phase:', phaseError);
+    
+    }
+
+    // Valider que le produit existe
+    const checkSql = `SELECT COUNT(*) as count FROM client_types_ciment WHERE id = ? AND client_id = ?`;
+    const [checkResult] = await promisePool.execute(checkSql, [produitId, clientId]);
     
     if (checkResult[0].count === 0) {
-      return res.status(400).json({ error: `Produit ID ${produitId} non trouvé` });
+      return res.status(400).json({ error: `Produit ID ${produitId} non trouvé pour ce client` });
     }
 
-    console.log("✅ Produit validé, préparation des données...");
+    console.log("✅ Produit validé, préparation des données avec phase:", phaseToUse);
 
-    // Préparer les données pour l'insertion - SANS heure_test
+    // Préparer les données d'import
     const values = rows.map((row, index) => {
-      console.log(`📝 Traitement ligne ${index}:`, row);
-      
       return [
         parseInt(produitId),                    // client_type_ciment_id
-        row.phase || 'situation_courante',      // phase
-        row.num_ech || `ECH-${Date.now()}-${index}`, // num_ech avec valeur par défaut
-        row.date_test || null,                  // date_test
-        // ⚠️ HEURE_TEST SUPPRIMÉ - NE PAS L'INCLURE
+        phaseToUse,                             // ⭐⭐ PHASE À UTILISER
+        row.num_ech || `ECH-${Date.now()}-${index}`,
+        row.date_test || null,
         row.rc2j && !isNaN(parseFloat(row.rc2j)) ? parseFloat(row.rc2j) : null,
         row.rc7j && !isNaN(parseFloat(row.rc7j)) ? parseFloat(row.rc7j) : null,
         row.rc28j && !isNaN(parseFloat(row.rc28j)) ? parseFloat(row.rc28j) : null,
@@ -1116,13 +1129,11 @@ app.post("/api/echantillons/import", async (req, res) => {
         row.c3a && !isNaN(parseFloat(row.c3a)) ? parseFloat(row.c3a) : null,
         row.ajout_percent && !isNaN(parseFloat(row.ajout_percent)) ? parseFloat(row.ajout_percent) : null,
         row.type_ajout || null,
-        row.source || null
+        row.source || 'import'
       ];
     });
 
-    console.log("📋 Données formatées pour insertion:", values.slice(0, 2)); // Afficher seulement les 2 premières
-
-    // SQL query CORRIGÉE - colonnes exactes de votre table
+    // SQL query
     const sql = `
       INSERT INTO echantillons 
       (
@@ -1138,22 +1149,17 @@ app.post("/api/echantillons/import", async (req, res) => {
     // Execute the query
     const [result] = await promisePool.query(sql, [values]);
     
-    console.log("✅ SUCCÈS:", result.affectedRows, "lignes insérées");
-    
+    console.log("✅ SUCCÈS:", result.affectedRows, "lignes insérées avec phase:", phaseToUse);
+
     res.json({ 
       success: true, 
       insertedRows: result.affectedRows,
-      message: `${result.affectedRows} échantillon(s) importé(s) avec succès`
+      phase: phaseToUse,
+      message: `${result.affectedRows} échantillon(s) importé(s) avec succès (Phase: ${phaseToUse})`
     });
 
   } catch (err) {
-    console.error("❌ ERREUR IMPORT:", {
-      message: err.message,
-      sqlMessage: err.sqlMessage,
-      code: err.code,
-      stack: err.stack
-    });
-    
+    console.error("❌ ERREUR IMPORT:", err.message);
     res.status(500).json({ 
       error: "Erreur lors de l'import", 
       details: err.message,
@@ -1245,8 +1251,265 @@ app.post("/api/echantillons/delete", async (req, res) => {
 });
 
 
+// === ROUTES POUR LA GESTION DE LA PHASE DE PRODUCTION === //
+
+// Route pour sauvegarder la phase sélectionnée
+app.post('/api/save-phase', async (req, res) => {
+  try {
+    const { clientId, produitId, phase } = req.body;
+    
+    console.log("💾 Sauvegarde phase:", { clientId, produitId, phase });
+    
+    if (!clientId || !produitId || !phase) {
+      return res.status(400).json({ error: 'Données manquantes: clientId, produitId et phase sont requis' });
+    }
+
+    // Valider que la phase est une valeur autorisée
+    const allowedPhases = ['situation_courante', 'nouveau_type_produit'];
+    if (!allowedPhases.includes(phase)) {
+      return res.status(400).json({ error: 'Phase non valide. Valeurs autorisées: situation_courante, nouveau_type_produit' });
+    }
+
+    // Vérifier que le client et produit existent
+    const [clientCheck] = await promisePool.query(
+      'SELECT id FROM clients WHERE id = ?',
+      [clientId]
+    );
+    
+    const [produitCheck] = await promisePool.query(
+      'SELECT id FROM client_types_ciment WHERE id = ? AND client_id = ?',
+      [produitId, clientId]
+    );
+
+    if (clientCheck.length === 0) {
+      return res.status(404).json({ error: 'Client non trouvé' });
+    }
+    
+    if (produitCheck.length === 0) {
+      return res.status(404).json({ error: 'Produit non trouvé pour ce client' });
+    }
+
+    // Vérifier si une entrée existe déjà
+    const [existing] = await promisePool.query(
+      'SELECT id FROM phase_selection WHERE client_id = ? AND produit_id = ?',
+      [clientId, produitId]
+    );
+
+    if (existing.length > 0) {
+      // Mettre à jour l'existant
+      await promisePool.query(
+        'UPDATE phase_selection SET phase = ?, updated_at = NOW() WHERE client_id = ? AND produit_id = ?',
+        [phase, clientId, produitId]
+      );
+      console.log("✅ Phase mise à jour dans la base de données");
+    } else {
+      // Créer une nouvelle entrée
+      await promisePool.query(
+        'INSERT INTO phase_selection (client_id, produit_id, phase, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
+        [clientId, produitId, phase]
+      );
+      console.log("✅ Nouvelle phase insérée dans la base de données");
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Phase sauvegardée avec succès',
+      clientId,
+      produitId,
+      phase
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur sauvegarde phase:', error);
+    res.status(500).json({ 
+      error: 'Erreur serveur lors de la sauvegarde de la phase',
+      details: error.message,
+      sqlMessage: error.sqlMessage
+    });
+  }
+});
+
+// Route pour récupérer la phase
+// Route pour récupérer la phase - VERSION SIMPLIFIÉE
+app.get('/api/get-phase', async (req, res) => {
+  try {
+    const { clientId, produitId } = req.query;
+    
+    console.log("🔍 Récupération phase pour:", { clientId, produitId });
+    
+    if (!clientId || !produitId) {
+      return res.status(400).json({ error: 'clientId et produitId sont requis' });
+    }
+
+    // 1. Chercher d'abord dans phase_selection
+    const [phaseResult] = await promisePool.query(
+      'SELECT phase FROM phase_selection WHERE client_id = ? AND produit_id = ?',
+      [clientId, produitId]
+    );
+
+    if (phaseResult.length > 0) {
+      console.log("✅ Phase trouvée dans phase_selection:", phaseResult[0].phase);
+      return res.json({ phase: phaseResult[0].phase });
+    }
+
+    // 2. Si pas trouvé, chercher dans les échantillons existants
+    const [echantillonResult] = await promisePool.query(
+      'SELECT phase FROM echantillons WHERE client_type_ciment_id = ? LIMIT 1',
+      [produitId]
+    );
+    
+    if (echantillonResult.length > 0 && echantillonResult[0].phase) {
+      console.log("✅ Phase trouvée dans échantillons:", echantillonResult[0].phase);
+      return res.json({ phase: echantillonResult[0].phase });
+    }
+
+    // 3. Sinon, valeur par défaut
+    console.log("ℹ️  Aucune phase trouvée, utilisation valeur par défaut");
+    res.json({ phase: 'situation_courante' });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération phase:', error);
+    res.status(500).json({ 
+      error: 'Erreur serveur',
+      details: error.message 
+    });
+  }
+});
+
+// Route pour vérifier la phase d'un produit
+app.get('/api/check-product-phase', async (req, res) => {
+  try {
+    const { clientId, produitId } = req.query;
+    
+    console.log("🔍 Check product phase:", { clientId, produitId });
+    
+    if (!clientId || !produitId) {
+      return res.status(400).json({ error: 'clientId et produitId sont requis' });
+    }
+
+    // 1. Chercher dans phase_selection d'abord
+    const [phaseResult] = await promisePool.query(
+      'SELECT phase FROM phase_selection WHERE client_id = ? AND produit_id = ?',
+      [clientId, produitId]
+    );
+
+    if (phaseResult.length > 0) {
+      console.log("✅ Phase trouvée dans phase_selection:", phaseResult[0].phase);
+      return res.json({ 
+        phase: phaseResult[0].phase,
+        source: 'phase_selection'
+      });
+    }
+
+    // 2. Si pas trouvé, chercher dans les échantillons
+    const [echantillonResult] = await promisePool.query(
+      'SELECT phase FROM echantillons WHERE client_type_ciment_id = ? LIMIT 1',
+      [produitId]
+    );
+    
+    if (echantillonResult.length > 0 && echantillonResult[0].phase) {
+      console.log("✅ Phase trouvée dans échantillons:", echantillonResult[0].phase);
+      return res.json({ 
+        phase: echantillonResult[0].phase,
+        source: 'echantillons'
+      });
+    }
+
+    // 3. Sinon, valeur par défaut
+    console.log("ℹ️  Aucune phase trouvée, utilisation valeur par défaut");
+    return res.json({ 
+      phase: 'situation_courante',
+      source: 'default'
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur check-product-phase:', error);
+    res.status(500).json({ 
+      error: 'Erreur serveur',
+      details: error.message 
+    });
+  }
+});
 
 
+// Route de test pour vérifier que tout fonctionne
+app.get('/api/test-phase-system', async (req, res) => {
+  try {
+    const { clientId, produitId } = req.query;
+    
+    // Vérifier phase_selection
+    const [phaseSelection] = await promisePool.query(
+      'SELECT * FROM phase_selection WHERE client_id = ? AND produit_id = ?',
+      [clientId, produitId]
+    );
+    
+    // Vérifier échantillons
+    const [echantillons] = await promisePool.query(
+      'SELECT phase, COUNT(*) as count FROM echantillons WHERE client_type_ciment_id = ? GROUP BY phase',
+      [produitId]
+    );
+    
+    res.json({
+      status: "Système de phase opérationnel",
+      phase_selection: phaseSelection.length > 0 ? phaseSelection[0] : "Aucune entrée",
+      echantillons_par_phase: echantillons,
+      recommendation: phaseSelection.length > 0 ? 
+        `Phase définie: ${phaseSelection[0].phase}` : 
+        "Aucune phase définie - utilisation de 'situation_courante' par défaut"
+    });
+  } catch (error) {
+    console.error('Erreur test phase system:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+
+
+// Route pour obtenir toutes les phases d'un client (optionnel)
+app.get('/api/client-phases/:clientId', async (req, res) => {
+  try {
+    const clientId = req.params.clientId;
+    
+    const [phases] = await promisePool.query(
+      `SELECT ps.produit_id, ps.phase, ct.typecement_id, t.code as produit_code, t.description as produit_description
+       FROM phase_selection ps
+       JOIN client_types_ciment ct ON ps.produit_id = ct.id
+       JOIN types_ciment t ON ct.typecement_id = t.id
+       WHERE ps.client_id = ?`,
+      [clientId]
+    );
+
+    res.json(phases);
+  } catch (error) {
+    console.error('❌ Erreur récupération phases client:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+// Ajoutez cette route à votre server.js pour le debug
+app.get('/api/check-data-phase', async (req, res) => {
+  try {
+    const { clientId, produitId } = req.query;
+    
+    const [result] = await promisePool.query(
+      `SELECT phase, COUNT(*) as count 
+       FROM echantillons 
+       WHERE client_type_ciment_id = ? 
+       GROUP BY phase
+       ORDER BY phase`,
+      [produitId]
+    );
+    
+    res.json({ 
+      produitId, 
+      phases: result,
+      total: result.reduce((sum, item) => sum + item.count, 0),
+      summary: result.map(item => `${item.phase}: ${item.count} échantillons`).join(', ')
+    });
+  } catch (error) {
+    console.error('Erreur vérification phase données:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`✅ API running on http://localhost:${PORT}`);
