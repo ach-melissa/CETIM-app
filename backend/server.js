@@ -8,9 +8,33 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const SECRET_KEY = process.env.SECRET_KEY || 'your-secret-key';
 
+//gérer l'upload de photos
+const multer = require('multer');
+const sharp = require('sharp'); 
+const path = require('path');
+const fs = require('fs');
+
+
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+
+
+// Configuration de multer (mémoire pour traitement)
+// Configuration de multer
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 300 * 1024, // 👈 SEULEMENT 300KB max en entrée
+  }
+});
+
+// Servir les fichiers uploadés statiquement  <-- AJOUTEZ CECI ICI
+app.use('/uploads', express.static('uploads'));
+
 
 // Database connection - use promise version
 const db = mysql.createPool({
@@ -43,6 +67,7 @@ const path = require('path');
 
 // Chemin vers le fichier parnorm.json
 const PAR_NORM_PATH = path.join(__dirname, '../frontend/public/Data/parnorm.json');
+
 
 
 
@@ -749,19 +774,28 @@ app.delete("/api/utilisateurs/:id", async (req, res) => {
   }
 });
 
+
 // Get all clients with types_ciment as array of objects
+// --- API Clients - VERSION FINALE --- //
 app.get("/api/clients", async (req, res) => {
   try {
+    console.log("🔍 Récupération des clients...");
+    
     const [rows] = await promisePool.query(`
-      SELECT c.id, c.sigle, c.nom_raison_sociale, c.adresse, c.famillecement, c.methodeessai,
-             t.id AS typecement_id, t.code, t.description,
-             f.id AS famille_id, f.code AS famille_code, f.nom AS famille_nom
+      SELECT 
+        c.id, c.sigle, c.nom_raison_sociale, c.adresse, 
+        c.famillecement, c.methodeessai, c.photo_client, 
+        c.telephone, c.numero_identification, c.email,
+        t.id AS typecement_id, t.code, t.description,
+        f.id AS famille_id, f.code AS famille_code, f.nom AS famille_nom
       FROM clients c
       LEFT JOIN client_types_ciment ct ON c.id = ct.client_id
       LEFT JOIN types_ciment t ON ct.typecement_id = t.id
       LEFT JOIN familles_ciment f ON t.famille_id = f.id
       ORDER BY c.id
     `);
+
+    console.log(`📊 ${rows.length} lignes récupérées de la DB`);
 
     const clients = rows.reduce((acc, row) => {
       let client = acc.find(c => c.id === row.id);
@@ -773,6 +807,10 @@ app.get("/api/clients", async (req, res) => {
           adresse: row.adresse,
           famillecement: row.famillecement,
           methodeessai: row.methodeessai,
+          photo_client: row.photo_client,
+          telephone: row.telephone,
+          numero_identification: row.numero_identification,
+          email: row.email,
           types_ciment: []
         };
         acc.push(client);
@@ -792,10 +830,15 @@ app.get("/api/clients", async (req, res) => {
       return acc;
     }, []);
 
+    console.log(`👥 ${clients.length} clients formatés`);
     res.json(clients);
+
   } catch (err) {
-    console.error("❌ Erreur SQL:", err);
-    res.status(500).json({ error: err.message });
+    console.error("❌ Erreur détaillée /api/clients:", err);
+    res.status(500).json({ 
+      error: "Erreur serveur", 
+      details: err.message 
+    });
   }
 });
 
@@ -813,9 +856,23 @@ app.get("/api/types_ciment", (req, res) => {
     res.json(result);
   });
 });
+
+
+
+
+// --- Add new client --- //
 // --- Add new client --- //
 app.post("/api/clients", async (req, res) => {
-  const { sigle, nom_raison_sociale, adresse, types_ciment } = req.body;
+  const { 
+    sigle, 
+    nom_raison_sociale, 
+    adresse, 
+    types_ciment,
+    photo_client,
+    telephone,
+    numero_identification,
+    email
+  } = req.body;
 
   if (!sigle || !nom_raison_sociale) {
     return res.status(400).json({ message: "Sigle et nom/raison sociale sont requis" });
@@ -827,9 +884,21 @@ app.post("/api/clients", async (req, res) => {
     await connection.beginTransaction();
 
     try {
-      // Insert the new client
-      const sqlInsert = "INSERT INTO clients (sigle, nom_raison_sociale, adresse) VALUES (?, ?, ?)";
-      const [result] = await connection.execute(sqlInsert, [sigle, nom_raison_sociale, adresse]);
+      // Insert the new client with new fields
+      const sqlInsert = `
+        INSERT INTO clients 
+        (sigle, nom_raison_sociale, adresse, photo_client, telephone, numero_identification, email) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `;
+      const [result] = await connection.execute(sqlInsert, [
+        sigle, 
+        nom_raison_sociale, 
+        adresse, 
+        photo_client || null,
+        telephone || null,
+        numero_identification || null,
+        email || null
+      ]);
       const clientId = result.insertId;
 
       // Insert cement type associations if any
@@ -844,7 +913,8 @@ app.post("/api/clients", async (req, res) => {
       
       // Get the complete client data with types
       const [clientRows] = await connection.execute(`
-        SELECT c.id, c.sigle, c.nom_raison_sociale, c.adresse,
+        SELECT c.id, c.sigle, c.nom_raison_sociale, c.adresse, 
+               c.photo_client, c.telephone, c.numero_identification, c.email,
                t.id AS typecement_id, t.code, t.description
         FROM clients c
         LEFT JOIN client_types_ciment ct ON c.id = ct.client_id
@@ -858,6 +928,10 @@ app.post("/api/clients", async (req, res) => {
         sigle: sigle,
         nom_raison_sociale: nom_raison_sociale,
         adresse: adresse,
+        photo_client: photo_client || null,
+        telephone: telephone || null,
+        numero_identification: numero_identification || null,
+        email: email || null,
         types_ciment: []
       };
 
@@ -887,6 +961,8 @@ app.post("/api/clients", async (req, res) => {
     res.status(500).json({ message: "Erreur serveur lors de l'ajout du client" });
   }
 });
+
+
 // Add new cement type
 app.post("/api/types_ciment", (req, res) => {
   const { code, description } = req.body;
@@ -951,55 +1027,227 @@ app.delete("/api/types_ciment/:id", (req, res) => {
 
 
 // --- Modifier un client --- //
+// --- Modifier un client - VERSION CORRIGÉE --- //
 app.put("/api/clients/:id", async (req, res) => {
   const clientId = req.params.id;
-  const { sigle, nom_raison_sociale, adresse, types_ciment } = req.body;
+  
+  console.log("=== DEBUT MODIFICATION CLIENT ===");
+  console.log("Client ID:", clientId);
+  console.log("Body:", JSON.stringify(req.body, null, 2));
 
+  // Validation des données requises
+  if (!req.body.sigle || !req.body.nom_raison_sociale) {
+    return res.status(400).json({ 
+      error: "Sigle et nom/raison sociale sont requis" 
+    });
+  }
+
+  const { 
+    sigle, 
+    nom_raison_sociale, 
+    adresse, 
+    types_ciment = [],
+    photo_client,
+    telephone,
+    numero_identification,
+    email
+  } = req.body;
+
+  const connection = await promisePool.getConnection();
+  
   try {
-    const connection = await promisePool.getConnection();
     await connection.beginTransaction();
 
-    try {
-      // 1. Mettre à jour le client
-      const sqlUpdate = `
-        UPDATE clients 
-        SET sigle = ?, nom_raison_sociale = ?, adresse = ? 
-        WHERE id = ?`;
-      await connection.execute(sqlUpdate, [sigle, nom_raison_sociale, adresse, clientId]);
+    // 1. Mettre à jour le client
+    const updateSql = `
+      UPDATE clients 
+      SET sigle = ?, nom_raison_sociale = ?, adresse = ?, 
+          photo_client = ?, telephone = ?, numero_identification = ?, email = ?
+      WHERE id = ?
+    `;
+    
+    const updateParams = [
+      sigle?.trim() || '',
+      nom_raison_sociale?.trim() || '',
+      adresse?.trim() || null,
+      photo_client?.trim() || null,
+      telephone?.trim() || null,
+      numero_identification?.trim() || null,
+      email?.trim() || null,
+      clientId
+    ];
 
-      // 2. Supprimer les anciens types de ciment liés
-      const sqlDeleteAssoc = "DELETE FROM client_types_ciment WHERE client_id = ?";
-      await connection.execute(sqlDeleteAssoc, [clientId]);
+    console.log("Exécution UPDATE avec params:", updateParams);
+    const [updateResult] = await connection.execute(updateSql, updateParams);
 
-      // 3. Réinsérer les nouveaux types
-      if (Array.isArray(types_ciment) && types_ciment.length > 0) {
-        const sqlAssoc = "INSERT INTO client_types_ciment (client_id, typecement_id) VALUES ?";
-        const values = types_ciment.map((typeId) => [clientId, typeId]);
-        await connection.query(sqlAssoc, [values]);
-      }
-
-      await connection.commit();
-      connection.release();
-
-      // Répondre avec succès
-      res.json({ 
-        message: "✅ Client modifié avec succès", 
-        types_ciment: types_ciment || [] 
-      });
-
-    } catch (error) {
-      await connection.rollback();
-      connection.release();
-      console.error("❌ Erreur modification client:", error);
-      res.status(500).json({ message: "Erreur serveur" });
+    if (updateResult.affectedRows === 0) {
+      throw new Error("Aucun client trouvé avec cet ID");
     }
+
+    // 2. Gérer les types de ciment
+    console.log("Types ciment à associer:", types_ciment);
+    
+    // Supprimer les anciennes associations
+    const deleteSql = "DELETE FROM client_types_ciment WHERE client_id = ?";
+    await connection.execute(deleteSql, [clientId]);
+
+    // Ajouter les nouvelles associations si elles existent
+    if (types_ciment.length > 0) {
+      const insertSql = "INSERT INTO client_types_ciment (client_id, typecement_id) VALUES ?";
+      const values = types_ciment.map(typeId => [clientId, parseInt(typeId)]);
+      await connection.query(insertSql, [values]);
+    }
+
+    await connection.commit();
+    
+    console.log("✅ Modification réussie");
+    res.json({ 
+      success: true,
+      message: "Client modifié avec succès",
+      clientId: clientId
+    });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error("❌ ERREUR modification client:", error);
+    res.status(500).json({ 
+      success: false,
+      error: "Erreur lors de la modification du client",
+      details: error.message
+    });
+  } finally {
+    connection.release();
+  }
+});
+
+// Route pour uploader une photo (à ajouter dans server.js)
+app.post('/api/clients/:id/photo', upload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier sélectionné' });
+    }
+
+    console.log(`📸 Taille originale: ${(req.file.size / 1024).toFixed(1)}KB`);
+
+    const clientId = req.params.id;
+    const filename = `client-${Date.now()}.webp`;
+    const uploadDir = 'uploads/clients';
+    
+    // Créer dossier si besoin
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const outputPath = path.join(uploadDir, filename);
+
+    // 🔥 COMPRESSION EXTRÊME POUR PHOTOS TRÈS PETITES
+    await sharp(req.file.buffer)
+      .resize(600, 600, {           // 👈 TRÈS PETIT - 120x120px
+        fit: 'cover',
+        position: 'center',
+        withoutEnlargement: true
+      })
+      .webp({ 
+        quality: 90,                // 👈 QUALITÉ TRÈS ÉLEVÉE
+        effort: 2,                  // 👈 Compression faible pour qualité max
+        lossless: false
+      })
+      .toFile(outputPath);
+
+    const photoPath = `clients/${filename}`;
+
+    // Sauvegarder en base
+    await promisePool.execute(
+      'UPDATE clients SET photo_client = ? WHERE id = ?', 
+      [photoPath, clientId]
+    );
+
+    // Résultats
+    const originalKB = (req.file.size / 1024).toFixed(1);
+    const compressedKB = (fs.statSync(outputPath).size / 1024).toFixed(1);
+    const reduction = Math.round((1 - fs.statSync(outputPath).size / req.file.size) * 100);
+
+    console.log(`✅ PHOTO ULTRA-COMPACTE: ${originalKB}KB → ${compressedKB}KB (${reduction}% réduit!)`);
+
+    res.json({ 
+      success: true, 
+      message: `Photo optimisée: ${compressedKB}KB`,
+      photo_path: photoPath,
+      size_kb: compressedKB
+    });
+
   } catch (err) {
-    console.error("❌ Erreur connexion DB:", err);
-    res.status(500).json({ message: "Erreur de connexion à la base de données" });
+    console.error('❌ Erreur compression:', err);
+    
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ 
+        error: 'Image trop lourde! Maximum 300KB.' 
+      });
+    }
+    
+    res.status(500).json({ error: 'Erreur compression image' });
+  }
+});
+// Route de test pour Sharp
+app.get('/api/test-sharp', async (req, res) => {
+  try {
+    console.log('🧪 Test Sharp...');
+    
+    // Créer une image test
+    const testBuffer = await sharp({
+      create: {
+        width: 100,
+        height: 100,
+        channels: 3,
+        background: { r: 255, g: 0, b: 0 }
+      }
+    })
+    .jpeg()
+    .toBuffer();
+
+    console.log('✅ Sharp fonctionne!');
+    res.json({ success: true, message: 'Sharp fonctionne correctement' });
+    
+  } catch (err) {
+    console.error('❌ Sharp ne fonctionne pas:', err);
+    res.status(500).json({ error: 'Sharp error: ' + err.message });
   }
 });
 
 
+
+// Servir les fichiers uploadés statiquement
+app.use('/uploads', express.static('uploads'));
+
+
+// Route de test pour vérifier que l'API fonctionne
+app.get("/api/test", (req, res) => {
+  res.json({ message: "✅ API fonctionne", timestamp: new Date() });
+});
+
+// Route pour vérifier un client spécifique
+app.get("/api/clients/:id", async (req, res) => {
+  try {
+    const clientId = req.params.id;
+    const [rows] = await promisePool.query(`
+      SELECT c.*, 
+             t.id AS typecement_id, t.code, t.description
+      FROM clients c
+      LEFT JOIN client_types_ciment ct ON c.id = ct.client_id
+      LEFT JOIN types_ciment t ON ct.typecement_id = t.id
+      WHERE c.id = ?
+    `, [clientId]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Client non trouvé" });
+    }
+    
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("❌ Erreur GET client:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 // --- Delete a client ---
 // --- Delete a client ---
 app.delete("/api/clients/:id", async (req, res) => {
@@ -1250,12 +1498,43 @@ app.get("/api/clients/:id/traitements", async (req, res) => {
 
 
 
+
+// Route pour uploader une photo de client
+app.post('/api/clients/:id/photo', upload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier uploadé' });
+    }
+
+    const clientId = req.params.id;
+    const photoPath = `uploads/clients/${req.file.filename}`;
+
+    // Mettre à jour le chemin de la photo dans la base de données
+    const sql = 'UPDATE clients SET photo_client = ? WHERE id = ?';
+    await promisePool.execute(sql, [photoPath, clientId]);
+
+    res.json({ 
+      success: true, 
+      message: 'Photo uploadée avec succès',
+      photo_path: photoPath 
+    });
+  } catch (err) {
+    console.error('❌ Erreur upload photo:', err);
+    res.status(500).json({ error: 'Erreur lors de l\'upload de la photo' });
+  }
+});
+
+// Servir les fichiers uploadés statiquement
+app.use('/uploads', express.static('uploads'));
+
+
 app.get("/api/clients/:sigle", async (req, res) => {
   const sigle = req.params.sigle;
 
   try {
     const sql = `
       SELECT c.id, c.sigle, c.nom_raison_sociale, c.adresse,
+             c.photo_client, c.telephone, c.numero_identification, c.email,
              t.id AS type_ciment_id, t.code AS type_ciment_code, t.description AS type_ciment_description,
              f.id AS famille_id, f.code AS famille_code, f.nom AS famille_nom
       FROM clients c
@@ -1277,6 +1556,10 @@ app.get("/api/clients/:sigle", async (req, res) => {
       sigle: results[0].sigle,
       nom_raison_sociale: results[0].nom_raison_sociale,
       adresse: results[0].adresse,
+      photo_client: results[0].photo_client,
+      telephone: results[0].telephone,
+      numero_identification: results[0].numero_identification,
+      email: results[0].email,
       types_ciment: []
     };
 
@@ -1302,6 +1585,9 @@ app.get("/api/clients/:sigle", async (req, res) => {
     res.status(500).json({ error: "Database error" });
   }
 });
+
+
+
 app.get("/api/clients/:sigle/types-ciment", async (req, res) => {
   const sigle = req.params.sigle;
 
@@ -1497,42 +1783,55 @@ app.delete('/api/echantillons/:id', async (req, res) => {
 
 // ... existing code ...
 
-// Import Excel rows into echantillons - UPDATED VERSION
+// === ROUTE D'IMPORT CORRIGÉE - VERSION SIMPLIFIÉE === //
 app.post("/api/echantillons/import", async (req, res) => {
   try {
-    const { clientId, produitId, rows } = req.body;
+    const { clientId, produitId, rows, phase } = req.body;
 
-    console.log("📥 Début import - données reçues:", { 
-      clientId, 
-      produitId, 
-      rowsCount: rows ? rows.length : 0 
-    });
+    console.log("📥 DEBUG - Phase reçue:", phase); // Vérifier la valeur
 
-    // Check if all necessary parameters are provided
-    if (!clientId || !produitId || !rows) {
-      return res.status(400).json({ error: "Paramètres manquants: clientId, produitId ou rows" });
+    // ⭐⭐ CORRECTION : NORMALISER LA VALEUR DE LA PHASE ⭐⭐
+    let phaseToUse = 'situation_courante'; // Valeur par défaut
+    
+    if (phase === 'nouveau_type_produit' || phase === 'nouveau_type') {
+      phaseToUse = 'nouveau_type_produit'; // ⭐⭐ VALEUR CORRECTE ⭐⭐
     }
 
-    // Validate that produitId exists in client_types_ciment
-    const checkSql = `SELECT COUNT(*) as count FROM client_types_ciment WHERE id = ?`;
-    const [checkResult] = await promisePool.execute(checkSql, [produitId]);
+    console.log("🎯 Phase normalisée:", phaseToUse);
+
+    // ⭐⭐ SAUVEGARDER LA PHASE CORRECTE ⭐⭐
+    try {
+      const savePhaseSql = `
+        INSERT INTO phase_selection (client_id, produit_id, phase, created_at, updated_at) 
+        VALUES (?, ?, ?, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE phase = VALUES(phase), updated_at = NOW()
+      `;
+      
+      await promisePool.execute(savePhaseSql, [clientId, produitId, phaseToUse]);
+      console.log(`✅ PHASE SAUVEGARDÉE: ${phaseToUse} pour client ${clientId}, produit ${produitId}`);
+      
+    } catch (phaseError) {
+      console.error('❌ Erreur sauvegarde phase:', phaseError);
+    
+    }
+
+    // Valider que le produit existe
+    const checkSql = `SELECT COUNT(*) as count FROM client_types_ciment WHERE id = ? AND client_id = ?`;
+    const [checkResult] = await promisePool.execute(checkSql, [produitId, clientId]);
     
     if (checkResult[0].count === 0) {
-      return res.status(400).json({ error: `Produit ID ${produitId} non trouvé` });
+      return res.status(400).json({ error: `Produit ID ${produitId} non trouvé pour ce client` });
     }
 
-    console.log("✅ Produit validé, préparation des données...");
+    console.log("✅ Produit validé, préparation des données avec phase:", phaseToUse);
 
-    // Préparer les données pour l'insertion - SANS heure_test
+    // Préparer les données d'import
     const values = rows.map((row, index) => {
-      console.log(`📝 Traitement ligne ${index}:`, row);
-      
       return [
         parseInt(produitId),                    // client_type_ciment_id
-        row.phase || 'situation_courante',      // phase
-        row.num_ech || `ECH-${Date.now()}-${index}`, // num_ech avec valeur par défaut
-        row.date_test || null,                  // date_test
-        // ⚠️ HEURE_TEST SUPPRIMÉ - NE PAS L'INCLURE
+        phaseToUse,                             // ⭐⭐ PHASE À UTILISER
+        row.num_ech || `ECH-${Date.now()}-${index}`,
+        row.date_test || null,
         row.rc2j && !isNaN(parseFloat(row.rc2j)) ? parseFloat(row.rc2j) : null,
         row.rc7j && !isNaN(parseFloat(row.rc7j)) ? parseFloat(row.rc7j) : null,
         row.rc28j && !isNaN(parseFloat(row.rc28j)) ? parseFloat(row.rc28j) : null,
@@ -1546,13 +1845,11 @@ app.post("/api/echantillons/import", async (req, res) => {
         row.c3a && !isNaN(parseFloat(row.c3a)) ? parseFloat(row.c3a) : null,
         row.ajout_percent && !isNaN(parseFloat(row.ajout_percent)) ? parseFloat(row.ajout_percent) : null,
         row.type_ajout || null,
-        row.source || null
+        row.source || 'import'
       ];
     });
 
-    console.log("📋 Données formatées pour insertion:", values.slice(0, 2)); // Afficher seulement les 2 premières
-
-    // SQL query CORRIGÉE - colonnes exactes de votre table
+    // SQL query
     const sql = `
       INSERT INTO echantillons 
       (
@@ -1568,22 +1865,17 @@ app.post("/api/echantillons/import", async (req, res) => {
     // Execute the query
     const [result] = await promisePool.query(sql, [values]);
     
-    console.log("✅ SUCCÈS:", result.affectedRows, "lignes insérées");
-    
+    console.log("✅ SUCCÈS:", result.affectedRows, "lignes insérées avec phase:", phaseToUse);
+
     res.json({ 
       success: true, 
       insertedRows: result.affectedRows,
-      message: `${result.affectedRows} échantillon(s) importé(s) avec succès`
+      phase: phaseToUse,
+      message: `${result.affectedRows} échantillon(s) importé(s) avec succès (Phase: ${phaseToUse})`
     });
 
   } catch (err) {
-    console.error("❌ ERREUR IMPORT:", {
-      message: err.message,
-      sqlMessage: err.sqlMessage,
-      code: err.code,
-      stack: err.stack
-    });
-    
+    console.error("❌ ERREUR IMPORT:", err.message);
     res.status(500).json({ 
       error: "Erreur lors de l'import", 
       details: err.message,
@@ -1675,8 +1967,265 @@ app.post("/api/echantillons/delete", async (req, res) => {
 });
 
 
+// === ROUTES POUR LA GESTION DE LA PHASE DE PRODUCTION === //
+
+// Route pour sauvegarder la phase sélectionnée
+app.post('/api/save-phase', async (req, res) => {
+  try {
+    const { clientId, produitId, phase } = req.body;
+    
+    console.log("💾 Sauvegarde phase:", { clientId, produitId, phase });
+    
+    if (!clientId || !produitId || !phase) {
+      return res.status(400).json({ error: 'Données manquantes: clientId, produitId et phase sont requis' });
+    }
+
+    // Valider que la phase est une valeur autorisée
+    const allowedPhases = ['situation_courante', 'nouveau_type_produit'];
+    if (!allowedPhases.includes(phase)) {
+      return res.status(400).json({ error: 'Phase non valide. Valeurs autorisées: situation_courante, nouveau_type_produit' });
+    }
+
+    // Vérifier que le client et produit existent
+    const [clientCheck] = await promisePool.query(
+      'SELECT id FROM clients WHERE id = ?',
+      [clientId]
+    );
+    
+    const [produitCheck] = await promisePool.query(
+      'SELECT id FROM client_types_ciment WHERE id = ? AND client_id = ?',
+      [produitId, clientId]
+    );
+
+    if (clientCheck.length === 0) {
+      return res.status(404).json({ error: 'Client non trouvé' });
+    }
+    
+    if (produitCheck.length === 0) {
+      return res.status(404).json({ error: 'Produit non trouvé pour ce client' });
+    }
+
+    // Vérifier si une entrée existe déjà
+    const [existing] = await promisePool.query(
+      'SELECT id FROM phase_selection WHERE client_id = ? AND produit_id = ?',
+      [clientId, produitId]
+    );
+
+    if (existing.length > 0) {
+      // Mettre à jour l'existant
+      await promisePool.query(
+        'UPDATE phase_selection SET phase = ?, updated_at = NOW() WHERE client_id = ? AND produit_id = ?',
+        [phase, clientId, produitId]
+      );
+      console.log("✅ Phase mise à jour dans la base de données");
+    } else {
+      // Créer une nouvelle entrée
+      await promisePool.query(
+        'INSERT INTO phase_selection (client_id, produit_id, phase, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
+        [clientId, produitId, phase]
+      );
+      console.log("✅ Nouvelle phase insérée dans la base de données");
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Phase sauvegardée avec succès',
+      clientId,
+      produitId,
+      phase
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur sauvegarde phase:', error);
+    res.status(500).json({ 
+      error: 'Erreur serveur lors de la sauvegarde de la phase',
+      details: error.message,
+      sqlMessage: error.sqlMessage
+    });
+  }
+});
+
+// Route pour récupérer la phase
+// Route pour récupérer la phase - VERSION SIMPLIFIÉE
+app.get('/api/get-phase', async (req, res) => {
+  try {
+    const { clientId, produitId } = req.query;
+    
+    console.log("🔍 Récupération phase pour:", { clientId, produitId });
+    
+    if (!clientId || !produitId) {
+      return res.status(400).json({ error: 'clientId et produitId sont requis' });
+    }
+
+    // 1. Chercher d'abord dans phase_selection
+    const [phaseResult] = await promisePool.query(
+      'SELECT phase FROM phase_selection WHERE client_id = ? AND produit_id = ?',
+      [clientId, produitId]
+    );
+
+    if (phaseResult.length > 0) {
+      console.log("✅ Phase trouvée dans phase_selection:", phaseResult[0].phase);
+      return res.json({ phase: phaseResult[0].phase });
+    }
+
+    // 2. Si pas trouvé, chercher dans les échantillons existants
+    const [echantillonResult] = await promisePool.query(
+      'SELECT phase FROM echantillons WHERE client_type_ciment_id = ? LIMIT 1',
+      [produitId]
+    );
+    
+    if (echantillonResult.length > 0 && echantillonResult[0].phase) {
+      console.log("✅ Phase trouvée dans échantillons:", echantillonResult[0].phase);
+      return res.json({ phase: echantillonResult[0].phase });
+    }
+
+    // 3. Sinon, valeur par défaut
+    console.log("ℹ️  Aucune phase trouvée, utilisation valeur par défaut");
+    res.json({ phase: 'situation_courante' });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération phase:', error);
+    res.status(500).json({ 
+      error: 'Erreur serveur',
+      details: error.message 
+    });
+  }
+});
+
+// Route pour vérifier la phase d'un produit
+app.get('/api/check-product-phase', async (req, res) => {
+  try {
+    const { clientId, produitId } = req.query;
+    
+    console.log("🔍 Check product phase:", { clientId, produitId });
+    
+    if (!clientId || !produitId) {
+      return res.status(400).json({ error: 'clientId et produitId sont requis' });
+    }
+
+    // 1. Chercher dans phase_selection d'abord
+    const [phaseResult] = await promisePool.query(
+      'SELECT phase FROM phase_selection WHERE client_id = ? AND produit_id = ?',
+      [clientId, produitId]
+    );
+
+    if (phaseResult.length > 0) {
+      console.log("✅ Phase trouvée dans phase_selection:", phaseResult[0].phase);
+      return res.json({ 
+        phase: phaseResult[0].phase,
+        source: 'phase_selection'
+      });
+    }
+
+    // 2. Si pas trouvé, chercher dans les échantillons
+    const [echantillonResult] = await promisePool.query(
+      'SELECT phase FROM echantillons WHERE client_type_ciment_id = ? LIMIT 1',
+      [produitId]
+    );
+    
+    if (echantillonResult.length > 0 && echantillonResult[0].phase) {
+      console.log("✅ Phase trouvée dans échantillons:", echantillonResult[0].phase);
+      return res.json({ 
+        phase: echantillonResult[0].phase,
+        source: 'echantillons'
+      });
+    }
+
+    // 3. Sinon, valeur par défaut
+    console.log("ℹ️  Aucune phase trouvée, utilisation valeur par défaut");
+    return res.json({ 
+      phase: 'situation_courante',
+      source: 'default'
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur check-product-phase:', error);
+    res.status(500).json({ 
+      error: 'Erreur serveur',
+      details: error.message 
+    });
+  }
+});
 
 
+// Route de test pour vérifier que tout fonctionne
+app.get('/api/test-phase-system', async (req, res) => {
+  try {
+    const { clientId, produitId } = req.query;
+    
+    // Vérifier phase_selection
+    const [phaseSelection] = await promisePool.query(
+      'SELECT * FROM phase_selection WHERE client_id = ? AND produit_id = ?',
+      [clientId, produitId]
+    );
+    
+    // Vérifier échantillons
+    const [echantillons] = await promisePool.query(
+      'SELECT phase, COUNT(*) as count FROM echantillons WHERE client_type_ciment_id = ? GROUP BY phase',
+      [produitId]
+    );
+    
+    res.json({
+      status: "Système de phase opérationnel",
+      phase_selection: phaseSelection.length > 0 ? phaseSelection[0] : "Aucune entrée",
+      echantillons_par_phase: echantillons,
+      recommendation: phaseSelection.length > 0 ? 
+        `Phase définie: ${phaseSelection[0].phase}` : 
+        "Aucune phase définie - utilisation de 'situation_courante' par défaut"
+    });
+  } catch (error) {
+    console.error('Erreur test phase system:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+
+
+// Route pour obtenir toutes les phases d'un client (optionnel)
+app.get('/api/client-phases/:clientId', async (req, res) => {
+  try {
+    const clientId = req.params.clientId;
+    
+    const [phases] = await promisePool.query(
+      `SELECT ps.produit_id, ps.phase, ct.typecement_id, t.code as produit_code, t.description as produit_description
+       FROM phase_selection ps
+       JOIN client_types_ciment ct ON ps.produit_id = ct.id
+       JOIN types_ciment t ON ct.typecement_id = t.id
+       WHERE ps.client_id = ?`,
+      [clientId]
+    );
+
+    res.json(phases);
+  } catch (error) {
+    console.error('❌ Erreur récupération phases client:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+// Ajoutez cette route à votre server.js pour le debug
+app.get('/api/check-data-phase', async (req, res) => {
+  try {
+    const { clientId, produitId } = req.query;
+    
+    const [result] = await promisePool.query(
+      `SELECT phase, COUNT(*) as count 
+       FROM echantillons 
+       WHERE client_type_ciment_id = ? 
+       GROUP BY phase
+       ORDER BY phase`,
+      [produitId]
+    );
+    
+    res.json({ 
+      produitId, 
+      phases: result,
+      total: result.reduce((sum, item) => sum + item.count, 0),
+      summary: result.map(item => `${item.phase}: ${item.count} échantillons`).join(', ')
+    });
+  } catch (error) {
+    console.error('Erreur vérification phase données:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`✅ API running on http://localhost:${PORT}`);

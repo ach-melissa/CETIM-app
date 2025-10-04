@@ -78,7 +78,44 @@
   color: #155724;
   border: 1px solid #c3e6cb;
 }
+/* Container de la photo */
+.photo-container {
+  width: 100%; /* Prend toute la largeur disponible */
+  max-width: 300px; /* Largeur maximale */
+  margin: 10px 0;
+}
 
+/* Photo elle-même */
+.client-photo {
+  width: 100%; /* S'adapte à la largeur du container */
+  max-width: 250px; /* Largeur maximale de l'image */
+  height: auto; /* Maintient les proportions */
+  border-radius: 8px;
+  border: 2px solid #ddd;
+  object-fit: cover; /* Recadre l'image pour remplir le cadre */
+}
+
+/* Version plus large */
+.client-photo-large {
+  width: 100%;
+  max-width: 600px; /* 👈 Plus large */
+  height: auto;
+}
+
+/* Version moyenne */
+.client-photo-medium {
+  width: 100%;
+  max-width: 200px; /* 👈 Taille moyenne */
+  height: auto;
+}
+
+/* Version petite (avatar) */
+.client-photo-small {
+  width: 100%;
+  max-width: 120px; /* 👈 Petite taille */
+  height: auto;
+  border-radius: 50%; /* Cercle pour avatar */
+}
 .validation-msg.error {
   background-color: #f8d7da;
   color: #721c24;

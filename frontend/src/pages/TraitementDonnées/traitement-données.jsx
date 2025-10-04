@@ -14,38 +14,10 @@ const formatExcelDate = (excelDate) => {
   const utc_value = utc_days * 86400;
   const date_info = new Date(utc_value * 1000);
 
-  // Retourne YYYY-MM-DD en heure locale (pas UTC)
   const year = date_info.getFullYear();
   const month = String(date_info.getMonth() + 1).padStart(2, "0");
   const day = String(date_info.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
-};
-
-const formatExcelTime = (excelTime) => {
-  if (!excelTime) return "";
-
-  // If it's already a string like "14:30" or "14:30:00"
-  if (typeof excelTime === "string") {
-    const parts = excelTime.split(":");
-    if (parts.length >= 2) {
-      const hours = String(parts[0]).padStart(2, "0");
-      const minutes = String(parts[1]).padStart(2, "0");
-      const seconds = parts[2] ? String(parts[2]).padStart(2, "0") : "00";
-      return `${hours}:${minutes}:${seconds}`;
-    }
-    return excelTime; // fallback
-  }
-
-  // If it's a number (Excel serial time)
-  if (!isNaN(excelTime)) {
-    const totalSeconds = Math.floor(excelTime * 86400);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  }
-
-  return "";
 };
 
 const TraitDonnes = () => {
@@ -56,6 +28,8 @@ const TraitDonnes = () => {
   const [produitDescription, setProduitDescription] = useState("");
   const [produitFamille, setProduitFamille] = useState("");
   const [phase, setPhase] = useState("situation_courante");
+    const [displayPhase, setDisplayPhase] = useState("situation_courante"); // ⭐ NOUVEAU: Phase affichée dans contrôle conformité
+
   const [tableData, setTableData] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
   const [startDate, setStartDate] = useState("");
@@ -64,10 +38,8 @@ const TraitDonnes = () => {
   const [success, setSuccess] = useState("");
   const [activeTab, setActiveTab] = useState("donnees");
   const [loading, setLoading] = useState(false);
-  const [newCement, setNewCement] = useState("");
   const [cementList, setCementList] = useState([]);
-  const [clientId, setClientId] = useState("");
-  const [showNewTypeForm, setShowNewTypeForm] = useState(false);
+  const [ajoutsData, setAjoutsData] = useState({});
 
   const tableRef = useRef();
 
@@ -107,6 +79,7 @@ const TraitDonnes = () => {
       setClientTypeCimentId("");
       setProduitDescription("");
       setProduitFamille("");
+      setPhase("situation_courante");
       return;
     }
 
@@ -114,12 +87,22 @@ const TraitDonnes = () => {
       .then((res) => res.json())
       .then((data) => {
         setProduits(data);
+        setClientTypeCimentId("");
+        setPhase("situation_courante");
       })
       .catch((err) => {
         console.error("Erreur produits:", err);
         setError("Erreur lors du chargement des produits.");
       });
   }, [selectedClient]);
+useEffect(() => {
+  console.log("📊 États phase:", {
+    phaseReelle: phase,
+    phaseAffichage: displayPhase,
+    difference: phase !== displayPhase ? "DIFFÉRENTE" : "IDENTIQUE"
+  });
+}, [phase, displayPhase]);
+
 
   // Set description and famille for selected produit
   useEffect(() => {
@@ -138,46 +121,55 @@ const TraitDonnes = () => {
     }
   }, [clientTypeCimentId, produits]);
 
-  // Add cement for selected client
-  const addCementForClient = async () => {
-    if (!newCement) {
-      alert("Veuillez sélectionner un ciment.");
-      return;
-    }
+  // Function to handle product selection change
+// Function to handle product selection change
+const handleProduitChange = (e) => {
+  const selectedProduitId = e.target.value;
+  setClientTypeCimentId(selectedProduitId);
+  
+  if (selectedProduitId) {
+    // Check if this product already has data for the selected client
+    checkProductPhase(selectedClient, selectedProduitId);
+  } else {
+    setPhase("situation_courante");
+    setDisplayPhase("situation_courante"); // ⭐ Mettre à jour les deux
+  }
+};
 
-    try {
-      await fetch("http://localhost:5000/api/client_types_ciment", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          clientId: selectedClient,
-          typeCimentId: newCement,
-        }),
-      });
-
-      alert("Ciment ajouté au client avec succès !");
-      setError("");
-      setNewCement("");
-      setShowNewTypeForm(false);
-      
-      // Refresh the products list
-      fetch(`http://localhost:5000/api/produits/${selectedClient}`)
-        .then((res) => res.json())
-        .then((data) => {
-          setProduits(data);
-        });
-    } catch (err) {
-      console.error("Erreur ajout ciment:", err);
-      alert("Erreur lors de l'ajout du ciment.");
+  // Function to check if product exists and determine phase
+// Function to check if product exists and determine phase
+const checkProductPhase = async (clientId, produitId) => {
+  try {
+    const response = await fetch(`http://localhost:5000/api/check-product-phase?clientId=${clientId}&produitId=${produitId}`);
+    const data = await response.json();
+    
+    if (data.exists) {
+      setPhase("situation_courante");
+      setDisplayPhase("situation_courante"); // ⭐ Mettre à jour les deux
+    } else {
+      setPhase("nouveau_type_produit");
+      setDisplayPhase("nouveau_type_produit"); // ⭐ Mettre à jour les deux
     }
-  };
+  } catch (error) {
+    console.error('Error checking product phase:', error);
+    setPhase("situation_courante");
+    setDisplayPhase("situation_courante"); // ⭐ Mettre à jour les deux
+  }
+};
 
   // Handle file import
+// Handle file import - VERSION COMPLÈTE MISE À JOUR
+// Handle file import - VERSION COMPLÈTE MISE À JOUR
 const handleFileImport = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+
+  // ⭐ SAUVEGARDER LA PHASE AVANT IMPORT
+  const phaseBeforeImport = phase;
+  console.log("💾 Phase sauvegardée avant import:", phaseBeforeImport);
+  
+  // Stocker cette phase pour le contrôle conformité
+  setDisplayPhase(phaseBeforeImport);
 
   if (!selectedClient || !clientTypeCimentId) {
     alert("Veuillez sélectionner un client et un produit avant d'importer.");
@@ -194,15 +186,14 @@ const handleFileImport = async (e) => {
       const importedData = XLSX.utils.sheet_to_json(ws);
 
       console.log("📊 Fichier Excel chargé:", importedData.length, "lignes");
+      console.log("🎯 Phase sélectionnée avant import:", phaseBeforeImport);
 
-      // Formater les données - SIMPLIFIÉ et CORRIGÉ
+      // Formater les données
       const formattedRows = importedData.map((row, index) => {
-        // Fonction utilitaire pour nettoyer les valeurs
         const cleanValue = (val) => {
           if (val === null || val === undefined || val === "" || val === " ") {
             return null;
           }
-          // Convertir en string et nettoyer
           const strVal = String(val).trim();
           if (strVal === "" || strVal.toLowerCase() === "null" || strVal.toLowerCase() === "undefined") {
             return null;
@@ -214,7 +205,6 @@ const handleFileImport = async (e) => {
           const cleaned = cleanValue(val);
           if (cleaned === null) return null;
           
-          // Remplacer virgule par point pour les nombres
           const numericStr = cleaned.replace(',', '.');
           const num = parseFloat(numericStr);
           return isNaN(num) ? null : num;
@@ -223,7 +213,6 @@ const handleFileImport = async (e) => {
         return {
           num_ech: cleanValue(row["N° ech"] || row["Ech"] || row["Numéro"]),
           date_test: formatExcelDate(row["Date"] || row["date_test"] || row["DATE"]),
-          // ⚠️ NE PAS INCLURE heure_test
           rc2j: cleanNumeric(row["RC 2j (Mpa)"] || row["RC2J"] || row["RC 2j"]),
           rc7j: cleanNumeric(row["RC 7j (Mpa)"] || row["RC7J"] || row["RC 7j"]),
           rc28j: cleanNumeric(row["RC 28 j (Mpa)"] || row["RC28J"] || row["RC 28j"]),
@@ -238,16 +227,43 @@ const handleFileImport = async (e) => {
           ajout_percent: cleanNumeric(row["Taux d'Ajouts (%)"] || row["Ajout"] || row["Taux ajout"]),
           type_ajout: cleanValue(row["Type ajout"] || row["Type_ajout"] || row["Type"]),
           source: cleanValue(row["SILO N°"] || row["Source"] || row["SILO"]),
-          phase: phase, // Utiliser la phase sélectionnée dans l'interface
         };
-      }).filter(row => row.num_ech || row.date_test); // Filtrer les lignes vides
+      }).filter(row => row.num_ech || row.date_test);
 
-      console.log("📋 Données formatées pour envoi:", formattedRows);
+      console.log("📋 Données formatées pour envoi:", formattedRows.length, "lignes valides");
 
       if (formattedRows.length === 0) {
         alert("Aucune donnée valide à importer.");
         return;
       }
+
+      // 🔥 TEST DE CONNEXION AU SERVEUR
+      console.log("🔄 Test de connexion au serveur...");
+      try {
+        const testResponse = await fetch("http://localhost:5000/api/test", {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        
+        if (!testResponse.ok) {
+          throw new Error(`Serveur répond avec erreur: ${testResponse.status}`);
+        }
+        
+        const testData = await testResponse.json();
+        console.log("✅ Serveur accessible:", testData);
+      } catch (testError) {
+        console.error("❌ Serveur inaccessible:", testError);
+        throw new Error("Serveur backend non accessible. Vérifiez que le serveur est démarré sur le port 5000.");
+      }
+
+      // 🔥 ENVOI DES DONNÉES D'IMPORT
+      console.log("🔄 Envoi des données d'import...");
+      console.log("📤 Paramètres envoyés:", {
+        clientId: selectedClient,
+        produitId: clientTypeCimentId,
+        rowsCount: formattedRows.length,
+        phaseSelectionnee: phase // Phase réelle pour le traitement
+      });
 
       const res = await fetch("http://localhost:5000/api/echantillons/import", {
         method: "POST",
@@ -256,32 +272,125 @@ const handleFileImport = async (e) => {
           clientId: selectedClient,
           produitId: clientTypeCimentId,
           rows: formattedRows,
+          currentPhase: phase // Phase réelle pour le traitement serveur
         }),
       });
 
       console.log("📨 Réponse HTTP:", res.status, res.statusText);
 
-      const result = await res.json();
-      
+      // Gérer les réponses non-OK
       if (!res.ok) {
-        console.error("❌ Erreur serveur:", result);
-        throw new Error(result.details || result.error || `Erreur ${res.status}: ${res.statusText}`);
+        let errorMessage = `Erreur ${res.status}: ${res.statusText}`;
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          console.error("❌ Détails erreur:", errorData);
+        } catch (parseError) {
+          console.error("Erreur parsing error response:", parseError);
+        }
+        throw new Error(errorMessage);
       }
 
-      console.log("✅ Import réussi:", result);
-      alert(`✅ ${result.message}`);
+      const result = await res.json();
       
-      // Recharger les données
+      console.log("✅ Import réussi - Détails:", {
+        insertedRows: result.insertedRows,
+        phaseUtilisee: result.phase,
+        message: result.message
+      });
+
+      // ⭐⭐ GESTION DE LA PHASE APRÈS IMPORT RÉUSSI - MODIFIÉE
+      let messageAlerte = `✅ ${result.message}`;
+      
+      if (result.phase) {
+        const phaseDisplayBefore = phaseBeforeImport === 'nouveau_type_produit' ? 'Nouveau Type Produit' : 'Situation Courante';
+        const phaseDisplayAfter = result.phase === 'nouveau_type_produit' ? 'Nouveau Type Produit' : 'Situation Courante';
+        
+        messageAlerte += `\n\n📊 Phase utilisée pour l'import: ${phaseDisplayBefore}`;
+        
+        // Mettre à jour la phase RÉELLE (pour les futurs imports)
+        if (result.phase !== phase) {
+          console.log(`🔄 Mise à jour phase réelle: ${phase} → ${result.phase}`);
+          setPhase(result.phase);
+          messageAlerte += `\n📊 Phase après import: ${phaseDisplayAfter}`;
+          messageAlerte += `\n⚠️ Note: La phase a été mise à jour automatiquement pour les futurs imports`;
+        }
+        
+        // ⭐ NE PAS METTRE À JOUR displayPhase - elle garde la phase d'avant import
+        console.log(`💾 Phase pour contrôle conformité gardée: ${phaseBeforeImport}`);
+        
+        // Sauvegarder la phase RÉELLE dans la base
+        try {
+          await savePhaseToDatabase(selectedClient, clientTypeCimentId, result.phase);
+          console.log(`💾 Phase réelle sauvegardée: ${result.phase}`);
+        } catch (phaseError) {
+          console.error('⚠️ Erreur sauvegarde phase réelle:', phaseError);
+          messageAlerte += `\n⚠️ Attention: Erreur lors de la sauvegarde de la phase`;
+        }
+      } else {
+        messageAlerte += `\n\n📊 Phase utilisée: ${phaseBeforeImport === 'nouveau_type_produit' ? 'Nouveau Type Produit' : 'Situation Courante'}`;
+      }
+
+      // Afficher l'alerte avec tous les détails
+      alert(messageAlerte);
+      
+      // ⭐ CONTRÔLE CONFORMITÉ UTILISERA displayPhase (phase avant import)
+      console.log("🎯 Phase pour contrôle conformité:", displayPhase);
+
+      // ⭐⭐ VÉRIFICATION DES DONNÉES IMPORTÉES (DEBUG)
+      try {
+        const verifyResponse = await fetch(
+          `http://localhost:5000/api/check-data-phase?clientId=${selectedClient}&produitId=${clientTypeCimentId}`
+        );
+        if (verifyResponse.ok) {
+          const verifyData = await verifyResponse.json();
+          console.log('🔍 Vérification données importées:', verifyData);
+        }
+      } catch (verifyError) {
+        console.error('⚠️ Erreur vérification données:', verifyError);
+      }
+      
+      // Recharger les données dans les tableaux
       if (tableRef.current?.refresh) {
+        console.log("🔄 Rechargement des données...");
         tableRef.current.refresh();
       }
+      
+      // Forcer le rechargement de l'onglet actif
+      setActiveTab(prevTab => {
+        console.log(`🔄 Actualisation onglet: ${prevTab}`);
+        return prevTab;
+      });
       
       // Reset le champ fichier
       e.target.value = "";
       
+      // ⭐ LOG FINAL DES ÉTATS DE PHASE
+      console.log("📊 États phase finaux:", {
+        phaseAvantImport: phaseBeforeImport,
+        phaseReelle: phase,
+        phaseAffichage: displayPhase,
+        phaseServeur: result.phase
+      });
+      
     } catch (err) {
-      console.error("💥 Erreur complète:", err);
-      alert(`❌ Erreur d'import: ${err.message}`);
+      console.error("💥 Erreur complète import:", {
+        message: err.message,
+        stack: err.stack
+      });
+      
+      // Messages d'erreur spécifiques
+      let errorMessage = `❌ Erreur d'import: ${err.message}`;
+      
+      if (err.message.includes('Failed to fetch') || 
+          err.message.includes('CONNECTION_REFUSED') ||
+          err.message.includes('NetworkError')) {
+        errorMessage = `❌ Impossible de se connecter au serveur backend.\n\nVérifiez que:\n1. Le serveur Node.js est démarré\n2. Il écoute sur le port 5000\n3. Aucun firewall ne bloque la connexion\n\nDétails: ${err.message}`;
+      } else if (err.message.includes('Serveur backend non accessible')) {
+        errorMessage = `❌ ${err.message}\n\nPour démarrer le serveur:\n1. Ouvrez un terminal\n2. Naviguez vers le dossier backend\n3. Exécutez: node server.js\n4. Attendez le message "✅ API running on http://localhost:5000"`;
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -293,6 +402,41 @@ const handleFileImport = async (e) => {
   reader.readAsBinaryString(file);
 };
 
+
+// Fonction pour sauvegarder la phase
+const savePhaseToDatabase = async (clientId, produitId, phase) => {
+  try {
+    const response = await fetch('http://localhost:5000/api/save-phase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId, produitId, phase })
+    });
+    
+    if (!response.ok) throw new Error('Erreur sauvegarde phase');
+    
+    const result = await response.json();
+    console.log('✅ Phase sauvegardée:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Erreur sauvegarde phase:', error);
+    throw error;
+  }
+};
+
+// Fonction de formatage des dates Excel
+const formatExcelDate = (excelDate) => {
+  if (!excelDate || isNaN(excelDate)) return "";
+  const utc_days = Math.floor(excelDate - 25569);
+  const utc_value = utc_days * 86400;
+  const date_info = new Date(utc_value * 1000);
+
+  const year = date_info.getFullYear();
+  const month = String(date_info.getMonth() + 1).padStart(2, "0");
+  const day = String(date_info.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+
   const handleTableDataChange = (data, start, end) => {
     setTableData(data);
     setStartDate(start);
@@ -300,50 +444,44 @@ const handleFileImport = async (e) => {
   };
 
   // Get complete produit info including famille
-  // Get complete produit info including famille
-const getSelectedProduitInfo = () => {
-  if (!clientTypeCimentId) return null;
-  
-  const produit = produits.find((p) => p.id == clientTypeCimentId);
-  if (!produit) return null;
-  
-  return {
-    id: produit.id,
-    nom: produit.nom,
-    description: produit.description,
-    famille: produit.famille || null
+  const getSelectedProduitInfo = () => {
+    if (!clientTypeCimentId) return null;
+    
+    const produit = produits.find((p) => p.id == clientTypeCimentId);
+    if (!produit) return null;
+    
+    return {
+      id: produit.id,
+      nom: produit.nom,
+      description: produit.description,
+      famille: produit.famille || null
+    };
   };
-};
 
   const selectedProduitInfo = getSelectedProduitInfo();
-  const [ajoutsData, setAjoutsData] = useState({});
 
-useEffect(() => {
-  fetch("/Data/parnorm.json")
-    .then((res) => res.json())
-    .then((data) => {
-      setAjoutsData(data.ajout || {}); // récupérer uniquement la clé "ajout"
-    })
-    .catch((err) => {
-      console.error("Erreur chargement parnorm.json:", err);
+  useEffect(() => {
+    fetch("/Data/parnorm.json")
+      .then((res) => res.json())
+      .then((data) => {
+        setAjoutsData(data.ajout || {});
+      })
+      .catch((err) => {
+        console.error("Erreur chargement parnorm.json:", err);
+      });
+  }, []);
+
+  const getAjoutDescription = (code) => {
+    if (!code || !ajoutsData) return "";
+
+    const parts = code.split("-");
+    const descriptions = parts.map((part) => {
+      const ajout = ajoutsData[part];
+      return ajout ? ajout.description : part;
     });
-}, []);
-const getAjoutDescription = (code) => {
-  if (!code || !ajoutsData) return "";
 
-  // Ex: "S-L" → ["S","L"]
-  const parts = code.split("-");
-  
-  // Récupérer les descriptions pour chaque lettre
-  const descriptions = parts.map((part) => {
-    const ajout = ajoutsData[part];
-    return ajout ? ajout.description : part; // si trouvé → description, sinon → code brut
-  });
-
-  // Retourner les descriptions jointes
-  return descriptions.join(" + ");
-};
-
+    return descriptions.join(" + ");
+  };
 
   return (
     <div className="trait-donnees-container">
@@ -383,10 +521,12 @@ const getAjoutDescription = (code) => {
 
         {selectedClient && (
           <>
+
+                      {/* Product Selection */}
             <label>
               Produit:
-              <select value={clientTypeCimentId} onChange={(e) => setClientTypeCimentId(e.target.value)}>
-                <option value="">-- Tous les produits --</option>
+              <select value={clientTypeCimentId} onChange={handleProduitChange}>
+                <option value="">-- Choisir produit --</option>
                 {produits.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.nom} 
@@ -400,64 +540,53 @@ const getAjoutDescription = (code) => {
               )}
             </label>
 
-            {/* Add Phase Selection */}
-            <label>
-              Phase de Production:
-              <select value={phase} onChange={(e) => setPhase(e.target.value)}>
-                <option value="situation_courante">Situation Courante</option>
-                <option value="nouveau_type">Nouveau Type Produit</option>
-              </select>
-            </label>
+<div>
+  <label>
+    Phase de production:
+  </label>
 
-            <button className="new-type-produit-btn" onClick={() => {
-              setPhase("nouveau_type");
-              setShowNewTypeForm(true);
-            }} disabled={!selectedClient}>
-              Nouveau Type Produit
-            </button>
-            
+  <div>
+    <label>
+      <input
+        type="radio"
+        value="situation_courante"
+        checked={phase === 'situation_courante'}
+        onChange={() => {
+          setPhase('situation_courante');
+          setDisplayPhase('situation_courante'); // ⭐ Mettre à jour les deux
+        }}
+      />
+      Situation courante
+    </label>
+    <br/>
+    <label>
+      <input
+        type="radio"
+        value="nouveau_type_produit"
+        checked={phase === 'nouveau_type_produit'}
+        onChange={() => {
+          setPhase('nouveau_type_produit');
+          setDisplayPhase('nouveau_type_produit'); // ⭐ Mettre à jour les deux
+        }}
+      />
+      Nv type produit
+    </label>
+  </div>
+</div>
+
+
+            {/* Import section - only show when a product is selected */}
             {clientTypeCimentId && (
               <div className="import-section">
                 <label>
                   Importer un fichier Excel:
                   <input type="file" accept=".xlsx,.xls" onChange={handleFileImport} />
-                  <small>Phase: {phase === 'nouveau_type' ? 'Nouveau Type Produit' : 'Situation Courante'}</small>
-                </label>
+                  </label>
               </div>
             )}
           </>
         )}
       </div>
-
-      {/* New Cement Type Form */}
-      {showNewTypeForm && (
-        <div className="form-container">
-          <h3>Ajouter un Nouveau Type de Ciment</h3>
-          <p><strong>Phase:</strong> {phase === 'nouveau_type' ? 'Nouveau Type Produit' : 'Situation Courante'}</p>
-          <label>
-            Sélectionner le type de ciment:
-            <select value={newCement} onChange={(e) => setNewCement(e.target.value)}>
-              <option value="">-- Choisir ciment --</option>
-              {cementList.map((cement) => {
-                const clientHasCement = produits.some(p => p.id === cement.id);
-                return (
-                  <option key={cement.id} value={cement.id} disabled={clientHasCement}>
-                    {cement.code} - {cement.description} {cement.famille ? `(${cement.famille.nom})` : ''} {clientHasCement ? "(Déjà associé)" : ""}
-                  </option>
-                );
-              })}
-            </select>
-          </label>
-          <div className="form-buttons">
-            <button onClick={addCementForClient}>Ajouter</button>
-            <button onClick={() => { 
-              setShowNewTypeForm(false); 
-              setNewCement("");
-              setPhase("situation_courante"); // Reset to default
-            }}>Annuler</button>
-          </div>
-        </div>
-      )}
 
       {/* Pass the phase to child components */}
       {activeTab === "donnees" && (
@@ -466,15 +595,11 @@ const getAjoutDescription = (code) => {
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
           produitInfo={selectedProduitInfo}
-          phase={phase} // Pass phase
+          phase={phase}
           tableData={tableData}
           ajoutsData={ajoutsData}  
           selectedRows={selectedRows}
-          onTableDataChange={(data, s, e) => {
-            setTableData(data);
-            setStartDate(s);
-            setEndDate(e);
-          }}
+          onTableDataChange={handleTableDataChange}
         />
       )}
 
@@ -489,12 +614,8 @@ const getAjoutDescription = (code) => {
           clients={clients}
           produits={produits}
           ajoutsData={ajoutsData} 
-          phase={phase} // Pass phase
-          onTableDataChange={(data, s, e) => {
-            setTableData(data);
-            setStartDate(s);
-            setEndDate(e);
-          }}
+          phase={phase}
+          onTableDataChange={handleTableDataChange}
         />
       )}
       
@@ -508,7 +629,7 @@ const getAjoutDescription = (code) => {
           initialEnd={endDate}
           clients={clients}
           produits={produits}
-          phase={phase} // Pass phase
+          phase={phase}
         />
       )}
 
@@ -523,12 +644,8 @@ const getAjoutDescription = (code) => {
           clients={clients}
           produits={produits}
           ajoutsData={ajoutsData} 
-          phase={phase} // Pass phase - THIS IS IMPORTANT!
-          onTableDataChange={(data, s, e) => {
-            setTableData(data);
-            setStartDate(s);
-            setEndDate(e);
-          }}
+         phase={displayPhase}
+          onTableDataChange={handleTableDataChange}
         />
       )}
 
@@ -544,12 +661,8 @@ const getAjoutDescription = (code) => {
           produits={produits}
           ajoutsData={ajoutsData}
           getAjoutDescription={getAjoutDescription}
-          phase={phase} // Pass phase
-          onTableDataChange={(data, s, e) => {
-            setTableData(data);
-            setStartDate(s);
-            setEndDate(e);
-          }}
+          phase={phase}
+          onTableDataChange={handleTableDataChange}
         />
       )}
     </div>

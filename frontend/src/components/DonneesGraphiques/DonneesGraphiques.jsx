@@ -610,7 +610,7 @@ const renderDateTicks = (props) => {
             </p>
           )}
           <p className="tooltip-value" style={{ margin: 0 }}>
-            {`Valeur: ${payload[0].value?.toFixed(2) || 'N/A'}`}
+            {`Valeur: ${payload[0].value !== undefined && !isNaN(payload[0].value) ? Math.round(payload[0].value) : 'N/A'}`}
           </p>
           {dataPoint && (
             <p className="tooltip-sample" style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#666' }}>
@@ -703,14 +703,14 @@ const renderDateTicks = (props) => {
   angle={-90}
   textAnchor="end"
   tickMargin={5}
-  padding={{ left: 5, right: 5 }} // Add padding on sides
+  padding={{ left: 3, right: 5 }} // Add padding on sides
   minTickGap={15} // Minimum gap between ticks
 />
                   <YAxis 
                     dataKey="y" 
                     name={selectedParameter} 
                     domain={[0, 75]}
-                    ticks={[0, 15, 30, 45, 60, 75]}
+                    ticks={[ 0, 20, 40, 60, 80, 100 ,120 ,140  ]}
                     allowDataOverflow={true}
                     width={10}
                   />
