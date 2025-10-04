@@ -50,7 +50,7 @@ form label {
 }
 
 /* Inputs */
-form input[type="email"],
+form input[type="text"],
 form input[type="password"] {
   width: 100%;
   padding: 12px 15px;

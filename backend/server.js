@@ -35,10 +35,630 @@ promisePool.getConnection()
   .catch(err => {
     console.error('❌ Database connection failed:', err);
   });
+ 
+// --- API pour les paramètres de norme --- //
+
+const fs = require('fs');
+const path = require('path');
+
+// Chemin vers le fichier parnorm.json
+const PAR_NORM_PATH = path.join(__dirname, '../frontend/public/Data/parnorm.json');
 
 
-// --- API Clients --- //
-// --- API Utilisateurs --- //
+
+// Route pour récupérer toutes les catégories depuis parnorm.json
+app.get("/api/categories", async (req, res) => {
+  try {
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    
+    // Récupérer les catégories depuis la structure du fichier
+    const categories = parnorm.categories || [];
+    
+    res.json(categories);
+  } catch (err) {
+    console.error("❌ Erreur lecture categories:", err);
+    res.status(500).json({ error: "Erreur lors du chargement des catégories" });
+  }
+});
+
+// Route pour récupérer les paramètres d'une catégorie spécifique
+app.get("/api/parameters/:categoryId", async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    
+    // Récupérer les paramètres de la catégorie
+    const parameters = parnorm.parameters && parnorm.parameters[categoryId] 
+      ? parnorm.parameters[categoryId] 
+      : [];
+    
+    res.json(parameters);
+  } catch (err) {
+    console.error("❌ Erreur lecture parameters:", err);
+    res.status(500).json({ error: "Erreur lors du chargement des paramètres" });
+  }
+});
+
+// Route pour récupérer toutes les données parnorm
+app.get("/api/parnorm", async (req, res) => {
+  try {
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    res.json(parnorm);
+  } catch (err) {
+    console.error("❌ Erreur lecture parnorm:", err);
+    res.status(500).json({ error: "Erreur lors du chargement des données parnorm" });
+  }
+});
+
+// Route pour ajouter une nouvelle catégorie
+app.post("/api/categories", async (req, res) => {
+  try {
+    const { id, nom } = req.body;
+    
+    if (!id || !nom) {
+      return res.status(400).json({ error: "ID et nom sont requis" });
+    }
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    
+    // Vérifier si la catégorie existe déjà
+    const existingCategory = parnorm.categories.find(cat => cat.id === id);
+    if (existingCategory) {
+      return res.status(400).json({ error: "Cette catégorie existe déjà" });
+    }
+    
+    // Ajouter la nouvelle catégorie
+    parnorm.categories.push({ id, nom });
+    
+    // Initialiser les paramètres pour cette catégorie
+    if (!parnorm.parameters) parnorm.parameters = {};
+    parnorm.parameters[id] = [];
+    
+    // Sauvegarder le fichier
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    
+    res.json({ 
+      success: true, 
+      message: "Catégorie ajoutée avec succès",
+      category: { id, nom }
+    });
+  } catch (err) {
+    console.error("❌ Erreur ajout catégorie:", err);
+    res.status(500).json({ error: "Erreur lors de l'ajout de la catégorie" });
+  }
+});
+
+// Route pour ajouter un nouveau paramètre
+app.post("/api/parameters/:categoryId", async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    const { id, nom, unite, type_controle } = req.body;
+    
+    if (!id || !nom) {
+      return res.status(400).json({ error: "ID et nom sont requis" });
+    }
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    
+    // Vérifier si la catégorie existe
+    const categoryExists = parnorm.categories.find(cat => cat.id === categoryId);
+    if (!categoryExists) {
+      return res.status(404).json({ error: "Catégorie non trouvée" });
+    }
+    
+    // Vérifier si le paramètre existe déjà
+    const existingParam = parnorm.parameters[categoryId]?.find(param => param.id === id);
+    if (existingParam) {
+      return res.status(400).json({ error: "Ce paramètre existe déjà dans cette catégorie" });
+    }
+    
+    // Ajouter le nouveau paramètre
+    const newParameter = {
+      id,
+      nom,
+      unite: unite || null,
+      type_controle: type_controle || "mesure"
+    };
+    
+    if (!parnorm.parameters[categoryId]) {
+      parnorm.parameters[categoryId] = [];
+    }
+    
+    parnorm.parameters[categoryId].push(newParameter);
+    
+    // Initialiser les données pour ce paramètre
+    parnorm[id] = {};
+    
+    // Sauvegarder le fichier
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    
+    res.json({ 
+      success: true, 
+      message: "Paramètre ajouté avec succès",
+      parameter: newParameter
+    });
+  } catch (err) {
+    console.error("❌ Erreur ajout paramètre:", err);
+    res.status(500).json({ error: "Erreur lors de l'ajout du paramètre" });
+  }
+});
+
+// Route pour mettre à jour les valeurs d'un paramètre
+app.put("/api/parameters/:paramId/values", async (req, res) => {
+  try {
+    const { paramId } = req.params;
+    const { values } = req.body;
+    
+    if (!values) {
+      return res.status(400).json({ error: "Les valeurs sont requises" });
+    }
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    
+    // Mettre à jour les valeurs du paramètre
+    parnorm[paramId] = values;
+    
+    // Sauvegarder le fichier
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    
+    res.json({ 
+      success: true, 
+      message: "Valeurs mises à jour avec succès"
+    });
+  } catch (err) {
+    console.error("❌ Erreur mise à jour valeurs:", err);
+    res.status(500).json({ error: "Erreur lors de la mise à jour des valeurs" });
+  }
+});
+
+// --- Routes supplémentaires pour la gestion complète --- //
+
+// Supprimer une catégorie
+app.delete("/api/categories/:categoryId", async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    
+    // Vérifier si la catégorie existe
+    const categoryIndex = parnorm.categories.findIndex(cat => cat.id === categoryId);
+    if (categoryIndex === -1) {
+      return res.status(404).json({ error: "Catégorie non trouvée" });
+    }
+    
+    // Supprimer la catégorie
+    parnorm.categories.splice(categoryIndex, 1);
+    
+    // Supprimer les paramètres associés
+    if (parnorm.parameters && parnorm.parameters[categoryId]) {
+      delete parnorm.parameters[categoryId];
+    }
+    
+    // Sauvegarder le fichier
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    
+    res.json({ 
+      success: true, 
+      message: "Catégorie supprimée avec succès"
+    });
+  } catch (err) {
+    console.error("❌ Erreur suppression catégorie:", err);
+    res.status(500).json({ error: "Erreur lors de la suppression de la catégorie" });
+  }
+});
+
+// Modifier une catégorie
+app.put("/api/categories/:categoryId", async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    const { nom } = req.body;
+    
+    if (!nom) {
+      return res.status(400).json({ error: "Le nom est requis" });
+    }
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    
+    // Trouver la catégorie
+    const category = parnorm.categories.find(cat => cat.id === categoryId);
+    if (!category) {
+      return res.status(404).json({ error: "Catégorie non trouvée" });
+    }
+    
+    // Modifier la catégorie
+    category.nom = nom;
+    
+    // Sauvegarder le fichier
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    
+    res.json({ 
+      success: true, 
+      message: "Catégorie modifiée avec succès",
+      category
+    });
+  } catch (err) {
+    console.error("❌ Erreur modification catégorie:", err);
+    res.status(500).json({ error: "Erreur lors de la modification de la catégorie" });
+  }
+});
+
+// Supprimer un paramètre
+app.delete("/api/parameters/:categoryId/:paramId", async (req, res) => {
+  try {
+    const { categoryId, paramId } = req.params;
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    
+    // Vérifier si le paramètre existe
+    if (!parnorm.parameters || !parnorm.parameters[categoryId]) {
+      return res.status(404).json({ error: "Catégorie ou paramètre non trouvé" });
+    }
+    
+    const paramIndex = parnorm.parameters[categoryId].findIndex(param => param.id === paramId);
+    if (paramIndex === -1) {
+      return res.status(404).json({ error: "Paramètre non trouvé" });
+    }
+    
+    // Supprimer le paramètre
+    parnorm.parameters[categoryId].splice(paramIndex, 1);
+    
+    // Supprimer les données associées au paramètre
+    if (parnorm[paramId]) {
+      delete parnorm[paramId];
+    }
+    
+    // Sauvegarder le fichier
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    
+    res.json({ 
+      success: true, 
+      message: "Paramètre supprimé avec succès"
+    });
+  } catch (err) {
+    console.error("❌ Erreur suppression paramètre:", err);
+    res.status(500).json({ error: "Erreur lors de la suppression du paramètre" });
+  }
+});
+
+// Modifier un paramètre
+app.put("/api/parameters/:categoryId/:paramId", async (req, res) => {
+  try {
+    const { categoryId, paramId } = req.params;
+    const { nom, unite, type_controle } = req.body;
+    
+    if (!nom) {
+      return res.status(400).json({ error: "Le nom est requis" });
+    }
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    
+    // Trouver le paramètre
+    if (!parnorm.parameters || !parnorm.parameters[categoryId]) {
+      return res.status(404).json({ error: "Catégorie ou paramètre non trouvé" });
+    }
+    
+    const parameter = parnorm.parameters[categoryId].find(param => param.id === paramId);
+    if (!parameter) {
+      return res.status(404).json({ error: "Paramètre non trouvé" });
+    }
+    
+    // Modifier le paramètre
+    parameter.nom = nom;
+    parameter.unite = unite || null;
+    parameter.type_controle = type_controle || "mesure";
+    
+    // Sauvegarder le fichier
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    
+    res.json({ 
+      success: true, 
+      message: "Paramètre modifié avec succès",
+      parameter
+    });
+  } catch (err) {
+    console.error("❌ Erreur modification paramètre:", err);
+    res.status(500).json({ error: "Erreur lors de la modification du paramètre" });
+  }
+});
+
+// Gestion des valeurs de paramètres (ajout, modification, suppression)
+app.post("/api/parameters/:paramId/values", async (req, res) => {
+  try {
+    const { paramId } = req.params;
+    const { famille_code, type_code, classe_data } = req.body;
+    
+    if (!famille_code || !type_code || !classe_data) {
+      return res.status(400).json({ error: "Données incomplètes" });
+    }
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    
+    // Initialiser la structure si elle n'existe pas
+    if (!parnorm[paramId]) {
+      parnorm[paramId] = {};
+    }
+    
+    if (!parnorm[paramId][famille_code]) {
+      parnorm[paramId][famille_code] = {};
+    }
+    
+    if (!parnorm[paramId][famille_code][type_code]) {
+      parnorm[paramId][famille_code][type_code] = [];
+    }
+    
+    // Ajouter la nouvelle classe
+    parnorm[paramId][famille_code][type_code].push(classe_data);
+    
+    // Sauvegarder le fichier
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    
+    res.json({ 
+      success: true, 
+      message: "Valeur ajoutée avec succès"
+    });
+  } catch (err) {
+    console.error("❌ Erreur ajout valeur:", err);
+    res.status(500).json({ error: "Erreur lors de l'ajout de la valeur" });
+  }
+});
+
+// Modifier une valeur existante
+app.put("/api/parameters/:paramId/values", async (req, res) => {
+  try {
+    const { paramId } = req.params;
+    const { famille_code, type_code, old_classe, new_classe_data } = req.body;
+    
+    if (!famille_code || !type_code || !old_classe || !new_classe_data) {
+      return res.status(400).json({ error: "Données incomplètes" });
+    }
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    
+    // Vérifier que la structure existe
+    if (!parnorm[paramId] || !parnorm[paramId][famille_code] || !parnorm[paramId][famille_code][type_code]) {
+      return res.status(404).json({ error: "Valeur non trouvée" });
+    }
+    
+    // Trouver et modifier la classe
+    const classes = parnorm[paramId][famille_code][type_code];
+    const classeIndex = classes.findIndex(c => c.classe === old_classe);
+    
+    if (classeIndex === -1) {
+      return res.status(404).json({ error: "Classe non trouvée" });
+    }
+    
+    classes[classeIndex] = new_classe_data;
+    
+    // Sauvegarder le fichier
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    
+    res.json({ 
+      success: true, 
+      message: "Valeur modifiée avec succès"
+    });
+  } catch (err) {
+    console.error("❌ Erreur modification valeur:", err);
+    res.status(500).json({ error: "Erreur lors de la modification de la valeur" });
+  }
+});
+
+// Supprimer une valeur
+app.delete("/api/parameters/:paramId/values", async (req, res) => {
+  try {
+    const { paramId } = req.params;
+    const { famille_code, type_code, classe } = req.body;
+    
+    if (!famille_code || !type_code || !classe) {
+      return res.status(400).json({ error: "Données incomplètes" });
+    }
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    
+    // Vérifier que la structure existe
+    if (!parnorm[paramId] || !parnorm[paramId][famille_code] || !parnorm[paramId][famille_code][type_code]) {
+      return res.status(404).json({ error: "Valeur non trouvée" });
+    }
+    
+    // Supprimer la classe
+    const classes = parnorm[paramId][famille_code][type_code];
+    const classeIndex = classes.findIndex(c => c.classe === classe);
+    
+    if (classeIndex === -1) {
+      return res.status(404).json({ error: "Classe non trouvée" });
+    }
+    
+    classes.splice(classeIndex, 1);
+    
+    // Nettoyer les structures vides
+    if (classes.length === 0) {
+      delete parnorm[paramId][famille_code][type_code];
+    }
+    if (Object.keys(parnorm[paramId][famille_code]).length === 0) {
+      delete parnorm[paramId][famille_code];
+    }
+    if (Object.keys(parnorm[paramId]).length === 0) {
+      delete parnorm[paramId];
+    }
+    
+    // Sauvegarder le fichier
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    
+    res.json({ 
+      success: true, 
+      message: "Valeur supprimée avec succès"
+    });
+  } catch (err) {
+    console.error("❌ Erreur suppression valeur:", err);
+    res.status(500).json({ error: "Erreur lors de la suppression de la valeur" });
+  }
+});
+// --- CRUD for Ajouts ---
+
+// GET tous les ajouts
+app.get("/api/ajouts", async (req, res) => {
+  try {
+    const data = await fs.promises.readFile(PAR_NORM_PATH, "utf8");
+    const parnorm = JSON.parse(data);
+
+    res.json(parnorm.ajout || {});
+  } catch (err) {
+    console.error("❌ Erreur lecture ajouts:", err);
+    res.status(500).json({ error: "Erreur serveur ajouts" });
+  }
+});
+
+// POST un nouvel ajout
+app.post("/api/ajouts", async (req, res) => {
+  try {
+    const { id, description } = req.body;
+    if (!id || !description) {
+      return res.status(400).json({ error: "ID et description requis" });
+    }
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, "utf8");
+    const parnorm = JSON.parse(data);
+
+    if (!parnorm.ajout) parnorm.ajout = {};
+    if (parnorm.ajout[id]) {
+      return res.status(400).json({ error: "Ajout existe déjà" });
+    }
+
+    parnorm.ajout[id] = { description };
+
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Erreur ajout:", err);
+    res.status(500).json({ error: "Erreur ajout" });
+  }
+});
+
+// PUT modifier un ajout
+app.put("/api/ajouts/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { description } = req.body;
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, "utf8");
+    const parnorm = JSON.parse(data);
+
+    if (!parnorm.ajout || !parnorm.ajout[id]) {
+      return res.status(404).json({ error: "Ajout introuvable" });
+    }
+
+    parnorm.ajout[id].description = description;
+
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Erreur maj ajout:", err);
+    res.status(500).json({ error: "Erreur mise à jour" });
+  }
+});
+
+// DELETE un ajout
+app.delete("/api/ajouts/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = await fs.promises.readFile(PAR_NORM_PATH, "utf8");
+    const parnorm = JSON.parse(data);
+
+    if (!parnorm.ajout || !parnorm.ajout[id]) {
+      return res.status(404).json({ error: "Ajout introuvable" });
+    }
+
+    delete parnorm.ajout[id];
+
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Erreur suppression ajout:", err);
+    res.status(500).json({ error: "Erreur suppression" });
+  }
+});
+
+// --- CRUD for Cement rows in an Ajout ---
+app.post("/api/ajouts/:ajoutId/ciments", async (req, res) => {
+  try {
+    const { ajoutId } = req.params;
+    const { cement, limitInf, limitSup } = req.body;
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, "utf8");
+    const parnorm = JSON.parse(data);
+
+    if (!parnorm.ajout || !parnorm.ajout[ajoutId]) {
+      return res.status(404).json({ error: "Ajout introuvable" });
+    }
+
+    parnorm.ajout[ajoutId][cement] = { limitInf, limitSup };
+
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Erreur ajout ciment:", err);
+    res.status(500).json({ error: "Erreur ajout ciment" });
+  }
+});
+
+app.put("/api/ajouts/:ajoutId/ciments/:cement", async (req, res) => {
+  try {
+    const { ajoutId, cement } = req.params;
+    const { limitInf, limitSup } = req.body;
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, "utf8");
+    const parnorm = JSON.parse(data);
+
+    if (!parnorm.ajout || !parnorm.ajout[ajoutId] || !parnorm.ajout[ajoutId][cement]) {
+      return res.status(404).json({ error: "Ciment introuvable" });
+    }
+
+    parnorm.ajout[ajoutId][cement] = { limitInf, limitSup };
+
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Erreur maj ciment:", err);
+    res.status(500).json({ error: "Erreur maj ciment" });
+  }
+});
+
+app.delete("/api/ajouts/:ajoutId/ciments/:cement", async (req, res) => {
+  try {
+    const { ajoutId, cement } = req.params;
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, "utf8");
+    const parnorm = JSON.parse(data);
+
+    if (!parnorm.ajout || !parnorm.ajout[ajoutId] || !parnorm.ajout[ajoutId][cement]) {
+      return res.status(404).json({ error: "Ciment introuvable" });
+    }
+
+    delete parnorm.ajout[ajoutId][cement];
+
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Erreur suppression ciment:", err);
+    res.status(500).json({ error: "Erreur suppression ciment" });
+  }
+});
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
 
 // Récupérer tous les utilisateurs (sans mot de passe)
 app.get("/api/utilisateurs", async (req, res) => {
