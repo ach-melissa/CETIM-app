@@ -62,8 +62,8 @@ promisePool.getConnection()
  
 // --- API pour les paramètres de norme --- //
 
-const fs = require('fs');
-const path = require('path');
+
+
 
 // Chemin vers le fichier parnorm.json
 const PAR_NORM_PATH = path.join(__dirname, '../frontend/public/Data/parnorm.json');
