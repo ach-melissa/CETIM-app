@@ -70,7 +70,7 @@ function Header() {
               className={({ isActive }) => `header-nav-link ${isActive ? "active" : ""}`}
               onClick={() => !isFirstVisit && toggleMenu()}
             >
-              <span>Paramètre Entreprise</span>
+              <span>Paramètre Clients</span>
             </NavLink>
           </li>
           <li className="header-nav-item">
@@ -80,6 +80,15 @@ function Header() {
               onClick={() => !isFirstVisit && toggleMenu()}
             >
               <span>Traitement Données</span>
+            </NavLink>
+          </li>
+            <li className="header-nav-item">
+            <NavLink 
+              to="/paramutilisateurs" 
+              className={({ isActive }) => `header-nav-link ${isActive ? "active" : ""}`}
+              onClick={() => !isFirstVisit && toggleMenu()}
+            >
+              <span>Parametre Utilisateurs</span>
             </NavLink>
           </li>
           <li className="header-nav-item">

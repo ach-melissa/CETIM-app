@@ -1,4 +1,104 @@
 {
+  "categories": [
+    {
+      "id": "mecanique",
+      "nom": "Mécanique"
+    },
+    {
+      "id": "physique",
+      "nom": "Physique"
+    },
+    {
+      "id": "chimique",
+      "nom": "Chimique"
+    }
+  ],
+  "parameters": {
+    "mecanique": [
+      {
+        "id": "resistance_2j",
+        "nom": "Résistance à 2 jours",
+        "unite": "MPa",
+        "type_controle": "mesure"
+      },
+      {
+        "id": "resistance_7j",
+        "nom": "Résistance à 7 jours",
+        "unite": "MPa",
+        "type_controle": "mesure"
+      },
+      {
+        "id": "resistance_28j",
+        "nom": "Résistance à 28 jours",
+        "unite": "MPa",
+        "type_controle": "mesure"
+      }
+    ],
+    "physique": [
+      {
+        "id": "temps_debut_prise",
+        "nom": "Temps de début de prise",
+        "unite": "min",
+        "type_controle": "attribut"
+      },
+      {
+        "id": "stabilite",
+        "nom": "Stabilité (expansion)",
+        "unite": "mm",
+        "type_controle": "attribut"
+      },
+      {
+        "id": "chaleur_hydratation",
+        "nom": "Chaleur d'hydratation",
+        "unite": "J/g",
+        "type_controle": "attribut"
+      }
+    ],
+    "chimique": [
+      {
+        "id": "pert_au_feu",
+        "nom": "Perte au feu",
+        "unite": "%",
+        "type_controle": "attribut"
+      },
+      {
+        "id": "residu_insoluble",
+        "nom": "Résidu insoluble",
+        "unite": "%",
+        "type_controle": "attribut"
+      },
+      {
+        "id": "SO3",
+        "nom": "Teneur en sulfate (SO₃)",
+        "unite": "%",
+        "type_controle": "attribut"
+      },
+      {
+        "id": "teneur_chlour",
+        "nom": "Teneur en chlorure",
+        "unite": "%",
+        "type_controle": "attribut"
+      },
+      {
+        "id": "C3A",
+        "nom": "C3A dans le clinker",
+        "unite": "%",
+        "type_controle": "attribut"
+      },
+      {
+        "id": "pouzzolanicite",
+        "nom": "Pouzzolanicité",
+        "unite": "",
+        "type_controle": "attribut"
+      },
+      {
+        "id": "Ajout",
+        "nom": "L'ajout",
+        "unite": null,
+        "type_controle": "attribut"
+      }
+    ]
+  },
 
   "resistance_2j": {
     "CEM I": {
@@ -1278,6 +1378,7 @@
     }
 },
 
+
   "pert_au_feu":{
 
       "CEM I":{
@@ -1704,6 +1805,7 @@
   }
 
   },
+
 
   "residu_insoluble": {
 
@@ -3816,7 +3918,6 @@
 
 },
 
-
   "Ajout": {
     "CEM II": {
       "CEM II/A-S": [
@@ -4174,8 +4275,3 @@
     }
   }
 } 
-
-
-
-
-
