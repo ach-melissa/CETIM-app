@@ -1932,6 +1932,38 @@ app.post("/api/echantillons/save", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur", details: err.message });
   }
 });
+// Add in server.js
+app.get("/api/produits/:clientId", async (req, res) => {
+  const { clientId } = req.params;
+  try {
+    const [rows] = await promisePool.query(`
+      SELECT 
+        t.id, t.code, t.description,
+        f.id AS famille_id, f.code AS famille_code, f.nom AS famille_nom
+      FROM client_types_ciment ct
+      JOIN types_ciment t ON ct.typecement_id = t.id
+      JOIN familles_ciment f ON t.famille_id = f.id
+      WHERE ct.client_id = ?
+    `, [clientId]);
+
+    const produits = rows.map(row => ({
+      id: row.id,
+      code: row.code,
+      description: row.description,
+      famille: {
+        id: row.famille_id,
+        code: row.famille_code,
+        nom: row.famille_nom
+      }
+    }));
+
+    res.json(produits);
+  } catch (err) {
+    console.error("❌ Erreur /api/produits/:clientId:", err);
+    res.status(500).json({ error: "Erreur serveur produits" });
+  }
+});
+
 
 // ... existing code ...
 
