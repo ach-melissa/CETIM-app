@@ -87,24 +87,9 @@ const EchantillonsTable = forwardRef(
     const [rowsToEdit, setRowsToEdit] = useState([]);
     const { updateFilteredData } = useData();
 
-    // Liste des produits qui nécessitent C3A
-    const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
-    
-    // Liste des produits qui nécessitent Ajout
-    const ajoutProducts = [
-      "CEM II/A-S", "CEM II/B-S", "CEM II/A-D", "CEM II/A-P", "CEM II/B-P",
-      "CEM II/A-Q", "CEM II/B-Q", "CEM II/A-V", "CEM II/B-V",
-      "CEM II/A-W", "CEM II/B-W", "CEM II/A-T", "CEM II/B-T",
-      "CEM II/A-L", "CEM II/B-L", "CEM II/A-LL", "CEM II/B-LL",
-      "CEM II/A-M", "CEM II/B-M"
-    ];
-
     // Déterminer quelles colonnes afficher
-    const showC3A =
-      produitInfo &&
-      (produitInfo.famille?.code === "CEM I" || c3aProducts.includes(produitInfo.nom));
-
-    const showAjoutFields = produitInfo && ajoutProducts.includes(produitInfo.nom);
+    const showC3A = produitInfo && produitInfo.famille?.code === "CEM I";
+    const showTauxAjout = produitInfo && produitInfo.famille?.code !== "CEM I";
 
     const fetchRows = async () => {
       if (!clientId) return;
@@ -441,10 +426,8 @@ const handleImportExcel = (e) => {
         headers.push("C3A");
       }
       
-      if (showAjoutFields) {
+      if (showTauxAjout) {
         headers.push("Taux Ajout");
-        headers.push("Type Ajout");
-        headers.push("Description Ajout");
       }
 
       const doc = new jsPDF();
@@ -471,10 +454,8 @@ const handleImportExcel = (e) => {
             baseRow.push(row.c3a);
           }
           
-          if (showAjoutFields) {
+          if (showTauxAjout) {
             baseRow.push(row.ajout_percent);
-            baseRow.push(row.type_ajout);
-            baseRow.push(getAjoutDescription(row.type_ajout));
           }
           
           return baseRow;
@@ -503,23 +484,7 @@ const handleImportExcel = (e) => {
     const displayRows = isEditing && rowsToEdit.length > 0 ? rowsToEdit : filteredRows;
 
     // Calculer le nombre de colonnes pour le colspan
-    const colSpanCount = 13 + (showC3A ? 1 : 0) + (showAjoutFields ? 3 : 0);
-
-    const getAjoutDescription = (codeAjout) => {
-      if (!codeAjout || !ajoutsData) return "";
-
-      // Découper en parties (ex: "S-L" → ["S","L"])
-      const parts = codeAjout.split("-");
-
-      // Remplacer chaque partie par sa description
-      const descriptions = parts.map((part) => {
-        const ajout = ajoutsData[part];
-        return ajout ? ajout.description : part; // fallback au code brut
-      });
-
-      // Assembler
-      return descriptions.join(" + ");
-    };
+    const colSpanCount = 13 + (showC3A ? 1 : 0) + (showTauxAjout ? 1 : 0);
 
     return (
       <div>
@@ -746,13 +711,7 @@ const handleImportExcel = (e) => {
                 <th>SO3</th>
                 <th>Chlorure</th>
                 {showC3A && <th>C3A</th>}
-                {showAjoutFields && (
-                  <>
-                    <th>Taux Ajout</th>
-                    <th>Type Ajout</th>
-                    <th>Description Ajout</th>
-                  </>
-                )}
+                {showTauxAjout && <th>Taux Ajout</th>}
               </tr>
             </thead>
             <tbody>
@@ -851,26 +810,15 @@ const handleImportExcel = (e) => {
                       />
                     </td>
                   )}
-                  {showAjoutFields && (
-                    <>
-                      <td>
-                        <input
-                          type="number"
-                          value={row.ajout_percent || ""}
-                          onChange={(e) => handleEdit(row.id, "ajout_percent", e.target.value)}
-                          disabled={!isEditing}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          value={row.type_ajout || ""}
-                          onChange={(e) => handleEdit(row.id, "type_ajout", e.target.value)}
-                          disabled={!isEditing}
-                        />
-                      </td>
-                      <td>{getAjoutDescription(row.type_ajout)}</td>
-                    </>
+                  {showTauxAjout && (
+                    <td>
+                      <input
+                        type="number"
+                        value={row.ajout_percent || ""}
+                        onChange={(e) => handleEdit(row.id, "ajout_percent", e.target.value)}
+                        disabled={!isEditing}
+                      />
+                    </td>
                   )}
                 </tr>
               ))}

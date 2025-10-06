@@ -3856,6 +3856,17 @@
   "C3A":{
   
   "CEM I":{
+            "CEM I":[
+        {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null},    
+    {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie":null },
+    {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+        {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+        {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+ ],
         "CEM I-SR 0":[    
     {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
     {  "classe": "32.5 N", "limit_inf": "0", "limit_max": "0", "garantie": "1" },
@@ -3891,6 +3902,28 @@
  ]
       },
  "CEM IV": {
+          "CEM IV/A": [   
+        {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+  {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+  {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+        {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+  {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+  {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+        {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+  {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null},
+  {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null }
+ ],
+      "CEM IV/B": [   
+          {  "classe": "32.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+  {  "classe": "32.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+  {  "classe": "32.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "42.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+  {  "classe": "42.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+  {  "classe": "42.5 R", "limit_inf": null, "limit_max": null, "garantie": null },
+    {  "classe": "52.5 L", "limit_inf": null, "limit_max": null, "garantie": null },
+  {  "classe": "52.5 N", "limit_inf": null, "limit_max": null, "garantie": null },
+  {  "classe": "52.5 R", "limit_inf": null, "limit_max": null, "garantie": null}
+ ],
       "CEM IV/A-SR": [     
     { "classe": "32.5L", "limit_inf": null, "limit_max": "9", "garantie": "10"},
     { "classe": "32.5N", "limit_inf": null, "limit_max": "9", "garantie": "10"},
