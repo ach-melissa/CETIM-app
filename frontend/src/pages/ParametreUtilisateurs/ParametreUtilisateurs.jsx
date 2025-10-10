@@ -5,18 +5,37 @@ import Header from "../../components/Header/Header";
 
 export default function ParametreUtilisateurs() {
   const [utilisateurs, setUtilisateurs] = useState([]);
-  const [formData, setFormData] = useState({
-    username: "",
-    email: "",
-    mot_de_passe: "",
-    role: "user",
-  });
+ const [formData, setFormData] = useState({
+  username: "",
+  email: "",
+  mot_de_passe: "",
+  role: "user",
+  parnorm: false,
+  parametre_ciment: false,
+  parametre_clients: false,
+  traitement_donnees: false,
+  historique: false,
+  parametre_ciment_read: false,
+  parametre_ciment_create: false,
+  parametre_ciment_update: false,
+  parametre_ciment_delete: false,
+  // 🆕 Add these:
+  parametre_entreprise_read: false,
+  parametre_entreprise_create: false,
+  parametre_entreprise_update: false,
+  parametre_entreprise_delete: false,
+  // 🆕 Add these
+  parnorm_read: false,
+  parnorm_create: false,
+  parnorm_update: false,
+  parnorm_delete: false,
+});
+
   const [editingUser, setEditingUser] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
   const [openMenu, setOpenMenu] = useState(null);
 
-  // Charger les utilisateurs
   useEffect(() => {
     fetchUtilisateurs();
   }, []);
@@ -31,10 +50,13 @@ export default function ParametreUtilisateurs() {
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value, type, checked } = e.target;
+    setFormData({
+      ...formData,
+      [name]: type === "checkbox" ? checked : value,
+    });
   };
 
-  // Ajouter ou Modifier utilisateur
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -46,7 +68,27 @@ export default function ParametreUtilisateurs() {
       } else {
         await axios.post("http://localhost:5000/api/utilisateurs", formData);
       }
-      setFormData({ username: "", email: "", mot_de_passe: "", role: "user" });
+
+      setFormData({
+  username: "",
+  email: "",
+  mot_de_passe: "",
+  role: "user",
+  parnorm: false,
+  parametre_ciment: false,
+  parametre_clients: false,
+  traitement_donnees: false,
+  historique: false,
+  parametre_ciment_read: false,
+  parametre_ciment_create: false,
+  parametre_ciment_update: false,
+  parametre_ciment_delete: false,
+  parametre_entreprise_read: false,
+  parametre_entreprise_create: false,
+  parametre_entreprise_update: false,
+  parametre_entreprise_delete: false,
+});
+
       setEditingUser(null);
       setShowForm(false);
       fetchUtilisateurs();
@@ -55,7 +97,6 @@ export default function ParametreUtilisateurs() {
     }
   };
 
-  // Supprimer utilisateur
   const handleDelete = async (id) => {
     if (!window.confirm("Supprimer cet utilisateur ?")) return;
     try {
@@ -66,7 +107,6 @@ export default function ParametreUtilisateurs() {
     }
   };
 
-  // Filtrage (username ou email)
   const filteredUsers = utilisateurs.filter(
     (u) =>
       u.username?.toLowerCase().includes(search.toLowerCase()) ||
@@ -78,7 +118,6 @@ export default function ParametreUtilisateurs() {
       <Header />
       <h2>Gestion des utilisateurs</h2>
 
-      {/* 🔎 Barre de recherche */}
       <div className="search-bar">
         <input
           type="text"
@@ -88,19 +127,36 @@ export default function ParametreUtilisateurs() {
         />
       </div>
 
-      {/* ➕ Bouton Ajouter */}
-      <button
-        className="add-user-btn"
-        onClick={() => {
-          setEditingUser(null);
-          setFormData({ username: "", email: "", mot_de_passe: "", role: "user" });
-          setShowForm(true);
-        }}
-      >
-        + Ajouter un utilisateur
-      </button>
+     <button
+  className="add-user-btn"
+  onClick={() => {
+    setEditingUser(null);
+    setFormData({
+      username: "",
+      email: "",
+      mot_de_passe: "",
+      role: "user",
+      parnorm: false,
+      parametre_ciment: false,
+      parametre_clients: false,
+      traitement_donnees: false,
+      historique: false,
+      parametre_ciment_read: false,
+      parametre_ciment_create: false,
+      parametre_ciment_update: false,
+      parametre_ciment_delete: false,
+      parametre_entreprise_read: false,
+      parametre_entreprise_create: false,
+      parametre_entreprise_update: false,
+      parametre_entreprise_delete: false,
+    });
+    setShowForm(true);
+  }}
+>
+  + Ajouter un utilisateur
+</button>
 
-      {/* 📋 Liste des utilisateurs */}
+
       <table className="utilisateurs-table">
         <thead>
           <tr>
@@ -118,13 +174,15 @@ export default function ParametreUtilisateurs() {
               <td>{u.id}</td>
               <td>{u.username}</td>
               <td>{u.email}</td>
-              <td>{u.mot_de_passe}</td>
+              <td>••••••••</td>
               <td>{u.role}</td>
               <td>
                 <div className="actions-menu">
                   <button
                     className="dots-btn"
-                    onClick={() => setOpenMenu(openMenu === u.id ? null : u.id)}
+                    onClick={() =>
+                      setOpenMenu(openMenu === u.id ? null : u.id)
+                    }
                   >
                     ⋮
                   </button>
@@ -136,8 +194,35 @@ export default function ParametreUtilisateurs() {
                           setFormData({
                             username: u.username,
                             email: u.email,
-                            mot_de_passe: u.mot_de_passe || "",
+                            mot_de_passe: "",
                             role: u.role,
+                            parnorm: !!u.parnorm,
+                            parametre_ciment: !!u.parametre_ciment,
+                            parametre_clients: !!u.parametre_clients,
+                            traitement_donnees: !!u.traitement_donnees,
+                            historique: !!u.historique,
+                            // ✅ load cement sub-permissions too
+                            parametre_ciment_read: !!u.parametre_ciment_read,
+                            parametre_ciment_create:
+                              !!u.parametre_ciment_create,
+                            parametre_ciment_update:
+                              !!u.parametre_ciment_update,
+                            parametre_ciment_delete:
+                              !!u.parametre_ciment_delete,
+                              parnorm_read: !!u.parnorm_read,
+parnorm_create: !!u.parnorm_create,
+parnorm_update: !!u.parnorm_update,
+parnorm_delete: !!u.parnorm_delete,
+
+                            
+
+// ✅ Add entreprise sub-permissions here too
+parametre_entreprise_read: !!u.parametre_entreprise_read,
+parametre_entreprise_create: !!u.parametre_entreprise_create,
+parametre_entreprise_update: !!u.parametre_entreprise_update,
+parametre_entreprise_delete: !!u.parametre_entreprise_delete,
+
+
                           });
                           setShowForm(true);
                           setOpenMenu(null);
@@ -145,7 +230,9 @@ export default function ParametreUtilisateurs() {
                       >
                         Modifier
                       </button>
-                      <button onClick={() => handleDelete(u.id)}>Supprimer</button>
+                      <button onClick={() => handleDelete(u.id)}>
+                        Supprimer
+                      </button>
                     </div>
                   )}
                 </div>
@@ -155,14 +242,16 @@ export default function ParametreUtilisateurs() {
         </tbody>
       </table>
 
-      {/* 📝 Formulaire en popup */}
       {showForm && (
         <div className="modal-overlay">
           <div className="modal-content">
             <button className="close-btn" onClick={() => setShowForm(false)}>
               ✖
             </button>
-            <h3>{editingUser ? "Modifier utilisateur" : "Ajouter utilisateur"}</h3>
+            <h3>
+              {editingUser ? "Modifier utilisateur" : "Ajouter utilisateur"}
+            </h3>
+
             <form onSubmit={handleSubmit} className="utilisateurs-form">
               <input
                 type="text"
@@ -192,6 +281,191 @@ export default function ParametreUtilisateurs() {
                 <option value="user">Utilisateur</option>
                 <option value="admin">Administrateur</option>
               </select>
+
+              {formData.role === "user" && (
+                <>
+                  <div className="permissions-section">
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="parnorm"
+                        checked={formData.parnorm}
+                        onChange={handleChange}
+                      />{" "}
+                      Paramètre Norm
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="parametre_ciment"
+                        checked={formData.parametre_ciment}
+                        onChange={handleChange}
+                      />{" "}
+                      Paramètre Ciment
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="parametre_clients"
+                        checked={formData.parametre_clients}
+                        onChange={handleChange}
+                      />{" "}
+                      Paramètre Clients
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="traitement_donnees"
+                        checked={formData.traitement_donnees}
+                        onChange={handleChange}
+                      />{" "}
+                      Traitement Données
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="historique"
+                        checked={formData.historique}
+                        onChange={handleChange}
+                      />{" "}
+                      Historique
+                    </label>
+                  </div>
+
+                  {/* ✅ Cement sub-permissions */}
+                  <div className="permissions-section">
+                    <h4>Autorisations – Paramètre Ciment</h4>
+
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="parametre_ciment_read"
+                        checked={formData.parametre_ciment_read}
+                        onChange={handleChange}
+                      />{" "}
+                      Lire / Voir
+                    </label>
+
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="parametre_ciment_create"
+                        checked={formData.parametre_ciment_create}
+                        onChange={handleChange}
+                      />{" "}
+                      Ajouter
+                    </label>
+
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="parametre_ciment_update"
+                        checked={formData.parametre_ciment_update}
+                        onChange={handleChange}
+                      />{" "}
+                      Modifier
+                    </label>
+
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="parametre_ciment_delete"
+                        checked={formData.parametre_ciment_delete}
+                        onChange={handleChange}
+                      />{" "}
+                      Supprimer
+                    </label>
+                  </div>
+                  <div className="permissions-section">
+  <h4>Autorisations – Paramètre Entreprise</h4>
+
+  <label>
+    <input
+      type="checkbox"
+      name="parametre_entreprise_read"
+      checked={formData.parametre_entreprise_read}
+      onChange={handleChange}
+    />{" "}
+    Lire / Voir
+  </label>
+
+  <label>
+    <input
+      type="checkbox"
+      name="parametre_entreprise_create"
+      checked={formData.parametre_entreprise_create}
+      onChange={handleChange}
+    />{" "}
+    Ajouter
+  </label>
+
+  <label>
+    <input
+      type="checkbox"
+      name="parametre_entreprise_update"
+      checked={formData.parametre_entreprise_update}
+      onChange={handleChange}
+    />{" "}
+    Modifier
+  </label>
+
+  <label>
+    <input
+      type="checkbox"
+      name="parametre_entreprise_delete"
+      checked={formData.parametre_entreprise_delete}
+      onChange={handleChange}
+    />{" "}
+    Supprimer
+  </label>
+</div>
+<div className="permissions-section">
+  <h4>Autorisations – Paramètre Norm</h4>
+
+  <label>
+    <input
+      type="checkbox"
+      name="parnorm_read"
+      checked={formData.parnorm_read}
+      onChange={handleChange}
+    />{" "}
+    Lire / Voir
+  </label>
+
+  <label>
+    <input
+      type="checkbox"
+      name="parnorm_create"
+      checked={formData.parnorm_create}
+      onChange={handleChange}
+    />{" "}
+    Ajouter
+  </label>
+
+  <label>
+    <input
+      type="checkbox"
+      name="parnorm_update"
+      checked={formData.parnorm_update}
+      onChange={handleChange}
+    />{" "}
+    Modifier
+  </label>
+
+  <label>
+    <input
+      type="checkbox"
+      name="parnorm_delete"
+      checked={formData.parnorm_delete}
+      onChange={handleChange}
+    />{" "}
+    Supprimer
+  </label>
+</div>
+
+                </>
+              )}
+
               <button type="submit">
                 {editingUser ? "Enregistrer" : "Ajouter"}
               </button>

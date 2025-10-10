@@ -7,6 +7,7 @@ import TraitDonnes from "./pages/TraitementDonnées/traitement-données.jsx";
 import ParametreNorm from "./pages/ParametreNorm/parametre_norm.jsx";
 import Historique from "./pages/Historique/historique.jsx";
 import ParametreUtilisateurs from "./pages/ParametreUtilisateurs/ParametreUtilisateurs.jsx";
+import ParametreCiment from "./pages/parametreCiment/parametreCiment.jsx";
 import "./App.css";
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
       <Route path="/parentreprise" element={<ParametreEntreprise />} />
       <Route path="/traitdonnes" element={<TraitDonnes />} />
       <Route path="/paramutilisateurs" element={<ParametreUtilisateurs />} />
+      <Route path="/ParametreCiment" element={<ParametreCiment />} />
       <Route path="/historique" element={<Historique />} />
 
       {/* Catch-all redirect to login */}

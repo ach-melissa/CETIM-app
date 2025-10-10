@@ -63,6 +63,20 @@ export default function ParametreNorm() {
   const [ajoutRowMenuOpen, setAjoutRowMenuOpen] = useState(null);
   const [ajoutListMenuOpen, setAjoutListMenuOpen] = useState(null);
   const [editingCementRow, setEditingCementRow] = useState(null);
+const userPermissions = JSON.parse(localStorage.getItem("permissions") || "{}");
+const role = localStorage.getItem("role");
+const can = (perm) =>
+  role === "admin" || userPermissions[perm] === 1 || userPermissions[perm] === true;
+if (!can("parnorm_read") && !can("parnorm")) {
+  return (
+    <div className="parametre-norm-container">
+      <Header />
+      <h2>⛔ Accès refusé</h2>
+      <p>Vous n'avez pas la permission de consulter cette page.</p>
+    </div>
+  );
+}
+
 
   useEffect(() => {
     const fetchAjouts = async () => {
@@ -1157,7 +1171,9 @@ export default function ParametreNorm() {
                   />
                 </div>
                 <div className="form-actions">
+                  
                   <button type="submit" className="btn-primary">Ajouter</button>
+                  {can("parnorm_create") && (
                   <button 
                     type="button" 
                     className="btn-cancel"
@@ -1165,6 +1181,7 @@ export default function ParametreNorm() {
                   >
                     Annuler
                   </button>
+                )}
                 </div>
               </form>
             </div>
@@ -1276,6 +1293,7 @@ export default function ParametreNorm() {
                     </button>
                     {categoryMenuOpen && (
                       <div className="dropdown-menu">
+                        {can("parnorm_create") && (
                         <button 
                           className="dropdown-item"
                           onClick={() => {
@@ -1285,6 +1303,8 @@ export default function ParametreNorm() {
                         >
                           Ajouter
                         </button>
+                        )}
+                        {can("parnorm_update") && (
                         <button 
                           className="dropdown-item"
                           onClick={() => {
@@ -1299,16 +1319,20 @@ export default function ParametreNorm() {
                         >
                           Modifier
                         </button>
-                        <button 
-                          className="dropdown-item delete"
-                          onClick={() => {
-                            handleDeleteCategory(selectedCategory);
-                            setCategoryMenuOpen(false);
-                          }}
-                          disabled={!selectedCategory}
-                        >
-                          Supprimer
-                        </button>
+                        )}
+                       {can("parnorm_delete") && (
+  <button 
+    className="dropdown-item delete"
+    onClick={() => {
+      handleDeleteCategory(selectedCategory);
+      setCategoryMenuOpen(false);
+    }}
+    disabled={!selectedCategory}
+  >
+    Supprimer
+  </button>
+)}
+
                       </div>
                     )}
                   </div>
@@ -1347,6 +1371,7 @@ export default function ParametreNorm() {
                     </button>
                     {parameterMenuOpen && (
                       <div className="dropdown-menu">
+                        {can("parnorm_create") && (
                         <button 
                           className="dropdown-item"
                           onClick={() => {
@@ -1356,6 +1381,8 @@ export default function ParametreNorm() {
                         >
                           Ajouter
                         </button>
+                        )}
+                        {can("parnorm_update") && (
                         <button 
                           className="dropdown-item"
                           onClick={() => {
@@ -1370,6 +1397,8 @@ export default function ParametreNorm() {
                         >
                           Modifier
                         </button>
+                        )}
+                        {can("parnorm_delete") && (
                         <button 
                           className="dropdown-item delete"
                           onClick={() => {
@@ -1380,6 +1409,7 @@ export default function ParametreNorm() {
                         >
                           Supprimer
                         </button>
+                      )}
                       </div>
                     )}
                   </div>
@@ -1414,10 +1444,11 @@ export default function ParametreNorm() {
                   {isAjouteParameter() && (
                     <div className="ajout-section">
                       <h3>Gestion des Ajouts</h3>
+                       {can("parnorm_create") && (
                       <button onClick={() => setShowAddAjout(true)} className="btn-success">
                         + Nouvel Ajout
                       </button>
-
+                       )}
                       {/* Liste des ajouts existants avec menu trois points */}
                       <div className="ajouts-list">
                         <h4>Ajouts existants</h4>
@@ -1433,6 +1464,7 @@ export default function ParametreNorm() {
                               </button>
                               {ajoutListMenuOpen === aj.id && (
                                 <div className="dropdown-menu">
+                                 {can("parnorm_update") && (
                                   <button 
                                     className="dropdown-item"
                                     onClick={() => {
@@ -1442,6 +1474,8 @@ export default function ParametreNorm() {
                                   >
                                     Modifier
                                   </button>
+                                  )}
+                                  {can("parnorm_delete") && (
                                   <button 
                                     className="dropdown-item delete"
                                     onClick={() => {
@@ -1451,6 +1485,7 @@ export default function ParametreNorm() {
                                   >
                                     Supprimer
                                   </button>
+                                )}
                                 </div>
                               )}
                             </div>
@@ -1503,7 +1538,7 @@ export default function ParametreNorm() {
                                       </button>
                                       {ajoutRowMenuOpen === i && (
                                         <div className="dropdown-menu">
-                                          <button 
+                                       {can("parnorm_update") && (   <button 
                                             className="dropdown-item"
                                             onClick={() => {
                                               setEditingCementRow({
@@ -1515,7 +1550,8 @@ export default function ParametreNorm() {
                                           >
                                             Modifier
                                           </button>
-                                          <button 
+                                          )}
+                                       {can("parnorm_delete") && (   <button 
                                             className="dropdown-item delete"
                                             onClick={() => {
                                               handleDeleteCementRow(row.cement);
@@ -1524,6 +1560,7 @@ export default function ParametreNorm() {
                                           >
                                             Supprimer
                                           </button>
+                                        )}
                                         </div>
                                       )}
                                     </div>
@@ -1532,9 +1569,10 @@ export default function ParametreNorm() {
                               ))}
                             </tbody>
                           </table>
-
+                              
                           {/* Formulaire pour ajouter un nouveau ciment */}
                           <div className="add-cement-form">
+                             
                             <h4>Ajouter un nouveau ciment</h4>
                             <div className="form-row">
                               <select 
@@ -1556,10 +1594,13 @@ export default function ParametreNorm() {
                                 value={newCementRow.limitSup}
                                 onChange={(e) => setNewCementRow({ ...newCementRow, limitSup: e.target.value })}
                               />
+                               {can("parnorm_create") && (
                               <button onClick={handleAddCementRow} className="btn-primary">
                                 Ajouter
                               </button>
+                               )}
                             </div>
+                                
                           </div>
                         </div>
                       )}
@@ -1580,6 +1621,7 @@ export default function ParametreNorm() {
                       </div>
                       
                       <div className="table-actions">
+                        {can("parnorm_create") && (
                         <button 
                           className="btn-success"
                           onClick={() => setShowAddValue(true)}
@@ -1587,6 +1629,7 @@ export default function ParametreNorm() {
                         >
                           + Nouvelle Valeur
                         </button>
+                        )}
                       </div>
 
                       <table className="parameter-table">
@@ -1624,7 +1667,7 @@ export default function ParametreNorm() {
                                   </button>
                                   {rowMenuOpen === index && (
                                     <div className="dropdown-menu">
-                                      <button 
+                                  {can("parnorm_update") && (    <button 
                                         className="dropdown-item"
                                         onClick={() => {
                                           setEditingValue({
@@ -1635,8 +1678,8 @@ export default function ParametreNorm() {
                                         }}
                                       >
                                         Modifier
-                                      </button>
-                                      <button 
+                                      </button>)}
+                                    {can("parnorm_delete") && (  <button 
                                         className="dropdown-item delete"
                                         onClick={() => {
                                           handleDeleteValue(detail);
@@ -1645,6 +1688,7 @@ export default function ParametreNorm() {
                                       >
                                         Supprimer
                                       </button>
+                                    )}
                                     </div>
                                   )}
                                 </div>

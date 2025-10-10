@@ -686,11 +686,34 @@ app.delete("/api/ajouts/:ajoutId/ciments/:cement", async (req, res) => {
 //////////////////////////////////////////////////////////////////////////////////////
 
 // Récupérer tous les utilisateurs (sans mot de passe)
+// Récupérer tous les utilisateurs (sans mot de passe)
 app.get("/api/utilisateurs", async (req, res) => {
   try {
-    const [rows] = await promisePool.query(
-      "SELECT id, email, mot_de_passe, role FROM utilisateurs ORDER BY id ASC"
-    );
+    const [rows] = await promisePool.query(`
+      SELECT 
+        u.id, u.username, u.email, u.role,
+        COALESCE(p.parnorm,0) AS parnorm,
+        COALESCE(p.parametre_ciment,0) AS parametre_ciment,
+        COALESCE(p.parametre_clients,0) AS parametre_clients,
+        COALESCE(p.traitement_donnees,0) AS traitement_donnees,
+        COALESCE(p.historique,0) AS historique,
+        COALESCE(p.parametre_ciment_read,0) AS parametre_ciment_read,
+        COALESCE(p.parametre_ciment_create,0) AS parametre_ciment_create,
+        COALESCE(p.parametre_ciment_update,0) AS parametre_ciment_update,
+        COALESCE(p.parametre_ciment_delete,0) AS parametre_ciment_delete,
+        COALESCE(p.parametre_entreprise_read,0) AS parametre_entreprise_read,
+        COALESCE(p.parametre_entreprise_create,0) AS parametre_entreprise_create,
+        COALESCE(p.parametre_entreprise_update,0) AS parametre_entreprise_update,
+        COALESCE(p.parametre_entreprise_delete,0) AS parametre_entreprise_delete,
+COALESCE(p.parnorm_read,0) AS parnorm_read,
+COALESCE(p.parnorm_create,0) AS parnorm_create,
+COALESCE(p.parnorm_update,0) AS parnorm_update,
+COALESCE(p.parnorm_delete,0) AS parnorm_delete
+
+      FROM utilisateurs u
+      LEFT JOIN permissions p ON p.user_id = u.id
+      ORDER BY u.id ASC
+    `);
     res.json(rows);
   } catch (err) {
     console.error("❌ Erreur SQL utilisateurs:", err);
@@ -699,44 +722,160 @@ app.get("/api/utilisateurs", async (req, res) => {
 });
 
 
-// Créer un nouvel utilisateur
+
+
+// --- CREATE USER ---
+// --- CREATE USER ---
 app.post("/api/utilisateurs", async (req, res) => {
-  const { username, email, mot_de_passe, role } = req.body;
-  if (!username || !email || !mot_de_passe || !role) {
-    return res.status(400).json({ error: "Champs requis: username, email, mot_de_passe, role" });
-  }
+  const {
+    username,
+    email,
+    mot_de_passe,
+    role,
+    parnorm,
+    parametre_ciment,
+    parametre_clients,
+    traitement_donnees,
+    historique,
+    parametre_ciment_read,
+    parametre_ciment_create,
+    parametre_ciment_update,
+    parametre_ciment_delete,
+    parametre_entreprise_read,
+    parametre_entreprise_create,
+    parametre_entreprise_update,
+    parametre_entreprise_delete,
+  } = req.body;
 
   try {
     const hashedPassword = await bcrypt.hash(mot_de_passe, 10);
-    const sql = "INSERT INTO utilisateurs (username, email, mot_de_passe, role) VALUES (?, ?, ?, ?)";
-    const [result] = await promisePool.execute(sql, [username, email, hashedPassword, role]);
-    res.status(201).json({ id: result.insertId, username, email, role });
+
+    const [result] = await promisePool.execute(
+      "INSERT INTO utilisateurs (username, email, mot_de_passe, role) VALUES (?, ?, ?, ?)",
+      [username, email, hashedPassword, role]
+    );
+
+    const userId = result.insertId;
+
+   await promisePool.execute(
+  `INSERT INTO permissions (
+    user_id, parnorm, parametre_ciment, parametre_clients, traitement_donnees, historique,
+    parametre_ciment_read, parametre_ciment_create, parametre_ciment_update, parametre_ciment_delete,
+    parametre_entreprise_read, parametre_entreprise_create, parametre_entreprise_update, parametre_entreprise_delete,
+    parnorm_read, parnorm_create, parnorm_update, parnorm_delete
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  [
+    userId,
+    parnorm ? 1 : 0,
+    parametre_ciment ? 1 : 0,
+    parametre_clients ? 1 : 0,
+    traitement_donnees ? 1 : 0,
+    historique ? 1 : 0,
+    parametre_ciment_read ? 1 : 0,
+    parametre_ciment_create ? 1 : 0,
+    parametre_ciment_update ? 1 : 0,
+    parametre_ciment_delete ? 1 : 0,
+    parametre_entreprise_read ? 1 : 0,
+    parametre_entreprise_create ? 1 : 0,
+    parametre_entreprise_update ? 1 : 0,
+    parametre_entreprise_delete ? 1 : 0,
+    parnorm_read ? 1 : 0,
+    parnorm_create ? 1 : 0,
+    parnorm_update ? 1 : 0,
+    parnorm_delete ? 1 : 0,
+  ]
+);
+
+
+    res.json({ success: true, message: "Utilisateur créé avec succès" });
   } catch (err) {
-    console.error("❌ Erreur ajout utilisateur:", err);
-    res.status(500).json({ error: "Erreur serveur" });
+    console.error("Erreur création utilisateur:", err);
+    res.status(500).json({ error: err.message });
   }
 });
+
 
 
 // Modifier un utilisateur (sauf mot de passe)
+// --- UPDATE USER ---
 app.put("/api/utilisateurs/:id", async (req, res) => {
-  const { id } = req.params;
-  const { email, role } = req.body;
+  const userId = req.params.id;
+  const {
+    username,
+    email,
+    mot_de_passe,
+    role,
+    parnorm,
+    parametre_ciment,
+    parametre_clients,
+    traitement_donnees,
+    historique,
+    parametre_ciment_read,
+    parametre_ciment_create,
+    parametre_ciment_update,
+    parametre_ciment_delete,
+    parametre_entreprise_read,
+    parametre_entreprise_create,
+    parametre_entreprise_update,
+    parametre_entreprise_delete,
+     parnorm_read,
+    parnorm_create,
+    parnorm_update,
+    parnorm_delete,
+  } = req.body;
 
   try {
-    const sql = "UPDATE utilisateurs SET email = ?, role = ? WHERE id = ?";
-    const [result] = await promisePool.execute(sql, [email, role, id]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Utilisateur non trouvé" });
+    if (mot_de_passe) {
+      const hashedPassword = await bcrypt.hash(mot_de_passe, 10);
+      await promisePool.execute(
+        "UPDATE utilisateurs SET username=?, email=?, mot_de_passe=?, role=? WHERE id=?",
+        [username, email, hashedPassword, role, userId]
+      );
+    } else {
+      await promisePool.execute(
+        "UPDATE utilisateurs SET username=?, email=?, role=? WHERE id=?",
+        [username, email, role, userId]
+      );
     }
 
-    res.json({ id, email, role });
+    // Update permissions
+    await promisePool.execute(
+  `UPDATE permissions SET 
+    parnorm=?, parametre_ciment=?, parametre_clients=?, traitement_donnees=?, historique=?,
+    parametre_ciment_read=?, parametre_ciment_create=?, parametre_ciment_update=?, parametre_ciment_delete=?,
+    parametre_entreprise_read=?, parametre_entreprise_create=?, parametre_entreprise_update=?, parametre_entreprise_delete=?,
+    parnorm_read=?, parnorm_create=?, parnorm_update=?, parnorm_delete=?
+  WHERE user_id=?`,
+  [
+    parnorm ? 1 : 0,
+    parametre_ciment ? 1 : 0,
+    parametre_clients ? 1 : 0,
+    traitement_donnees ? 1 : 0,
+    historique ? 1 : 0,
+    parametre_ciment_read ? 1 : 0,
+    parametre_ciment_create ? 1 : 0,
+    parametre_ciment_update ? 1 : 0,
+    parametre_ciment_delete ? 1 : 0,
+    parametre_entreprise_read ? 1 : 0,
+    parametre_entreprise_create ? 1 : 0,
+    parametre_entreprise_update ? 1 : 0,
+    parametre_entreprise_delete ? 1 : 0,
+    parnorm_read ? 1 : 0,
+    parnorm_create ? 1 : 0,
+    parnorm_update ? 1 : 0,
+    parnorm_delete ? 1 : 0,
+    userId,
+  ]
+);
+
+
+    res.json({ success: true, message: "Utilisateur mis à jour" });
   } catch (err) {
-    console.error("❌ Erreur modif utilisateur:", err);
-    res.status(500).json({ error: "Erreur serveur" });
+    console.error("Erreur modification utilisateur:", err);
+    res.status(500).json({ error: err.message });
   }
 });
+
 
 // Modifier mot de passe
 app.put("/api/utilisateurs/:id/password", async (req, res) => {
@@ -1342,7 +1481,48 @@ app.post('/api/login', async (req, res) => {
       { expiresIn: '2h' }
     );
 
-    res.json({ token, role: user.role });
+const [permRows] = await promisePool.execute(
+  `SELECT 
+       parnorm, parametre_ciment, parametre_clients, traitement_donnees, historique,
+       parametre_ciment_read, parametre_ciment_create, parametre_ciment_update, parametre_ciment_delete,
+       parametre_entreprise_read, parametre_entreprise_create, parametre_entreprise_update, parametre_entreprise_delete,
+       parnorm_read, parnorm_create, parnorm_update, parnorm_delete
+   FROM permissions
+   WHERE user_id = ?
+   LIMIT 1`,
+  [user.id]
+);
+
+
+
+const permissions = permRows[0] || {
+  parnorm: 0,
+  parametre_ciment: 0,
+  parametre_clients: 0,
+  traitement_donnees: 0,
+  historique: 0,
+  parametre_ciment_read: 0,
+  parametre_ciment_create: 0,
+  parametre_ciment_update: 0,
+  parametre_ciment_delete: 0,
+  parametre_entreprise_read: 0,
+  parametre_entreprise_create: 0,
+  parametre_entreprise_update: 0,
+  parametre_entreprise_delete: 0,
+  parnorm_read: 0,
+  parnorm_create: 0,
+  parnorm_update: 0,
+  parnorm_delete: 0
+};
+
+// return token + role + user + permissions
+res.json({
+  token,
+  role: user.role,
+  user: { id: user.id, username: user.username, email: user.email },
+  permissions
+});
+
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Database error" });
@@ -2258,6 +2438,202 @@ app.get('/api/check-data-phase', async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
+//////////////////////////////////////////////////////////////////////////////
+
+
+// === PARAMÈTRES CIMENT === //
+
+// 📦 Get all families with their types
+app.get("/api/familles_ciment", async (req, res) => {
+  try {
+    const [rows] = await promisePool.query(`
+      SELECT f.id AS famille_id, f.code AS famille_code, f.nom AS famille_nom,
+             t.id AS type_id, t.code AS type_code, t.description AS type_description, t.sr
+      FROM familles_ciment f
+      LEFT JOIN types_ciment t ON f.id = t.famille_id
+      ORDER BY f.id ASC, t.id ASC
+    `);
+
+    // Group by family
+    const familles = [];
+    rows.forEach(row => {
+      let famille = familles.find(f => f.id === row.famille_id);
+      if (!famille) {
+        famille = {
+          id: row.famille_id,
+          code: row.famille_code,
+          nom: row.famille_nom,
+          types: []
+        };
+        familles.push(famille);
+      }
+      if (row.type_id) {
+        famille.types.push({
+          id: row.type_id,
+          code: row.type_code,
+          description: row.type_description,
+          sr: !!row.sr
+        });
+      }
+    });
+
+    res.json(familles);
+  } catch (err) {
+    console.error("❌ Erreur GET familles_ciment:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ➕ Add new family
+app.post("/api/familles_ciment", async (req, res) => {
+  const { code, nom } = req.body;
+  if (!code || !nom)
+    return res.status(400).json({ error: "Code et nom requis" });
+
+  try {
+    const [result] = await promisePool.execute(
+      "INSERT INTO familles_ciment (code, nom) VALUES (?, ?)",
+      [code, nom]
+    );
+    res.json({ id: result.insertId, code, nom });
+  } catch (err) {
+    console.error("❌ Erreur ajout famille:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ✏️ Update family
+app.put("/api/familles_ciment/:id", async (req, res) => {
+  const { id } = req.params;
+  const { code, nom } = req.body;
+  try {
+    await promisePool.execute(
+      "UPDATE familles_ciment SET code = ?, nom = ? WHERE id = ?",
+      [code, nom, id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Erreur update famille:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// 🗑️ Delete family
+app.delete("/api/familles_ciment/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    await promisePool.execute("DELETE FROM familles_ciment WHERE id = ?", [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Erreur suppression famille:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ➕ Add cement type
+app.post("/api/types_ciment", async (req, res) => {
+  const { famille_id, code, description, sr } = req.body;
+  if (!famille_id || !code)
+    return res.status(400).json({ error: "famille_id et code requis" });
+  try {
+    const [result] = await promisePool.execute(
+      "INSERT INTO types_ciment (famille_id, code, description, sr) VALUES (?, ?, ?, ?)",
+      [famille_id, code, description || null, sr ? 1 : 0]
+    );
+    res.json({ id: result.insertId, code, description, sr });
+  } catch (err) {
+    console.error("❌ Erreur ajout type:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ✏️ Update cement type
+
+app.put("/api/types_ciment/:id", async (req, res) => {
+  const { id } = req.params;
+  const { code, description } = req.body;
+  try {
+    await promisePool.execute(
+      "UPDATE types_ciment SET code=?, description=? WHERE id=?",
+      [code, description, id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Erreur update type:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+
+
+// 🗑️ Delete cement type
+app.delete("/api/types_ciment/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    await promisePool.execute("DELETE FROM types_ciment WHERE id = ?", [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Erreur suppression type:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+// --- CRUD familles_ciment ---
+app.get("/api/familles_ciment", async (req, res) => {
+  const [rows] = await promisePool.query("SELECT * FROM familles_ciment");
+  res.json(rows);
+});
+
+app.post("/api/familles_ciment", async (req, res) => {
+  const { code, nom } = req.body;
+  await promisePool.query("INSERT INTO familles_ciment (code, nom) VALUES (?, ?)", [code, nom]);
+  res.json({ success: true });
+
+  // ✅ Synchroniser dans le fichier JSON
+  const data = await fs.promises.readFile(PAR_NORM_PATH, "utf8");
+  const parnorm = JSON.parse(data);
+  if (!parnorm.familles_ciment) parnorm.familles_ciment = [];
+  parnorm.familles_ciment.push({ code, nom });
+  await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+});
+
+app.delete("/api/familles_ciment/:id", async (req, res) => {
+  const { id } = req.params;
+  await promisePool.query("DELETE FROM familles_ciment WHERE id = ?", [id]);
+  res.json({ success: true });
+});
+
+// --- CRUD types_ciment ---
+app.get("/api/types_ciment", async (req, res) => {
+  const [rows] = await promisePool.query("SELECT * FROM types_ciment");
+  res.json(rows);
+});
+
+app.post("/api/types_ciment", async (req, res) => {
+  const { code, description, famille_id } = req.body;
+  await promisePool.query(
+    "INSERT INTO types_ciment (code, description, famille_id) VALUES (?, ?, ?)",
+    [code, description, famille_id]
+  );
+  res.json({ success: true });
+
+  // ✅ Synchroniser dans le JSON
+  const data = await fs.promises.readFile(PAR_NORM_PATH, "utf8");
+  const parnorm = JSON.parse(data);
+  if (!parnorm.types_ciment) parnorm.types_ciment = [];
+  parnorm.types_ciment.push({ code, description, famille_id });
+  await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+});
+
+app.delete("/api/types_ciment/:id", async (req, res) => {
+  const { id } = req.params;
+  await promisePool.query("DELETE FROM types_ciment WHERE id = ?", [id]);
+  res.json({ success: true });
+});
+
 
 app.listen(PORT, () => {
   console.log(`✅ API running on http://localhost:${PORT}`);

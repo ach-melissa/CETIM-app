@@ -1,90 +1,111 @@
-/* ----------- WRAPPER ----------- */
+/******************************************
+ 🔹 GLOBAL WRAPPER
+******************************************/
 .utilisateurs-wrapper {
-  margin-left: 250px; 
-  padding: 20px;
+  margin-left: 250px;
+  padding: 30px;
   min-height: 100vh;
-  background: #f7f9fc;
-  font-family: Arial, sans-serif;
-  color: #333;
+  background: #f5f7fa;
+  font-family: "Poppins", sans-serif;
+  color: #1e293b;
+  transition: all 0.3s ease-in-out;
 }
 
 .utilisateurs-wrapper h2 {
-  margin-bottom: 20px;
   font-size: 24px;
-  color: #2c3e50;
-  border-bottom: 2px solid #ddd;
-  padding-bottom: 10px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 25px;
+  border-left: 5px solid #3498db;
+  padding-left: 12px;
 }
 
-/* ----------- SEARCH BAR ----------- */
+/******************************************
+ 🔹 SEARCH BAR
+******************************************/
 .search-bar {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .search-bar input {
   flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  outline: none;
+  max-width: 350px;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
   font-size: 14px;
+  transition: 0.2s ease;
 }
 
 .search-bar input:focus {
   border-color: #3498db;
-  box-shadow: 0px 0px 5px rgba(52,152,219,0.4);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  outline: none;
 }
 
-/* ----------- ADD USER BUTTON ----------- */
+/******************************************
+ 🔹 ADD USER BUTTON
+******************************************/
 .add-user-btn {
-  padding: 10px 18px;
+  padding: 10px 16px;
   border: none;
-  background: #27ae60;
+  background: #28a745;
   color: #fff;
-  font-size: 15px;
-  font-weight: bold;
-  border-radius: 6px;
+  font-weight: 500;
+  border-radius: 8px;
   cursor: pointer;
-  margin-bottom: 20px;
+  font-size: 15px;
   transition: background 0.2s ease;
 }
 
 .add-user-btn:hover {
-  background: #1e8449;
+  background: #1e7e34;
 }
 
-/* ----------- TABLE ----------- */
+/******************************************
+ 🔹 USERS TABLE
+******************************************/
 .utilisateurs-table {
   width: 100%;
   border-collapse: collapse;
-  background: #fff;
-  border-radius: 8px;
+  background: #ffffff;
+  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .utilisateurs-table th,
 .utilisateurs-table td {
-  padding: 12px 15px;
+  padding: 12px 16px;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .utilisateurs-table th {
   background: #3498db;
   color: #fff;
-  font-weight: bold;
   text-transform: uppercase;
   font-size: 13px;
+  letter-spacing: 0.4px;
 }
 
 .utilisateurs-table tr:hover {
-  background: #f1f7ff;
+  background: #f9fafb;
 }
 
-/* ----------- ACTIONS MENU (3 DOTS) ----------- */
+.utilisateurs-table td {
+  font-size: 14px;
+  color: #374151;
+}
+
+/******************************************
+ 🔹 ACTIONS MENU (3 DOTS)
+******************************************/
 .actions-menu {
   position: relative;
   display: inline-block;
@@ -95,86 +116,103 @@
   border: none;
   font-size: 20px;
   cursor: pointer;
-  padding: 0;
   color: #555;
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.dots-btn:hover {
+  color: #3498db;
 }
 
 .dropdown-menu {
   position: absolute;
-  top: 25px;
+  top: 28px;
   right: 0;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  box-shadow: 0px 2px 5px rgba(0,0,0,0.2);
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  z-index: 50;
   display: flex;
   flex-direction: column;
-  z-index: 100;
-  min-width: 120px;
+  min-width: 140px;
+  overflow: hidden;
+  animation: fadeIn 0.2s ease;
 }
 
 .dropdown-menu button {
   background: none;
   border: none;
-  padding: 10px;
+  padding: 10px 14px;
   text-align: left;
-  font-size: 14px;
   cursor: pointer;
-  width: 100%;
-  color: #333;
-  transition: background 0.2s;
+  font-size: 14px;
+  color: #374151;
+  transition: all 0.2s;
 }
 
 .dropdown-menu button:hover {
-  background: #f1f1f1;
+  background: #f3f4f6;
+  color: #3498db;
 }
 
-/* ----------- MODAL (FORM POPUP) ----------- */
+/******************************************
+ 🔹 MODAL OVERLAY (POPUP FORM)
+******************************************/
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.5);
+  background: rgba(17, 24, 39, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 200;
+  animation: fadeIn 0.3s ease;
 }
 
 .modal-content {
   background: #fff;
-  padding: 25px;
-  border-radius: 10px;
-  width: 400px;
+  padding: 30px;
+  border-radius: 12px;
+  width: 420px;
   max-width: 95%;
-  box-shadow: 0px 5px 15px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   position: relative;
-  animation: fadeIn 0.3s ease;
+  animation: slideUp 0.3s ease;
 }
 
 .modal-content h3 {
-  margin-bottom: 15px;
-  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 20px;
+  text-align: center;
+  border-bottom: 2px solid #f1f1f1;
+  padding-bottom: 10px;
 }
 
 .close-btn {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 12px;
+  right: 12px;
   background: none;
   border: none;
   font-size: 20px;
   cursor: pointer;
-  color: #888;
+  color: #9ca3af;
+  transition: 0.2s;
 }
 
 .close-btn:hover {
   color: #e74c3c;
 }
 
-/* ----------- FORM INSIDE MODAL ----------- */
+/******************************************
+ 🔹 FORM STYLING
+******************************************/
 .utilisateurs-form {
   display: flex;
   flex-direction: column;
@@ -183,37 +221,118 @@
 
 .utilisateurs-form input,
 .utilisateurs-form select {
-  padding: 10px 12px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  outline: none;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
   font-size: 14px;
+  transition: 0.2s ease;
 }
 
 .utilisateurs-form input:focus,
 .utilisateurs-form select:focus {
   border-color: #3498db;
-  box-shadow: 0px 0px 5px rgba(52,152,219,0.4);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.15);
+  outline: none;
 }
 
+/******************************************
+ 🔹 PERMISSIONS SECTION
+******************************************/
+.permissions-section {
+  margin-top: 10px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.permissions-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e40af;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.permissions-section label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: #374151;
+}
+
+.permissions-section input[type="checkbox"] {
+  accent-color: #3498db;
+  transform: scale(1.1);
+}
+
+/******************************************
+ 🔹 SUBMIT BUTTON
+******************************************/
 .utilisateurs-form button {
-  padding: 10px 15px;
+  margin-top: 8px;
+  padding: 10px 14px;
   border: none;
   background: #3498db;
   color: #fff;
   font-size: 15px;
-  font-weight: bold;
-  border-radius: 6px;
+  font-weight: 600;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.25s ease;
 }
 
 .utilisateurs-form button:hover {
-  background: #2980b9;
+  background: #1d6fa5;
 }
 
-/* ----------- ANIMATIONS ----------- */
+/******************************************
+ 🔹 ANIMATIONS
+******************************************/
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(25px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/******************************************
+ 🔹 RESPONSIVE DESIGN
+******************************************/
+@media (max-width: 900px) {
+  .utilisateurs-wrapper {
+    margin-left: 0;
+    padding: 20px;
+  }
+
+  .search-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-bar input {
+    max-width: 100%;
+  }
+
+  .modal-content {
+    width: 90%;
+    padding: 20px;
+  }
 }

@@ -2,14 +2,39 @@ import React, { useState, useEffect } from "react";
 import Header from "../../components/Header/Header";
 import "./ParametreEntreprise.css";
 
-const ParametreEntreprise = () => {
-  // States
+const API = "http://localhost:5000/api";
+
+const  ParametreEntreprise = () =>{
   const [selectedClientId, setSelectedClientId] = useState("");
   const [validationMessage, setValidationMessage] = useState("");
   const [clientsData, setClientsData] = useState([]);
   const [typesCiment, setTypesCiment] = useState([]);
   const [showAddClient, setShowAddClient] = useState(false);
   const [showEditClient, setShowEditClient] = useState(false);
+
+  // 🔐 Permissions (same logic as ParametreCiment)
+  const userPermissions = JSON.parse(localStorage.getItem("permissions") || "{}");
+  const role = (localStorage.getItem("role") || "").toLowerCase();
+ if (role === "admin") {
+  Object.keys(userPermissions).forEach((p) => (userPermissions[p] = true));
+}
+
+  // helper for visibility
+  const can = (perm) =>
+    role === "admin" || userPermissions[perm] === true || userPermissions[perm] === 1;
+
+  // ⛔ Access denied
+  if (!can("parametre_entreprise_read")) {
+    return (
+      <div className="parametre-entreprise-container">
+        <Header />
+        <h2>⛔ Accès refusé</h2>
+        <p>Vous n'avez pas la permission de consulter cette page.</p>
+      </div>
+    );
+  }
+
+
 
   const [newClient, setNewClient] = useState({
     sigle: "",
@@ -374,8 +399,11 @@ const uploadClientPhoto = async (clientId, photoFile) => {
       console.log("All Cement Types:", typesCiment);
     }
   }, [selectedClientId, selectedClient, typesCiment]);
+  // 🔒 Check read permission before rendering the page
 
-  return (
+
+
+return (
     <div className="parametre-entreprise-container">
       <Header />
       <div className="parametre-entreprise-content">
@@ -388,17 +416,28 @@ const uploadClientPhoto = async (clientId, photoFile) => {
         {validationMessage && <p className="validation-msg">{validationMessage}</p>}
 
         {/* Action buttons */}
-        <div className="action-buttons">
-          <button className="primary-btn" onClick={() => setShowAddClient(true)}> 
-            Ajouter Nouveau Client 
-          </button>
-          <button className="secondary-btn" onClick={openEditClient}> 
-            Modifier Client 
-          </button>
-          <button className="danger-btn" onClick={handleDeleteClient}> 
-            Supprimer Client 
-          </button>
-        </div>
+     <div className="action-buttons">
+  {can("parametre_entreprise_create") && (
+    <button className="primary-btn" onClick={() => setShowAddClient(true)}>
+      Ajouter Nouveau Client
+    </button>
+  )}
+
+  {can("parametre_entreprise_update") && (
+    <button className="secondary-btn" onClick={openEditClient}>
+      Modifier Client
+    </button>
+  )}
+
+  {can("parametre_entreprise_delete") && (
+    <button className="danger-btn" onClick={handleDeleteClient}>
+      Supprimer Client
+    </button>
+  )}
+</div>
+
+
+
             
         {/* Informations client */}
         <div className="info-card">
@@ -734,6 +773,6 @@ const uploadClientPhoto = async (clientId, photoFile) => {
       </div>
     </div>
   );
-};
 
+}
 export default ParametreEntreprise;

@@ -24,16 +24,17 @@ export default function LoginPage() {
 
       if (!response.ok) throw new Error('Login failed');
 
-      const data = await response.json();
-      const { token, role } = data;
+    const data = await response.json();
+// data: { token, role, user, permissions }
+const { token, role, user, permissions } = data;
 
-      // stocker token + role
-      localStorage.setItem('token', token);
-      localStorage.setItem('role', role);
+localStorage.setItem('token', token);
+localStorage.setItem('role', role);
+localStorage.setItem('userData', JSON.stringify(user));
+localStorage.setItem('permissions', JSON.stringify(permissions));
 
       // redirection selon rôle
-      if (role === 'admin') navigate('/traitdonnes');
-      else if (role === 'user') navigate('/parnorm');
+     if (role === 'admin' || role === 'user' ) navigate('/parnorm');
       else setErrorMessage('Rôle inconnu.');
     } catch (err) {
       setErrorMessage('Identifiant ou mot de passe incorrect.');
