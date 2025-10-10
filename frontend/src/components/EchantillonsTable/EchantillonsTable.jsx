@@ -5,6 +5,8 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { useData } from "../../context/DataContext";
+import PDFExportService from "../ControleConformite/PDFExportService";
+
 
 const formatExcelDate = (excelDate) => {
   if (!excelDate || isNaN(excelDate)) return "";
@@ -12,7 +14,6 @@ const formatExcelDate = (excelDate) => {
   const utc_value = utc_days * 86400;
   const date_info = new Date(utc_value * 1000);
 
-  // Retourne YYYY-MM-DD en heure locale (pas UTC)
   const year = date_info.getFullYear();
   const month = String(date_info.getMonth() + 1).padStart(2, "0");
   const day = String(date_info.getDate()).padStart(2, "0");
@@ -22,7 +23,6 @@ const formatExcelDate = (excelDate) => {
 const formatExcelTime = (excelTime) => {
   if (!excelTime) return "";
 
-  // If it's already a string like "14:30" or "14:30:00"
   if (typeof excelTime === "string") {
     const parts = excelTime.split(":");
     if (parts.length >= 2) {
@@ -31,10 +31,9 @@ const formatExcelTime = (excelTime) => {
       const seconds = parts[2] ? String(parts[2]).padStart(2, "0") : "00";
       return `${hours}:${minutes}:${seconds}`;
     }
-    return excelTime; // fallback
+    return excelTime;
   }
 
-  // If it's a number (Excel serial time)
   if (!isNaN(excelTime)) {
     const totalSeconds = Math.floor(excelTime * 86400);
     const hours = Math.floor(totalSeconds / 3600);
@@ -45,7 +44,6 @@ const formatExcelTime = (excelTime) => {
 
   return "";
 };
-
 
 const EchantillonsTable = forwardRef(
   (
@@ -87,55 +85,66 @@ const EchantillonsTable = forwardRef(
     const [rowsToEdit, setRowsToEdit] = useState([]);
     const { updateFilteredData } = useData();
 
-    // Déterminer quelles colonnes afficher
     const showC3A = produitInfo && produitInfo.famille?.code === "CEM I";
     const showTauxAjout = produitInfo && produitInfo.famille?.code !== "CEM I";
 
-    const fetchRows = async () => {
-      if (!clientId) return;
-      setLoading(true);
-      try {
-        const params = { client_id: clientId };
+const fetchRows = async () => {
+  if (!clientId) return;
+  setLoading(true);
+  try {
+    const params = { client_id: clientId };
 
-        if (clientTypeCimentId) {
-          params.client_type_ciment_id = clientTypeCimentId;
-        }
+    if (clientTypeCimentId) {
+      params.client_type_ciment_id = clientTypeCimentId;
+    }
 
-        if (phase) params.phase = phase;
-        if (start) params.start = new Date(start).toISOString().split("T")[0];
-        if (end) {
-          const endDate = new Date(end);
-          endDate.setDate(endDate.getDate() + 1);
-          params.end = endDate.toISOString().split("T")[0];
-        }
+    if (phase) params.phase = phase;
+    if (start) params.start = new Date(start).toISOString().split("T")[0];
+    if (end) {
+      const endDate = new Date(end);
+      endDate.setDate(endDate.getDate() + 1);
+      params.end = endDate.toISOString().split("T")[0];
+    }
 
-        const resp = await axios.get("http://localhost:5000/api/echantillons", { params });
-        const formattedData = (resp.data || []).map(item => ({
-          ...item,
-          date_test: item.date_test
-            ? new Date(item.date_test).toLocaleDateString("fr-CA")
-            : item.date_test,
-          heure_test: item.heure_test || "",
-        }));
-        
-        setRows(formattedData);
-        setSelected(new Set());
+    const resp = await axios.get("http://localhost:5000/api/echantillons", { params });
+    
+    // DEBUG: Check what's in the response
+    console.log("API Response:", resp.data);
+    
+    const formattedData = (resp.data || []).map(item => {
+      console.log("Raw item heure_test:", {
+        num_ech: item.num_ech,
+        heure_test: item.heure_test,
+        type: typeof item.heure_test
+      });
+      
+      return {
+        ...item,
+        date_test: item.date_test
+          ? new Date(item.date_test).toLocaleDateString("fr-CA")
+          : item.date_test,
+        heure_test: item.heure_test || "", // Ensure this is not null/undefined
+      };
+    });
+    
+    setRows(formattedData);
+    setSelected(new Set());
 
-        updateFilteredData(formattedData, start, end);
-        if (onTableDataChange) {
-          onTableDataChange(formattedData, start, end);
-        }
-      } catch (err) {
-        console.error("Erreur fetch echantillons", err);
-        setRows([]);
-        updateFilteredData([], start, end);
-        if (onTableDataChange) {
-          onTableDataChange([], "", "");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
+    updateFilteredData(formattedData, start, end);
+    if (onTableDataChange) {
+      onTableDataChange(formattedData, start, end);
+    }
+  } catch (err) {
+    console.error("Erreur fetch echantillons", err);
+    setRows([]);
+    updateFilteredData([], start, end);
+    if (onTableDataChange) {
+      onTableDataChange([], "", "");
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
     const fetchCements = async () => {
       try {
@@ -300,7 +309,6 @@ const EchantillonsTable = forwardRef(
         return;
       }
 
-      // Filter rows by date range for editing
       const filteredRowsToEdit = rows.filter(row => {
         const rowDate = new Date(row.date_test);
         const start = editStartDate ? new Date(editStartDate) : null;
@@ -319,12 +327,10 @@ const EchantillonsTable = forwardRef(
         return;
       }
 
-      // Set the rows to edit and enable editing mode
       setRowsToEdit(filteredRowsToEdit);
       setIsEditing(true);
       setShowEditForm(false);
       
-      // Select the rows to edit
       const idsToEdit = filteredRowsToEdit.map(row => row.id);
       setSelected(new Set(idsToEdit));
     };
@@ -333,80 +339,79 @@ const EchantillonsTable = forwardRef(
       setIsEditing(false);
       setRowsToEdit([]);
       setSelected(new Set());
-      fetchRows(); // Refresh to get original data
+      fetchRows();
     };
 
-const handleImportExcel = (e) => {
-  console.log("🔍 DEBUG IMPORT - Phase:", phase, "Type:", typeof phase);
-  const file = e.target.files[0];
-  if (!file) return;
+    const handleImportExcel = (e) => {
+      console.log("🔍 DEBUG IMPORT - Phase:", phase, "Type:", typeof phase);
+      const file = e.target.files[0];
+      if (!file) return;
 
-  if (!window.confirm("Êtes-vous sûr de vouloir importer ce fichier ? Les données seront ajoutées à la base de données.")) {
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = (evt) => {
-    const data = new Uint8Array(evt.target.result);
-    const workbook = XLSX.read(data, { type: "array" });
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-    const formattedRows = jsonData.map((row, index) => ({
-      id: Date.now() + index,
-      num_ech: row["N° ech"] || row["Ech"] || "",
-      date_test: formatExcelDate(row["Date"] || row.date_test || ""),
-      heure_test: formatExcelTime(row["Heure"] || row["Heure essai"] || row.heure_test || ""),
-      rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
-      rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
-      rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
-      prise: row["Début prise(min)"] || "",
-      stabilite: row["Stabilité (mm)"] || "",
-      hydratation: row["Hydratation"] || "",
-      pfeu: row["Perte au feu (%)"] || "",
-      r_insoluble: row["Résidu insoluble (%)"] || "",
-      so3: row["SO3 (%)"] || "",
-      chlorure: row["Cl (%)"] || "",
-      c3a: row["C3A"] || "",
-      ajout_percent: row["Taux d'Ajouts (%)"] || row["Taux Ajout"] || "",
-      type_ajout: row["Type ajout"] || "",
-      source: row["SILO N°"] || "",
-    }));
-
-    setRows((prevRows) => {
-      const updated = [...prevRows, ...formattedRows];
-      updateFilteredData(updated, start, end);
-      if (onTableDataChange) {
-        onTableDataChange(updated, start, end);
+      if (!window.confirm("Êtes-vous sûr de vouloir importer ce fichier ? Les données seront ajoutées à la base de données.")) {
+        return;
       }
-      return updated;
-    });
 
-    // ⭐⭐ CORRECTION : AJOUTER LA PHASE DANS L'IMPORT ⭐⭐
-    console.log("🚀 Envoi import avec phase:", phase); // Debug
-    axios
-      .post("http://localhost:5000/api/echantillons/import", {
-        clientId: clientId,
-        produitId: clientTypeCimentId,
-        phase: phase, // ⭐⭐ CE PARAMÈTRE ÉTAIT MANQUANT ⭐⭐
-        rows: formattedRows,
-      })
-      .then((res) => {
-        console.log("✅ Réponse import:", res.data); // Debug
-        alert("Fichier importé avec succès !");
-        e.target.value = ""; // Reset file input
-        fetchRows();
-      })
-      .catch((err) => {
-        console.error("❌ Import error:", err);
-        alert("Erreur lors de l'importation.");
-      });
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-    setSelected(new Set());
-  };
+        const formattedRows = jsonData.map((row, index) => ({
+          id: Date.now() + index,
+          num_ech: row["N° ech"] || row["Ech"] || "",
+          date_test: formatExcelDate(row["Date"] || row.date_test || ""),
+          heure_test: formatExcelTime(row["Heure"] || row["Heure essai"] || row.heure_test || ""),
+          rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
+          rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
+          rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
+          prise: row["Début prise(min)"] || "",
+          stabilite: row["Stabilité (mm)"] || "",
+          hydratation: row["Hydratation"] || "",
+          pfeu: row["Perte au feu (%)"] || "",
+          r_insoluble: row["Résidu insoluble (%)"] || "",
+          so3: row["SO3 (%)"] || "",
+          chlorure: row["Cl (%)"] || "",
+          c3a: row["C3A"] || "",
+          ajout_percent: row["Taux d'Ajouts (%)"] || row["Taux Ajout"] || "",
+          type_ajout: row["Type ajout"] || "",
+          source: row["SILO N°"] || "",
+        }));
 
-  reader.readAsArrayBuffer(file);
-};
+        setRows((prevRows) => {
+          const updated = [...prevRows, ...formattedRows];
+          updateFilteredData(updated, start, end);
+          if (onTableDataChange) {
+            onTableDataChange(updated, start, end);
+          }
+          return updated;
+        });
+
+        console.log("🚀 Envoi import avec phase:", phase);
+        axios
+          .post("http://localhost:5000/api/echantillons/import", {
+            clientId: clientId,
+            produitId: clientTypeCimentId,
+            phase: phase,
+            rows: formattedRows,
+          })
+          .then((res) => {
+            console.log("✅ Réponse import:", res.data);
+            alert("Fichier importé avec succès !");
+            e.target.value = "";
+            fetchRows();
+          })
+          .catch((err) => {
+            console.error("❌ Import error:", err);
+            alert("Erreur lors de l'importation.");
+          });
+
+        setSelected(new Set());
+      };
+
+      reader.readAsArrayBuffer(file);
+    };
 
     const exportToExcel = () => {
       const dataToExport = rowsToEdit.length > 0 ? rowsToEdit : filteredRows;
@@ -416,53 +421,160 @@ const handleImportExcel = (e) => {
       XLSX.writeFile(wb, "echantillons.xlsx");
     };
 
-    const exportToPDF = () => {
-      const dataToExport = rowsToEdit.length > 0 ? rowsToEdit : filteredRows;
-      
-      // Déterminer les colonnes à exporter en fonction du type de produit
-      const headers = ["Ech", "Date", "Heure", "RC2J", "RC7J", "RC28J", "Prise", "Stabilité", "Hydratation", "P. Feu", "R. Insoluble", "SO3", "Chlorure"];
+const exportToPDF = async () => {
+  const dataToExport = rowsToEdit.length > 0 ? rowsToEdit : filteredRows;
+  
+  if (dataToExport.length === 0) {
+    alert("Aucune donnée à exporter !");
+    return;
+  }
+  
+  console.log("Exporting to PDF:", dataToExport);
+  
+  try {
+    const { jsPDF } = await import('jspdf');
+    
+    // Remove "Heure" from headers
+    const headers = ["Ech", "Date", "RC2J", "RC7J", "RC28J", "Prise", "Stabilité", "Hydratation", "P. Feu", "R. Insoluble", "SO3", "Chlorure"];
+    
+    if (showC3A) {
+      headers.push("C3A");
+    }
+    
+    if (showTauxAjout) {
+      headers.push("Taux Ajout");
+    }
+
+    // Préparer les données pour le PDF
+    const pdfData = dataToExport.map(row => {
+      console.log(`Row ${row.num_ech}:`, {
+        date_test: row.date_test,
+        isEdited: rowsToEdit.some(editedRow => editedRow.num_ech === row.num_ech)
+      });
+
+      const baseRow = [
+        row.num_ech || "",
+        row.date_test || "",
+        // Removed heure_test column completely
+        row.rc2j || "",
+        row.rc7j || "",
+        row.rc28j || "",
+        row.prise || "",
+        row.stabilite || "",
+        row.hydratation || "",
+        row.pfeu || "",
+        row.r_insoluble || "",
+        row.so3 || "",
+        row.chlorure || ""
+      ];
       
       if (showC3A) {
-        headers.push("C3A");
+        baseRow.push(row.c3a || "");
       }
       
       if (showTauxAjout) {
-        headers.push("Taux Ajout");
+        baseRow.push(row.ajout_percent || "");
       }
+      
+      return baseRow;
+    });
 
-      const doc = new jsPDF();
-      doc.autoTable({
-        head: [headers],
-        body: dataToExport.map(row => {
-          const baseRow = [
-            row.num_ech,
-            row.date_test,
-            row.heure_test,
-            row.rc2j,
-            row.rc7j,
-            row.rc28j,
-            row.prise,
-            row.stabilite,
-            row.hydratation,
-            row.pfeu,
-            row.r_insoluble,
-            row.so3,
-            row.chlorure
-          ];
-          
-          if (showC3A) {
-            baseRow.push(row.c3a);
-          }
-          
-          if (showTauxAjout) {
-            baseRow.push(row.ajout_percent);
-          }
-          
-          return baseRow;
-        })
+    const doc = new jsPDF();
+
+    // Add title and header information
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Traitement Données", 14, 15);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    
+    const clientName = clients.find((c) => c.id == clientId)?.nom_raison_sociale || "Aucun client";
+    doc.text(`Client: ${clientName}`, 14, 25);
+    doc.text(`Période: du ${start || "......"} au ${end || "..........."}`, 14, 32);
+    
+    if (produitInfo?.description) {
+      doc.text(`Produit: ${produitInfo.description}`, 14, 39);
+    }
+
+    // Manual table creation
+    const startY = 50;
+    const margin = 14;
+    const pageWidth = doc.internal.pageSize.width;
+    const availableWidth = pageWidth - 2 * margin;
+    const colCount = headers.length;
+    const colWidth = availableWidth / colCount;
+    
+    let currentY = startY;
+    
+    // Table header
+    doc.setFillColor(41, 128, 185);
+    doc.rect(margin, currentY - 5, availableWidth, 6, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    
+    headers.forEach((header, index) => {
+      const x = margin + (index * colWidth);
+      const displayHeader = header.length > 8 ? header.substring(0, 6) + '...' : header;
+      doc.text(displayHeader, x + 2, currentY);
+    });
+    
+    currentY += 4;
+    
+    // Table rows
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    
+    pdfData.forEach((row, rowIndex) => {
+      if (rowIndex % 2 === 0) {
+        doc.setFillColor(245, 245, 245);
+        doc.rect(margin, currentY - 3, availableWidth, 4, 'F');
+      }
+      
+      row.forEach((cell, cellIndex) => {
+        const x = margin + (cellIndex * colWidth);
+        const displayValue = String(cell || "").length > 10 ? 
+          String(cell || "").substring(0, 8) + '...' : 
+          String(cell || "");
+        doc.text(displayValue, x + 1, currentY);
       });
-      doc.save("echantillons.pdf");
-    };
+      
+      currentY += 4;
+      
+      if (currentY > doc.internal.pageSize.height - 20) {
+        doc.addPage();
+        currentY = 20;
+        
+        doc.setFillColor(41, 128, 185);
+        doc.rect(margin, currentY - 5, availableWidth, 6, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        
+        headers.forEach((header, index) => {
+          const x = margin + (index * colWidth);
+          const displayHeader = header.length > 8 ? header.substring(0, 6) + '...' : header;
+          doc.text(displayHeader, x + 2, currentY);
+        });
+        
+        currentY += 4;
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+      }
+    });
+
+    doc.save("traitement_donnees.pdf");
+    
+    console.log("PDF exported successfully with title: Traitement Données");
+    console.log("PDF data without time column:", pdfData);
+  } catch (error) {
+    console.error("Error exporting PDF:", error);
+    alert("Erreur lors de l'export PDF: " + error.message);
+  }
+};
 
     const handlePrint = () => {
       window.print();
@@ -483,8 +595,8 @@ const handleImportExcel = (e) => {
     // Use rowsToEdit when in editing mode, otherwise use filteredRows
     const displayRows = isEditing && rowsToEdit.length > 0 ? rowsToEdit : filteredRows;
 
-    // Calculer le nombre de colonnes pour le colspan
-    const colSpanCount = 13 + (showC3A ? 1 : 0) + (showTauxAjout ? 1 : 0);
+    // Calculer le nombre de colonnes pour le colspan (without Heure column for display)
+    const colSpanCount = 12 + (showC3A ? 1 : 0) + (showTauxAjout ? 1 : 0);
 
     return (
       <div>
@@ -673,17 +785,15 @@ const handleImportExcel = (e) => {
         )}
 
         <div style={{ marginBottom: "1rem" }}>
-          <p>
-            <strong>
-              {clients.find((c) => c.id == clientId)?.nom_raison_sociale || "Aucun client"}
-            </strong>
-          </p>
+          <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
           <h2>Données à traiter</h2>
-          <h2>Période du {start || "......"} au {end || "..........."}</h2>
+          
+          
           {produitInfo && (
             <>
               <h3>{produitInfo.description}</h3>
               <p><strong>Type: {produitInfo.nom}</strong></p>
+
             </>
           )}
           {isEditing && rowsToEdit.length > 0 && (
@@ -699,7 +809,7 @@ const handleImportExcel = (e) => {
               <tr>
                 <th>Ech</th>
                 <th>Date</th>
-               
+                {/* No Heure column in browser display */}
                 <th>RC2J</th>
                 <th>RC7J</th>
                 <th>RC28J</th>
@@ -719,7 +829,7 @@ const handleImportExcel = (e) => {
                 <tr key={row.id}>
                   <td>{row.num_ech}</td>
                   <td>{row.date_test}</td>
-                  
+                  {/* No Heure column in browser display */}
                   <td>
                     <input
                       type="number"

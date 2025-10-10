@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import ClassSelector from './ClassSelector'; 
+import PDFExportService from './PDFExportService';
 import './ControleConformite.css';
 import { useData } from "../../context/DataContext";
+
 
 const calculateStats = (data, key) => {
   const missingValues = [];
@@ -372,12 +375,7 @@ const ControleConformite = ({
    phase,
 }) => {
 
-
-
-
-
-
-    const { filteredTableData, filterPeriod } = useData();
+  const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
   const [conformiteData, setConformiteData] = useState({});
   const [loading, setLoading] = useState(true);
@@ -392,6 +390,12 @@ const ControleConformite = ({
     coverageStatus: "unknown",
     productionPhase: ""
   });
+
+
+  // ✅ ADD THIS NEW STATE FOR CLASS SELECTION
+  const [selectedClasses, setSelectedClasses] = useState([]);
+  const [showClassSelector, setShowClassSelector] = useState(false);
+
 
   const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
   const ajoutProducts = [
@@ -435,7 +439,114 @@ const ControleConformite = ({
     ajout_percent: "Ajout", // ⭐⭐ CORRECTED: Map to "Ajout" from JSON using the data field name
     c3a: "C3A",
   };
-  
+    // Function to calculate class data
+  const calculateClassData = (classe) => {
+    const classCompliance = {};
+    const statisticalCompliance = {};
+    
+    const allParamsForDeviations = [...allParameters, ...deviationOnlyParams];
+
+    allParamsForDeviations.forEach(param => {
+      if (!hasDataForParameter(param.key)) return;
+
+      const limits = getLimitsByClass(classe, param.key);
+      const values = dataToUse.map(r => parseFloat(r[param.key])).filter(v => !isNaN(v));
+      const stats = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
+      
+      classCompliance[param.key] = { 
+        limits, 
+        stats,
+        values 
+      };
+      
+      // Statistical compliance calculations
+      const jsonKey = keyMapping[param.key];
+      const timeDependentMesureParams = [
+        "resistance_2j", "resistance_7j", "resistance_28j",
+        "temps_debut_prise", "pert_au_feu", "residu_insoluble", 
+        "SO3", "teneur_chlour", "C3A", "chaleur_hydratation"
+      ];
+      
+      const isMesureParam = timeDependentMesureParams.includes(jsonKey) || 
+                           ["rc2j", "rc7j", "rc28j"].includes(param.key);
+      
+      if (isMesureParam) {
+        statisticalCompliance[`${param.key}_li`] = checkStatisticalCompliance(
+          conformiteData, 
+          allStats[param.key], 
+          limits, 
+          param.key,
+          "li"
+        );
+        statisticalCompliance[`${param.key}_ls`] = checkStatisticalCompliance(
+          conformiteData, 
+          allStats[param.key], 
+          limits, 
+          param.key,
+          "ls"
+        );
+      }
+    });
+
+    return { classCompliance, statisticalCompliance };
+  };
+
+  // Function to get parameters with data
+  const getParametersWithData = (classe, classCompliance) => {
+    const mesureParamsWithData = [];
+    const attributParamsWithData = [];
+
+    // Always add resistance measures
+    alwaysMesureParams.forEach(param => {
+      if (hasDataForParameter(param.key)) {
+        mesureParamsWithData.push(param);
+      }
+    });
+
+    // Always add attributes
+    alwaysAttributParams.forEach(param => {
+      if (hasDataForParameter(param.key)) {
+        if (!mesureParamsWithData.some(p => p.key === param.key)) {
+          attributParamsWithData.push(param);
+        }
+      }
+    });
+
+    // Add time-dependent parameters
+    allTimeDependentParams.forEach(param => {
+      if (!hasDataForParameter(param.key)) return;
+      
+      const jsonKey = keyMapping[param.key];
+      const timeDependentMesureParams = [
+        "resistance_2j", "resistance_7j", "resistance_28j",
+        "temps_debut_prise", "pert_au_feu", "residu_insoluble", 
+        "SO3", "teneur_chlour", "C3A", "chaleur_hydratation"
+      ];
+      
+      if (timeDependentMesureParams.includes(jsonKey)) {
+        const coverage = checkParameterTemporalCoverage(dataToUse, param.key, 7);
+        
+        if (coverage.hasAdequateCoverage) {
+          if (!mesureParamsWithData.some(p => p.key === param.key)) {
+            mesureParamsWithData.push(param);
+          }
+        } else {
+          if (!mesureParamsWithData.some(p => p.key === param.key)) {
+            attributParamsWithData.push(param);
+          }
+        }
+      } else {
+        if (!mesureParamsWithData.some(p => p.key === param.key) && 
+            !attributParamsWithData.some(p => p.key === param.key)) {
+          attributParamsWithData.push(param);
+        }
+      }
+    });
+
+    return { mesureParamsWithData, attributParamsWithData };
+  };
+
+
   const getAjoutDescription = (code, ajoutsData) => {
     if (!code || !ajoutsData) return "";
     const parts = code.split("-");
@@ -494,6 +605,89 @@ const ControleConformite = ({
 
   const classes = ["32.5 L", "32.5 N", "32.5 R", "42.5 L", "42.5 N", "42.5 R", "52.5 L", "52.5 N", "52.5 R"];
 
+
+  // ✅ ADD THIS FUNCTION TO HANDLE SELECTION CHANGES
+  const handleClassSelectionChange = (selectedClasses) => {
+    setSelectedClasses(selectedClasses);
+  };
+
+
+const handleExportSelectedPDF = async () => {
+  if (selectedClasses.length === 0) {
+    alert("Veuillez sélectionner au moins une classe à exporter.");
+    return;
+  }
+
+  try {
+    setLoading(true);
+    
+// In your handleExportSelectedPDF function, update the getClassData function:
+const getClassData = (classe) => {
+  const { classCompliance, statisticalCompliance } = calculateClassData(classe);
+  const { mesureParamsWithData, attributParamsWithData } = getParametersWithData(classe, classCompliance);
+  const conformityResult = calculateClassConformity(classCompliance, statisticalCompliance, conditionsStatistiques, classe);
+  
+  return {
+    classe,
+    classCompliance,
+    statisticalCompliance,
+    mesureParamsWithData,
+    attributParamsWithData,
+    conformityResult,
+    conditionsStatistiques,
+    hasDataForParameter,
+    allParameters,
+    deviationOnlyParams,
+    coverageRequirements, // ✅ ADD THIS
+    conformiteData,       // ✅ ADD THIS
+    dataToUse             // ✅ ADD THIS
+  };
+};
+
+// And update the helpers to include generateGeneralConclusion:
+const helpers = {
+  getDeviationParameters,
+  checkEquationSatisfaction, 
+  generateGeneralConclusion // ✅ ADD THIS
+};
+
+// And update the options to include phase and showAjout:
+const doc = await PDFExportService.generateClassReport(
+  selectedClasses,
+  getClassData,
+  helpers,
+  {
+    clientInfo: {
+      nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Non spécifié"
+    },
+    produitInfo: {
+      nom: produitInfo?.nom || "Non spécifié",
+      description: produitInfo?.description || "",
+      famille: finalFamilleName
+    },
+    period: {
+      start: filterPeriod.start,
+      end: filterPeriod.end
+    },
+    showAjout, // ✅ ADD THIS
+    ajoutDescription: getAjoutDescription(produitInfo?.type_ajout, ajoutsData), // ✅ ADD THIS
+    phase // ✅ ADD THIS
+  }
+);
+
+    // ✅ STEP 4: Save the PDF
+    doc.save(`rapport_conformite_${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    alert(`PDF exporté avec succès pour ${selectedClasses.length} classe(s)!`);
+    setShowClassSelector(false);
+    
+  } catch (error) {
+    console.error('Erreur lors de l\'export PDF:', error);
+    alert('Erreur lors de l\'export PDF: ' + error.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
 
 // Fonction pour sauvegarder la phase
@@ -1795,6 +1989,7 @@ const getProblematicMonths = (coverageRequirements) => {
 };
 
 
+
 const renderClassSection = useCallback((classe) => {
     const selectedCement = produitInfo ? {
       name: produitInfo.nom || produitInfo.description || "Produit non spécifié",
@@ -2517,10 +2712,13 @@ Object.keys(statisticalCompliance).forEach(key => {
   );
 };
 
+  const handlePrint = () => {
+    window.print();
+  };
 
-  const handleExport = () => alert("Exporting...");
-  const handlePrint = () => alert("Printing...");
-  const handleSave = () => alert("Saving...");
+  const handleSave = () => {
+    alert("Sauvegarde...");  
+  };
 
   if (loading) {
     return (
@@ -2557,17 +2755,61 @@ Object.keys(statisticalCompliance).forEach(key => {
 
   return (
     <div className="cement-report-container">
+
+            {/* ✅ ADD CLASS SELECTOR MODAL */}
+      {showClassSelector && (
+        <div className="modal-overlay">
+          <div className="modal-content large-modal">
+            <div className="modal-header">
+              <h3>Sélection des Classes à Exporter</h3>
+              <button onClick={() => setShowClassSelector(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <ClassSelector 
+                classes={classes}
+                onSelectionChange={handleClassSelectionChange}
+              />
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => setShowClassSelector(false)}>Annuler</button>
+              <button 
+                onClick={handleExportSelectedPDF}
+                disabled={selectedClasses.length === 0}
+                className="primary-btn"
+              >
+                Exporter {selectedClasses.length} Classe(s) en PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {classes.map(classe => renderClassSection(classe))}
       
+      {/* ✅ UPDATE YOUR ACTIONS BAR */}
       <div className="actions-bar">
         <div className="file-actions">
-          <button className="action-btn export-btn" onClick={handleExport} disabled={!dataToUse.length}>
-            Exporter
+          {/* Replace your existing export button with this */}
+          <button 
+            className="action-btn export-btn" 
+            onClick={() => setShowClassSelector(true)}
+            disabled={!dataToUse.length}
+          >
+            📄 Exporter PDF Sélectif
           </button>
           <button className="action-btn print-btn" onClick={handlePrint} disabled={!dataToUse.length}>
             Imprimer
           </button>
         </div>
+        
+        {/* Show selection info when classes are selected */}
+        {selectedClasses.length > 0 && (
+          <div className="selection-info">
+            {selectedClasses.length} classe(s) sélectionnée(s) pour l'export
+          </div>
+        )}
+        
         <div className="data-actions">
           <button className="action-btn save-btn" onClick={handleSave} disabled={!dataToUse.length}>
             Sauvegarder
@@ -2578,4 +2820,6 @@ Object.keys(statisticalCompliance).forEach(key => {
   );
 };
 
+
 export default ControleConformite;
+

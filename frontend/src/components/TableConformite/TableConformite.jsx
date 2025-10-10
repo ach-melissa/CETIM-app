@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import PDFExportService from "../ControleConformite/PDFExportService";
 import "./TableConformite.css";
 import { useData } from "../../context/DataContext";
 
@@ -657,9 +658,106 @@ const TableConformite = ({
     };
   };
 
-  const handleExport = () => {
-    console.log("Export functionality");
-  };
+
+const handleExport = async () => { 
+  try {
+    // Prepare complete table data for PDF export
+    const tableData = {
+      headers: ["Classe", ...parameters.map(param => {
+        // Shorten long parameter names
+        const shortName = param.label.length > 20 ? param.label.substring(0, 17) + '...' : param.label;
+        return shortName;
+      })],
+      rows: []
+    };
+
+    // Build rows for each class
+    classes.forEach((classe) => {
+      const classCompliance = {};
+      const statisticalCompliance = {};
+      
+      // Calculate compliance data for this class
+      parameters.forEach(param => {
+        const limits = getLimitsByClass(classe, param.key);
+        const values = dataToUse.map(r => {
+          if (param.key === "ajt") {
+            return parseFloat(r.ajout_percent);
+          }
+          return parseFloat(r[param.key]);
+        }).filter(v => !isNaN(v));
+        const stats = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
+        
+        classCompliance[param.key] = { limits, stats, values };
+      });
+
+      const isClassConforme = calculateClassConformity(classCompliance, statisticalCompliance, conditionsStatistiques);
+
+      // Class name row
+      tableData.rows.push({
+        type: 'class-header',
+        data: [`${classe} ${isClassConforme ? "Conforme" : "Non Conforme"}`, ...parameters.map(() => "")]
+      });
+
+      // % Déviation row
+      const deviationRow = ["% Déviation"];
+      parameters.forEach(param => {
+        const compliance = classCompliance[param.key];
+        const deviationDisplay = getDeviationDisplay(param.key, compliance);
+        deviationRow.push(deviationDisplay.displayValue);
+      });
+      tableData.rows.push({ type: 'deviation', data: deviationRow });
+
+      // % Défaut row
+      const defaultRow = ["% Défaut"];
+      parameters.forEach(param => {
+        const compliance = classCompliance[param.key];
+        const defaultDisplay = getDefaultDisplay(param.key, compliance);
+        defaultRow.push(defaultDisplay.displayValue);
+      });
+      tableData.rows.push({ type: 'default', data: defaultRow });
+
+      // Contrôle Statistique row
+      const controlRow = ["Contrôle Statistique"];
+      parameters.forEach(param => {
+        const compliance = classCompliance[param.key];
+        const controlStatus = getControlStatus(param.key, compliance.limits, compliance.values, conditionsStatistiques);
+        controlRow.push(controlStatus.status);
+      });
+      tableData.rows.push({ type: 'control', data: controlRow });
+
+      // Add empty row for spacing
+      tableData.rows.push({
+        type: 'spacer',
+        data: Array(parameters.length + 1).fill("")
+      });
+    });
+
+    // PDF options
+    const pdfOptions = {
+      clientInfo: { nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client" },
+      produitInfo: {
+        ...produitInfo,
+        famille: finalFamilleName
+      },
+      periodStart: filterPeriod.start,
+      periodEnd: filterPeriod.end
+    };
+
+    // Generate TABLE PDF
+    const doc = await PDFExportService.generateTableReport(tableData, pdfOptions);
+
+    // Save the PDF
+    const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
+    const fileName = `tableau_conformite_${clientName}_${filterPeriod.start}_${filterPeriod.end}.pdf`.replace(/\s+/g, '_');
+    doc.save(fileName);
+
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    alert("Erreur lors de l'export PDF: " + error.message);
+  }
+};
+
+ 
 
   const handlePrint = () => {
     window.print();
@@ -829,8 +927,8 @@ const TableConformite = ({
 
       <div className="actions-bar">
         <div className="file-actions">
-          <button className="action-btn export-btn" onClick={handleExport} disabled={dataToUse.length === 0}>
-            <i className="fas fa-file-export"></i> Exporter
+<button className="action-btn export-btn" onClick={handleExport} disabled={dataToUse.length === 0}>
+            <i className="fas fa-file-export"></i> Exporter PDF
           </button>
           <button className="action-btn print-btn" onClick={handlePrint} disabled={dataToUse.length === 0}>
             <i className="fas fa-print"></i> Imprimer

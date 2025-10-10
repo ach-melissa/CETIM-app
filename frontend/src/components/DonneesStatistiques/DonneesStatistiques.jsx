@@ -1,5 +1,6 @@
 // src/components/DonneesStatistiques/DonneesStatistiques.jsx
 import React, { useState, useEffect, useRef } from "react";
+import PDFExportService from "../ControleConformite/PDFExportService";
 import "./DonneesStatistiques.css";
 import { useData } from "../../context/DataContext";
 
@@ -350,6 +351,37 @@ const DonneesStatistiques = ({
     { key: "mean", label: "Moyenne" },
     { key: "std", label: "Écart type" },
   ];
+const handleExportPDF = async () => {
+  try {
+    // Prepare data for PDF export
+    const pdfData = {
+      clientInfo: { nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client" },
+      produitInfo: {
+        ...produitInfo,
+        famille: finalFamilleName
+      },
+      period: filterPeriod,
+      globalStats: allStats,
+      parameters: parameters,
+      classes: classes,
+      dataToUse: dataToUse,
+      getLimitsByClass: getLimitsByClass, // Pass the function
+      evaluateLimits: evaluateLimits // Pass the function
+    };
+
+    // Generate PDF
+    const doc = await PDFExportService.generateStatsReport(pdfData);
+
+    // Save the PDF
+    const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
+    const fileName = `donnees_statistiques_${clientName}_${filterPeriod.start}_${filterPeriod.end}.pdf`.replace(/\s+/g, '_');
+    doc.save(fileName);
+
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    alert("Erreur lors de l'export PDF: " + error.message);
+  }
+};
 
   const classes = ["32.5 L", "32.5 N", "32.5 R", "42.5 L", "42.5 N", "42.5 R", "52.5 L", "52.5 N", "52.5 R"];
 
@@ -433,18 +465,36 @@ const DonneesStatistiques = ({
   );
 
   return (
-    <div className="stats-section">
-      <div style={{ marginBottom: "1rem" }}>
-        <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
-        <h2>Données Statistiques</h2>
-        {produitInfo && (
-          <>
-            <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
-            <p><strong>Famille: {finalFamilleName} ({finalFamilleCode})</strong></p>
-          </>
-        )}
-        <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
-        <p>Nombre d'échantillons: {dataToUse.length}</p>
+ <div className="stats-section">
+      {/* Add export button */}
+      <div style={{ marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
+          <h2>Données Statistiques</h2>
+          {produitInfo && (
+            <>
+              <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
+              <p><strong>Famille: {finalFamilleName} ({finalFamilleCode})</strong></p>
+            </>
+          )}
+          <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
+        </div>
+        <button 
+          className="export-btn" 
+          onClick={handleExportPDF} 
+          disabled={dataToUse.length === 0}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: dataToUse.length === 0 ? "not-allowed" : "pointer",
+            opacity: dataToUse.length === 0 ? 0.6 : 1
+          }}
+        >
+          📊 Exporter PDF
+        </button>
       </div>
 
       {/* Global stats */}

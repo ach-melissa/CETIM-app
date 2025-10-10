@@ -1,5 +1,6 @@
 // src/components/DonneesGraphiques/DonneesGraphiques.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import PDFExportService from "../ControleConformite/PDFExportService";
 import "./DonneesGraphiques.css";
 import { useData } from "../../context/DataContext";
 
@@ -471,6 +472,39 @@ export default function DonneesGraphiques({
     "52.5 L", "52.5 N", "52.5 R"
   ];
 
+
+const handleExportPDF = async () => {
+  try {
+    // Prepare data for PDF export
+    const graphicalData = {
+      clientInfo: clients.find(c => c.id == clientId),
+      produitInfo,
+      period: filterPeriod,
+      dataToUse: filteredTableData,
+      selectedParameter,
+      selectedClass,
+      chartType,
+      parameters,
+      currentLimits,
+      derivedStats,
+      classes
+    };
+
+    // Generate PDF
+    const pdfDoc = await PDFExportService.generateGraphicalReport(graphicalData);
+    
+    // Save the PDF
+    const paramName = parameters.find(p => p.key === selectedParameter)?.label || 'data';
+    const fileName = `graphique-${paramName.replace(/\s+/g, '-')}-${selectedClass || 'all'}-${new Date().toISOString().split('T')[0]}.pdf`;
+    pdfDoc.save(fileName);
+    
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    alert('Erreur lors de la génération du PDF');
+  }
+};
+
+
   const currentLimits = useMemo(() => {
     if (!selectedParameter || !selectedClass) {
       return { li: null, ls: null, lg: null };
@@ -700,7 +734,21 @@ export default function DonneesGraphiques({
           </select>
         </div>
       </div>
-
+        <button 
+  onClick={handleExportPDF}
+  className="export-pdf-button"
+  style={{
+    padding: '8px 16px',
+    backgroundColor: '#20313fff',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    marginLeft: '10px'
+  }}
+>
+  📊 Exporter PDF
+</button>
       <div className="dg-main-container">
         <div className="dg-main">
           <div className="dg-chart-card">
@@ -891,6 +939,8 @@ export default function DonneesGraphiques({
             </div> 
           </div>
         </aside>
+
+
       </div>
     </div>
   );
