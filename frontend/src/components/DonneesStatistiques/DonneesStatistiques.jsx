@@ -1,7 +1,9 @@
 // src/components/DonneesStatistiques/DonneesStatistiques.jsx
 import React, { useState, useEffect, useRef } from "react";
+import PDFExportService from "../ControleConformite/PDFExportService";
 import "./DonneesStatistiques.css";
 import { useData } from "../../context/DataContext";
+import CentralExportService from "../../services/CentralExportService"; 
 
 // ============================================================
 // Utility functions
@@ -12,7 +14,14 @@ const calculateStats = (data, key) => {
   const values = [];
   
   data.forEach((row, index) => {
-    const value = row[key];
+    let value;
+    
+    // Pour le taux d'ajout, utiliser la colonne ajout_percent
+    if (key === "ajt") {
+      value = row.ajout_percent;
+    } else {
+      value = row[key];
+    }
     
     const isMissing = 
       value === null || 
@@ -72,7 +81,15 @@ const evaluateLimits = (data, key, li, ls, lg) => {
     return parseFloat(String(val).replace(',', '.'));
   };
 
-  const values = data.map((row) => safeParse(row[key])).filter((v) => !isNaN(v));
+  // Pour le taux d'ajout, utiliser la colonne ajout_percent
+  const getValue = (row) => {
+    if (key === "ajt") {
+      return row.ajout_percent;
+    }
+    return row[key];
+  };
+
+  const values = data.map((row) => safeParse(getValue(row))).filter((v) => !isNaN(v));
   
   // Si aucune donnée valide, retourner "-"
   if (!values.length) {
@@ -143,20 +160,46 @@ const DonneesStatistiques = ({
   produitDescription, 
   clients = [], 
   produits = [] ,
-  ajoutsData = {}
+  ajoutsData = {},
+  phase,
 }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
   const [loading, setLoading] = useState(true);
 
-  const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
-  const ajoutProducts = [
-    "CEM II/A-S", "CEM II/B-S", "CEM II/A-D", "CEM II/A-P", "CEM II/B-P",
-    "CEM II/A-Q", "CEM II/B-Q", "CEM II/A-V", "CEM II/B-V",
-    "CEM II/A-W", "CEM II/B-W", "CEM II/A-T", "CEM II/B-T",
-    "CEM II/A-L", "CEM II/B-L", "CEM II/A-LL", "CEM II/B-LL",
-    "CEM II/A-M", "CEM II/B-M"
-  ];
+  // Charger les données depuis le fichier JSON
+  useEffect(() => {
+    const fetchMockDetails = async () => {
+      try {
+        const response = await fetch("/Data/parnorm.json");
+        if (!response.ok) throw new Error("Erreur lors du chargement des données");
+        const data = await response.json();
+        setMockDetails(data);
+      } catch (error) {
+        console.error("Erreur de chargement des données:", error);
+        setMockDetails({});
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMockDetails();
+  }, []);
+
+  // Map front-end keys -> JSON keys - CORRECTION ICI
+  const keyMapping = {
+    rc2j: "resistance_2j",
+    rc7j: "resistance_7j",
+    rc28j: "resistance_28j",
+    prise: "temps_debut_prise",
+    stabilite: "stabilite",
+    hydratation: "chaleur_hydratation",
+    pfeu: "pert_au_feu",
+    r_insoluble: "residu_insoluble",
+    so3: "SO3",
+    chlorure: "teneur_chlour",
+    ajt: "Ajout", // ⭐⭐ CORRECTION : "Ajout" avec majuscule ⭐⭐
+    c3a: "C3A",
+  };
 
   // Get product type and famille from produitInfo with fallbacks
   const selectedProductType = produitInfo?.nom || produitInfo?.code || "";
@@ -178,122 +221,9 @@ const DonneesStatistiques = ({
   const finalFamilleCode = selectedProductFamille || determineFamilleFromType(selectedProductType);
   const finalFamilleName = selectedProductFamilleName || finalFamilleCode;
 
-  // Charger les données depuis le fichier JSON
-  useEffect(() => {
-    const fetchMockDetails = async () => {
-      try {
-        const response = await fetch("/Data/parnorm.json");
-        if (!response.ok) throw new Error("Erreur lors du chargement des données");
-        const data = await response.json();
-        setMockDetails(data);
-      } catch (error) {
-        console.error("Erreur de chargement des données:", error);
-        setMockDetails({});
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchMockDetails();
-  }, []);
-
-  // Map front-end keys -> JSON keys
-  const keyMapping = {
-    rc2j: "resistance_2j",
-    rc7j: "resistance_7j",
-    rc28j: "resistance_28j",
-    prise: "temps_debut_prise",
-    stabilite: "stabilite",
-    hydratation: "chaleur_hydratation",
-    pfeu: "pert_au_feu",
-    r_insoluble: "residu_insoluble",
-    so3: "SO3",
-    chlorure: "teneur_chlour",
-    ajt: "ajout",
-    c3a: "C3A",
-    };
-// ✅ placer la fonction ici, après keyMapping
-const getAjoutDescription = (codeAjout, ajoutsData) => {
-  if (!codeAjout || !ajoutsData) return "";
-
-  const parts = codeAjout.split("-");
-  const descriptions = parts.map((part) =>
-    ajoutsData[part] ? ajoutsData[part].description : part
-  );
-
-  return descriptions.join(" + ");
-};
-  const getLimitsByClass = (classe, key) => {
-    const mockKey = keyMapping[key];
-    if (!mockKey || !mockDetails[mockKey]) {
-      return { li: "-", ls: "-", lg: "-" };
-    }
-
-    const parameterData = mockDetails[mockKey];
-    
-    if (!parameterData[finalFamilleCode]) {
-      return { li: "-", ls: "-", lg: "-" };
-    }
-
-    const familleData = parameterData[finalFamilleCode];
-
-    // For "ajout" parameter, the structure is different
-    if (key === "ajt") {
-      const ajoutCode = selectedProductType.split('/').pop()?.split('-').pop()?.trim();
-      
-      if (!ajoutCode || !familleData[ajoutCode]) {
-        return { li: "-", ls: "-", lg: "-" };
-      }
-
-      const ajoutData = familleData[ajoutCode];
-      
-      return {
-        li: ajoutData.limitInf ?? ajoutData.limit_inf ?? "-",
-        ls: ajoutData.limitSup ?? ajoutData.limit_max ?? "-",
-        lg: ajoutData.garantie ?? "-"
-      };
-    }
-
-    // For other parameters, search for the class data
-    let classData = null;
-    
-    if (Array.isArray(familleData)) {
-      classData = familleData.find(item => item.classe === classe);
-    } else if (typeof familleData === 'object' && familleData[classe]) {
-      classData = familleData[classe];
-    } else {
-      for (const key in familleData) {
-        const subData = familleData[key];
-        if (Array.isArray(subData)) {
-          const found = subData.find(item => item.classe === classe);
-          if (found) {
-            classData = found;
-            break;
-          }
-        } else if (typeof subData === 'object' && subData[classe]) {
-          classData = subData[classe];
-          break;
-        } else if (typeof subData === 'object' && (subData.limit_inf || subData.limitInf)) {
-          classData = subData;
-          break;
-        }
-      }
-    }
-
-    if (!classData) {
-      return { li: "-", ls: "-", lg: "-" };
-    }
-
-    return {
-      li: classData.limit_inf ?? classData.limitInf ?? "-",
-      ls: classData.limit_max ?? classData.limitSup ?? classData.limitMax ?? "-",
-      lg: classData.garantie ?? classData.garantieValue ?? "-",
-    };
-  };
-
-  const dataToUse = filteredTableData || [];
-
-  if (loading) return <p className="no-data">Chargement des données de référence...</p>;
-  if (!dataToUse.length) return <p className="no-data">Veuillez d'abord filtrer des échantillons.</p>;
+  // Déterminer quelles colonnes afficher
+  const showC3A = produitInfo && produitInfo.famille?.code === "CEM I";
+  const showTauxAjout = produitInfo && produitInfo.famille?.code !== "CEM I";
 
   // Default parameters
   let parameters = [
@@ -309,28 +239,107 @@ const getAjoutDescription = (codeAjout, ajoutsData) => {
     { key: "chlorure", label: "Chlorure" },
   ];
 
-  // Add C3A if selected product is in c3aProducts
-  if (c3aProducts.includes(selectedProductType)) {
+  // Add C3A if famille is CEM I
+  if (showC3A) {
     parameters.push({ key: "c3a", label: "C3A" });
   }
 
-  // Add Ajout if selected product is in ajoutProducts
- // Add Ajout if selected product is in ajoutProducts
-if (ajoutProducts.includes(selectedProductType)) {
-  let label = "Ajout";
-  const firstRowAjout = dataToUse.length > 0 ? dataToUse[0].type_ajout : null;
-
-  if (firstRowAjout) {
-    const desc = getAjoutDescription(firstRowAjout, ajoutsData);
-    if (desc) {
-      label = `Ajout (${desc})`;
-    }
+  // Add Taux Ajout if famille is NOT CEM I
+  if (showTauxAjout) {
+    parameters.push({ key: "ajt", label: "Taux Ajout" });
   }
 
-  parameters.push({ key: "ajt", label });
-}
+  const getLimitsByClass = (classe, key) => {
+    const mockKey = keyMapping[key];
+    
+    console.log("=== DEBUG getLimitsByClass ===");
+    console.log("Key:", key, "MockKey:", mockKey, "Classe:", classe);
+    console.log("Selected Product Type:", selectedProductType);
+    console.log("Final Famille Code:", finalFamilleCode);
+    
+    if (!mockKey || !mockDetails[mockKey]) {
+      console.log("❌ Mock key not found or no data for mockKey");
+      console.log("Mock key searched:", mockKey);
+      console.log("Available keys in mockDetails:", Object.keys(mockDetails));
+      return { li: "-", ls: "-", lg: "-" };
+    }
 
+    const parameterData = mockDetails[mockKey];
+    console.log("✅ Parameter data available for:", mockKey);
+    console.log("Available familles in parameter data:", Object.keys(parameterData));
+    
+    // Vérifier si la famille existe dans les données
+    if (!parameterData[finalFamilleCode]) {
+      console.log("❌ No data for famille:", finalFamilleCode);
+      console.log("Available familles:", Object.keys(parameterData));
+      return { li: "-", ls: "-", lg: "-" };
+    }
 
+    const familleData = parameterData[finalFamilleCode];
+    console.log("✅ Famille data found:", finalFamilleCode);
+    console.log("Famille data structure:", familleData);
+    console.log("Available product types in famille:", Object.keys(familleData));
+
+    let classData = null;
+
+    // CORRECTION : Structure unifiée pour tous les paramètres
+    // La structure est toujours: { "Famille": { "TypeProduit": [array de classes], ... } }
+    
+    // 1. Chercher avec le type de produit exact
+    if (familleData[selectedProductType]) {
+      console.log("✅ Found exact product type:", selectedProductType);
+      const productData = familleData[selectedProductType];
+      
+      if (Array.isArray(productData)) {
+        classData = productData.find(item => item.classe === classe);
+        if (classData) {
+          console.log("✅ Found class data for exact product type:", classData);
+        } else {
+          console.log("❌ No class data found for classe:", classe, "in product type:", selectedProductType);
+          console.log("Available classes:", productData.map(item => item.classe));
+        }
+      } else {
+        console.log("❌ Product data is not an array:", typeof productData);
+      }
+    } else {
+      console.log("❌ No data for exact product type:", selectedProductType);
+    }
+    
+    // 2. Fallback: chercher dans tous les types de produits de cette famille
+    if (!classData) {
+      console.log("🔄 Searching in all product types for fallback...");
+      for (const productTypeKey in familleData) {
+        const productData = familleData[productTypeKey];
+        if (Array.isArray(productData)) {
+          classData = productData.find(item => item.classe === classe);
+          if (classData) {
+            console.log("✅ Found fallback class data in product type:", productTypeKey, classData);
+            break;
+          }
+        }
+      }
+    }
+
+    if (!classData) {
+      console.log("❌ No class data found for classe:", classe, "in any product type");
+      return { li: "-", ls: "-", lg: "-" };
+    }
+
+    // Extraire les valeurs avec gestion des valeurs null
+    const result = {
+      li: classData.limit_inf !== null ? classData.limit_inf : "-",
+      ls: classData.limit_max !== null ? classData.limit_max : "-",
+      lg: classData.garantie !== null ? classData.garantie : "-",
+    };
+    
+    console.log("🎯 Final limits result:", result);
+    return result;
+  };
+
+  const dataToUse = filteredTableData || [];
+
+  if (loading) return <p className="no-data">Chargement des données de référence...</p>;
+  if (!dataToUse.length) return <p className="no-data">Veuillez d'abord filtrer des échantillons.</p>;
 
   const allStats = parameters.reduce((acc, param) => {
     acc[param.key] = calculateStats(dataToUse, param.key);
@@ -344,6 +353,111 @@ if (ajoutProducts.includes(selectedProductType)) {
     { key: "mean", label: "Moyenne" },
     { key: "std", label: "Écart type" },
   ];
+
+
+const handleExportPDF = async () => {
+  try {
+    // Prepare data for PDF export
+    const pdfData = {
+      clientInfo: { 
+        nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client",
+        id: clientId
+      },
+      produitInfo: {
+        ...produitInfo,
+        famille: finalFamilleName,
+        familleCode: finalFamilleCode
+      },
+      period: filterPeriod,
+      globalStats: allStats,
+      parameters: parameters,
+      classes: classes,
+      dataToUse: dataToUse,
+      getLimitsByClass: getLimitsByClass,
+      evaluateLimits: evaluateLimits
+    };
+
+    // ⭐ NOUVEAU: Demander à l'utilisateur avec message amélioré
+    const userChoice = window.confirm(
+      "📊 OPTIONS D'EXPORT - DONNÉES STATISTIQUES\n\n" +
+      "Cliquez sur :\n" +
+      "• ✅ OK - Pour ajouter à l'export GLOBAL (toutes pages)\n" +
+      "• ❌ Annuler - Pour exporter INDIVIDUELLEMENT seulement\n\n" +
+      `📋 Statut actuel: ${CentralExportService.getStatusMessage()}`
+    );
+
+    if (userChoice) {
+      // Ajouter à l'export global
+      CentralExportService.addDonneesStatistiques(pdfData, {
+        clientInfo: { 
+          nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client",
+          id: clientId
+        },
+        produitInfo: {
+          ...produitInfo,
+          famille: finalFamilleName,
+          familleCode: finalFamilleCode
+        },
+        periodStart: filterPeriod.start,
+        periodEnd: filterPeriod.end,
+        phase: phase || "situation_courante",
+        exportDate: new Date().toISOString(),
+        totalParameters: parameters.length,
+        totalClasses: classes.length,
+        sampleCount: dataToUse.length
+      });
+      
+      // Message de confirmation amélioré
+      const status = CentralExportService.getExportStatus();
+      const statusDetails = Object.entries(status)
+        .map(([key, value]) => {
+          const pageName = key === 'echantillonsTable' ? 'Échantillons' :
+                         key === 'tableauConformite' ? 'Tableau Conformité' :
+                         key === 'controleDetail' ? 'Contrôle Détail' :
+                         key === 'donneesGraphiques' ? 'Données Graphiques' :
+                         key === 'donneesStatistiques' ? 'Données Statistiques' : key;
+          return `${value} ${pageName}`;
+        })
+        .join('\n');
+      
+      alert(`✅ DONNÉES STATISTIQUES AJOUTÉES À L'EXPORT GLOBAL !\n\n` +
+            `📊 STATUT DES PAGES:\n${statusDetails}\n\n` +
+            `Utilisez le bouton "📤 Exporter Toutes les Pages" pour générer les PDFs complets.`);
+      
+      console.log("📤 Données statistiques ajoutées à l'export global:", {
+        client: clients.find(c => c.id == clientId)?.nom_raison_sociale,
+        produit: produitInfo?.nom,
+        parameters: parameters.length,
+        classes: classes.length,
+        samples: dataToUse.length
+      });
+
+    } else {
+      // ⭐ OPTION 2: Exporter seulement cette page
+      const doc = await PDFExportService.generateStatsReport(pdfData);
+
+      const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
+      const fileName = `donnees_statistiques_${clientName}_${filterPeriod.start}_${filterPeriod.end}.pdf`.replace(/\s+/g, '_');
+      doc.save(fileName);
+      
+      console.log("📄 PDF statistiques individuel exporté:", fileName);
+      
+      alert(`✅ Données Statistiques exportées individuellement!\n\nFichier: ${fileName}`);
+    }
+
+  } catch (error) {
+    console.error("❌ Error generating PDF:", error);
+    
+    let errorMessage = "Erreur lors de l'export PDF: " + error.message;
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      errorMessage = "❌ Erreur de connexion. Vérifiez que le serveur est accessible.";
+    } else if (error.message.includes('jsPDF') || error.message.includes('PDF')) {
+      errorMessage = "❌ Erreur lors de la génération du PDF. Vérifiez les données.";
+    }
+    
+    alert(errorMessage);
+  }
+};
 
   const classes = ["32.5 L", "32.5 N", "32.5 R", "42.5 L", "42.5 N", "42.5 R", "52.5 L", "52.5 N", "52.5 R"];
 
@@ -426,19 +540,37 @@ if (ajoutProducts.includes(selectedProductType)) {
     </div>
   );
 
-
-
   return (
-    <div className="stats-section">
-      <div style={{ marginBottom: "1rem" }}>
-        <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
-        <h2>Données Statistiques</h2>
-        {produitInfo && (
-          <>
-            <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
-          </>
-        )}
-        <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
+ <div className="stats-section">
+      {/* Add export button */}
+      <div style={{ marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
+          <h2>Données Statistiques</h2>
+          {produitInfo && (
+            <>
+              <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
+              <p><strong>Famille: {finalFamilleName} ({finalFamilleCode})</strong></p>
+            </>
+          )}
+          <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
+        </div>
+        <button 
+          className="export-btn" 
+          onClick={handleExportPDF} 
+          disabled={dataToUse.length === 0}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: dataToUse.length === 0 ? "not-allowed" : "pointer",
+            opacity: dataToUse.length === 0 ? 0.6 : 1
+          }}
+        >
+          📊 Exporter PDF
+        </button>
       </div>
 
       {/* Global stats */}

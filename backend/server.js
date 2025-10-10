@@ -2635,6 +2635,51 @@ app.delete("/api/types_ciment/:id", async (req, res) => {
 });
 
 
+
+// Add this route to your backend
+app.post('/api/generate-pdf', async (req, res) => {
+  try {
+    const { selectedClasses, reportData, options } = req.body;
+
+    // You'll need to install pdfkit or similar PDF library
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument();
+    
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=rapport_conformite.pdf`);
+
+    // Pipe PDF to response
+    doc.pipe(res);
+
+    // Generate PDF content
+    selectedClasses.forEach((classe, index) => {
+      if (index > 0) {
+        doc.addPage();
+      }
+
+      // Add header
+      doc.fontSize(20).text('Rapport de Contrôle de Conformité', 50, 50);
+      doc.fontSize(12).text(`Classe: ${classe}`, 50, 80);
+      doc.fontSize(12).text(`Page ${index + 1} sur ${selectedClasses.length}`, 50, 95);
+
+      // Add your actual class data here
+      // Use reportData[classe] to access specific class information
+      
+      doc.moveDown(2);
+      doc.text(`Contenu pour la classe ${classe}...`, 50, 120);
+    });
+
+    doc.end();
+
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    res.status(500).json({ error: 'Erreur lors de la génération du PDF' });
+  }
+});
+
+
+
 app.listen(PORT, () => {
   console.log(`✅ API running on http://localhost:${PORT}`);
 });

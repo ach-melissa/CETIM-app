@@ -1,7 +1,9 @@
 // src/components/DonneesGraphiques/DonneesGraphiques.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import PDFExportService from "../ControleConformite/PDFExportService";
 import "./DonneesGraphiques.css";
 import { useData } from "../../context/DataContext";
+import CentralExportService from "../../services/CentralExportService"; 
 
 import {
   ScatterChart,
@@ -25,7 +27,14 @@ const calculateStats = (data, key) => {
   const values = [];
   
   data.forEach((row, index) => {
-    const value = row[key];
+    let value;
+    
+    // Pour le taux d'ajout, utiliser la colonne ajout_percent
+    if (key === "ajt") {
+      value = row.ajout_percent;
+    } else {
+      value = row[key];
+    }
     
     const isMissing = 
       value === null || 
@@ -85,7 +94,15 @@ const evaluateLimits = (data, key, li, ls, lg) => {
     return parseFloat(String(val).replace(',', '.'));
   };
 
-  const values = data.map((row) => safeParse(row[key])).filter((v) => !isNaN(v));
+  // Pour le taux d'ajout, utiliser la colonne ajout_percent
+  const getValue = (row) => {
+    if (key === "ajt") {
+      return row.ajout_percent;
+    }
+    return row[key];
+  };
+
+  const values = data.map((row) => safeParse(getValue(row))).filter((v) => !isNaN(v));
   
   if (!values.length) {
     return { belowLI: "-", aboveLS: "-", belowLG: "-", percentLI: "-", percentLS: "-", percentLG: "-" };
@@ -122,25 +139,22 @@ const evaluateLimits = (data, key, li, ls, lg) => {
   const total = values.length;
 
   return {
-    belowLI: hasLI ? belowLI : 0,
-    aboveLS: hasLS ? aboveLS : 0,
-    belowLG: hasLG ? belowLG : 0,
-    percentLI: hasLI ? ((belowLI / total) * 100).toFixed(1) : "0.0",
-    percentLS: hasLS ? ((aboveLS / total) * 100).toFixed(1) : "0.0",
-    percentLG: hasLG ? ((belowLG / total) * 100).toFixed(1) : "0.0",
+    belowLI: hasLI ? belowLI : "-",
+    aboveLS: hasLS ? aboveLS : "-",
+    belowLG: hasLG ? belowLG : "-",
+    percentLI: hasLI ? ((belowLI / total) * 100).toFixed(1) : "-",
+    percentLS: hasLS ? ((aboveLS / total) * 100).toFixed(1) : "-",
+    percentLG: hasLG ? ((belowLG / total) * 100).toFixed(1) : "-",
   };
 };
 
 const parseLimit = (val) => {
-  if (val === null || val === undefined) return null;
-  
-  if (val === "" || val === "-") return null;
+  if (val === null || val === undefined || val === "-") return null;
   
   const num = parseFloat(String(val).replace(',', '.'));
   if (!isNaN(num)) return num;
   
-  const str = String(val).trim();
-  return str === "" ? null : str;
+  return null;
 };
 
 // Function to extract and format date from row data
@@ -242,9 +256,8 @@ const extractDateFromRow = (row, index) => {
   }
   
   // Fallback: use index to maintain order with actual dates
-  // Start from a recent date and add days based on index
-  const baseDate = new Date(); // Today's date
-  baseDate.setDate(baseDate.getDate() + index); // Add index as days
+  const baseDate = new Date();
+  baseDate.setDate(baseDate.getDate() + index);
   return baseDate;
 };
 
@@ -255,7 +268,6 @@ const formatDateForDisplay = (date) => {
   const d = new Date(date);
   if (isNaN(d.getTime())) return '';
   
-  // Format as DD/MM/YYYY
   return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
 };
 
@@ -280,24 +292,15 @@ export default function DonneesGraphiques({
   produitInfo,
   produitDescription, 
   clients = [], 
-  produits = [] 
+  produits = [] ,
+  phase,
 }) {
   const { filteredTableData = [], filterPeriod = {} } = useData();
-  const [chartType, setChartType] = useState("scatter"); // "scatter" | "gaussian"
-
+  const [chartType, setChartType] = useState("scatter");
   const [limitsData, setLimitsData] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedParameter, setSelectedParameter] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
-
-  const c3aProducts = ["CEM I-SR 0", "CEM I-SR 3", "CEM I-SR 5", "CEM IV/A-SR", "CEM IV/B-SR"];
-  const ajoutProducts = [
-    "CEM II/A-S", "CEM II/B-S", "CEM II/A-D", "CEM II/A-P", "CEM II/B-P",
-    "CEM II/A-Q", "CEM II/B-Q", "CEM II/A-V", "CEM II/B-V",
-    "CEM II/A-W", "CEM II/B-W", "CEM II/A-T", "CEM II/B-T",
-    "CEM II/A-L", "CEM II/B-L", "CEM II/A-LL", "CEM II/B-LL",
-    "CEM II/A-M", "CEM II/B-M"
-  ];
 
   // Get product type and famille from produitInfo with fallbacks
   const selectedProductType = produitInfo?.nom || produitInfo?.code || "";
@@ -320,6 +323,10 @@ export default function DonneesGraphiques({
   const finalFamilleCode = selectedProductFamille || determineFamilleFromType(selectedProductType);
   const finalFamilleName = selectedProductFamilleName || finalFamilleCode;
 
+  // Déterminer quelles colonnes afficher - BASED ON FAMILLE LIKE DonneesStatistiques
+  const showC3A = selectedProductFamille === "CEM I";
+  const showTauxAjout = selectedProductFamille !== "CEM I";
+
   useEffect(() => {
     const fetchLimits = async () => {
       try {
@@ -337,7 +344,7 @@ export default function DonneesGraphiques({
     fetchLimits();
   }, []);
 
-  // Map parameter keys to match your JSON structure
+  // Map parameter keys to match your JSON structure - SAME AS DonneesStatistiques
   const keyMapping = {
     rc2j: "resistance_2j",
     rc7j: "resistance_7j",
@@ -349,83 +356,95 @@ export default function DonneesGraphiques({
     r_insoluble: "residu_insoluble",
     so3: "SO3",
     chlorure: "teneur_chlour",
-    ajt: "ajout",
-    c3a: "C3A",
+    ajt: "Ajout", // Same as DonneesStatistiques
+    c3a: "C3A",   // Same as DonneesStatistiques
   };
 
   const getLimitsByClass = (classe, key) => {
     const mockKey = keyMapping[key];
+    
+    console.log("=== DEBUG DonneesGraphiques getLimitsByClass ===");
+    console.log("Key:", key, "MockKey:", mockKey, "Classe:", classe);
+    console.log("Selected Product Type:", selectedProductType);
+    console.log("Final Famille Code:", finalFamilleCode);
+    
     if (!mockKey || !limitsData[mockKey]) {
+      console.log("❌ Mock key not found or no data for mockKey");
+      console.log("Mock key searched:", mockKey);
+      console.log("Available keys in limitsData:", Object.keys(limitsData));
       return { li: null, ls: null, lg: null };
     }
 
     const parameterData = limitsData[mockKey];
+    console.log("✅ Parameter data available for:", mockKey);
+    console.log("Available familles in parameter data:", Object.keys(parameterData));
     
+    // Vérifier si la famille existe dans les données
     if (!parameterData[finalFamilleCode]) {
+      console.log("❌ No data for famille:", finalFamilleCode);
+      console.log("Available familles:", Object.keys(parameterData));
       return { li: null, ls: null, lg: null };
     }
 
     const familleData = parameterData[finalFamilleCode];
+    console.log("✅ Famille data found:", finalFamilleCode);
+    console.log("Famille data structure:", familleData);
 
-    // For "ajout" parameter, the structure is different
-    if (key === "ajt") {
-      const ajoutCode = selectedProductType.split('/').pop()?.split('-').pop()?.trim();
-      
-      if (!ajoutCode || !familleData[ajoutCode]) {
-        return { li: null, ls: null, lg: null };
-      }
-
-      const ajoutData = familleData[ajoutCode];
-      
-      const limits = {
-        li: parseLimit(ajoutData.limitInf ?? ajoutData.limit_inf),
-        ls: parseLimit(ajoutData.limitSup ?? ajoutData.limit_max),
-        lg: parseLimit(ajoutData.garantie)
-      };
-      
-      return limits;
-    }
-
-    // For other parameters, search for the class data
     let classData = null;
-    
-    if (Array.isArray(familleData)) {
-      classData = familleData.find(item => item.classe === classe);
-    } else if (typeof familleData === 'object' && familleData[classe]) {
-      classData = familleData[classe];
+
+    // SAME LOGIC AS DonneesStatistiques
+    // 1. Chercher avec le type de produit exact
+    if (familleData[selectedProductType]) {
+      console.log("✅ Found exact product type:", selectedProductType);
+      const productData = familleData[selectedProductType];
+      
+      if (Array.isArray(productData)) {
+        classData = productData.find(item => item.classe === classe);
+        if (classData) {
+          console.log("✅ Found class data for exact product type:", classData);
+        } else {
+          console.log("❌ No class data found for classe:", classe, "in product type:", selectedProductType);
+          console.log("Available classes:", productData.map(item => item.classe));
+        }
+      } else {
+        console.log("❌ Product data is not an array:", typeof productData);
+      }
     } else {
-      for (const key in familleData) {
-        const subData = familleData[key];
-        if (Array.isArray(subData)) {
-          const found = subData.find(item => item.classe === classe);
-          if (found) {
-            classData = found;
+      console.log("❌ No data for exact product type:", selectedProductType);
+    }
+    
+    // 2. Fallback: chercher dans tous les types de produits de cette famille
+    if (!classData) {
+      console.log("🔄 Searching in all product types for fallback...");
+      for (const productTypeKey in familleData) {
+        const productData = familleData[productTypeKey];
+        if (Array.isArray(productData)) {
+          classData = productData.find(item => item.classe === classe);
+          if (classData) {
+            console.log("✅ Found fallback class data in product type:", productTypeKey, classData);
             break;
           }
-        } else if (typeof subData === 'object' && subData[classe]) {
-          classData = subData[classe];
-          break;
-        } else if (typeof subData === 'object' && (subData.limit_inf || subData.limitInf)) {
-          classData = subData;
-          break;
         }
       }
     }
 
     if (!classData) {
+      console.log("❌ No class data found for classe:", classe, "in any product type");
       return { li: null, ls: null, lg: null };
     }
 
-    const limits = {
-      li: parseLimit(classData.limit_inf ?? classData.limitInf),
-      ls: parseLimit(classData.limit_max ?? classData.limitSup ?? classData.limitMax),
-      lg: parseLimit(classData.garantie ?? classData.garantieValue),
+    // Extraire les valeurs avec gestion des valeurs null - SAME AS DonneesStatistiques
+    const result = {
+      li: classData.limit_inf !== null ? parseLimit(classData.limit_inf) : null,
+      ls: classData.limit_max !== null ? parseLimit(classData.limit_max) : null,
+      lg: classData.garantie !== null ? parseLimit(classData.garantie) : null,
     };
-
-    return limits;
+    
+    console.log("🎯 Final limits result:", result);
+    return result;
   };
 
-  // Parameters list
+  // Parameters list - BASED ON FAMILLE LIKE DonneesStatistiques
   let parameters = [
     { key: "rc2j", label: "Résistance courante 2 jrs" },
     { key: "rc7j", label: "Résistance courante 7 jrs" },
@@ -439,13 +458,13 @@ export default function DonneesGraphiques({
     { key: "chlorure", label: "Chlorure" },
   ];
 
-  // Add C3A if selected product is in c3aProducts
-  if (c3aProducts.includes(selectedProductType)) {
+  // Add C3A if famille is CEM I - SAME LOGIC AS DonneesStatistiques
+  if (showC3A) {
     parameters.push({ key: "c3a", label: "C3A" });
   }
 
-  // Add Ajout if selected product is in ajoutProducts
-  if (ajoutProducts.includes(selectedProductType)) {
+  // Add Ajout if famille is NOT CEM I - SAME LOGIC AS DonneesStatistiques
+  if (showTauxAjout) {
     parameters.push({ key: "ajt", label: "Ajout" });
   }
 
@@ -454,6 +473,113 @@ export default function DonneesGraphiques({
     "42.5 L", "42.5 N", "42.5 R", 
     "52.5 L", "52.5 N", "52.5 R"
   ];
+
+
+const handleExportPDF = async () => {
+  try {
+    // Prepare data for PDF export
+    const graphicalData = {
+      clientInfo: clients.find(c => c.id == clientId),
+      produitInfo,
+      period: filterPeriod,
+      dataToUse: filteredTableData,
+      selectedParameter,
+      selectedClass,
+      chartType,
+      parameters,
+      currentLimits,
+      derivedStats,
+      classes
+    };
+
+    // ⭐ NOUVEAU: Demander à l'utilisateur avec message amélioré
+    const userChoice = window.confirm(
+      "📊 OPTIONS D'EXPORT - DONNÉES GRAPHIQUES\n\n" +
+      "Cliquez sur :\n" +
+      "• ✅ OK - Pour ajouter à l'export GLOBAL (toutes pages)\n" +
+      "• ❌ Annuler - Pour exporter INDIVIDUELLEMENT seulement\n\n" +
+      `📋 Statut actuel: ${CentralExportService.getStatusMessage()}`
+    );
+
+    if (userChoice) {
+      // Ajouter à l'export global
+      CentralExportService.addDonneesGraphiques(graphicalData, {
+        clientInfo: { 
+          nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client",
+          id: clientId
+        },
+        produitInfo: {
+          ...produitInfo,
+          famille: produitInfo?.famille?.nom || ""
+        },
+        periodStart: filterPeriod.start,
+        periodEnd: filterPeriod.end,
+        phase: phase || "situation_courante",
+        exportDate: new Date().toISOString(),
+        selectedParameter: selectedParameter,
+        selectedClass: selectedClass,
+        chartType: chartType,
+        parameterLabel: parameters.find(p => p.key === selectedParameter)?.label || selectedParameter,
+        totalSamples: filteredTableData.length
+      });
+      
+      // Message de confirmation amélioré
+      const status = CentralExportService.getExportStatus();
+      const statusDetails = Object.entries(status)
+        .map(([key, value]) => {
+          const pageName = key === 'echantillonsTable' ? 'Échantillons' :
+                         key === 'tableauConformite' ? 'Tableau Conformité' :
+                         key === 'controleDetail' ? 'Contrôle Détail' :
+                         key === 'donneesGraphiques' ? 'Données Graphiques' :
+                         key === 'donneesStatistiques' ? 'Données Statistiques' : key;
+          return `${value} ${pageName}`;
+        })
+        .join('\n');
+      
+      const paramLabel = parameters.find(p => p.key === selectedParameter)?.label || selectedParameter;
+      
+      alert(`✅ DONNÉES GRAPHIQUES AJOUTÉES À L'EXPORT GLOBAL !\n\n` +
+            `📈 Graphique: ${paramLabel}\n` +
+            `🎯 Classe: ${selectedClass || "Toutes"}\n\n` +
+            `📊 STATUT DES PAGES:\n${statusDetails}\n\n` +
+            `Utilisez le bouton "📤 Exporter Toutes les Pages" pour générer les PDFs complets.`);
+      
+      console.log("📤 Données graphiques ajoutées à l'export global:", {
+        client: clients.find(c => c.id == clientId)?.nom_raison_sociale,
+        produit: produitInfo?.nom,
+        parameter: paramLabel,
+        class: selectedClass,
+        chartType: chartType,
+        samples: filteredTableData.length
+      });
+
+    } else {
+      // ⭐ OPTION 2: Exporter seulement cette page
+      const pdfDoc = await PDFExportService.generateGraphicalReport(graphicalData);
+      
+      const paramName = parameters.find(p => p.key === selectedParameter)?.label || 'data';
+      const fileName = `graphique-${paramName.replace(/\s+/g, '-')}-${selectedClass || 'all'}-${new Date().toISOString().split('T')[0]}.pdf`;
+      pdfDoc.save(fileName);
+      
+      console.log("📄 PDF graphique individuel exporté:", fileName);
+      
+      alert(`✅ Graphique exporté individuellement!\n\nFichier: ${fileName}`);
+    }
+
+  } catch (error) {
+    console.error('❌ Error generating PDF:', error);
+    
+    let errorMessage = "Erreur lors de la génération du PDF: " + error.message;
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      errorMessage = "❌ Erreur de connexion. Vérifiez que le serveur est accessible.";
+    } else if (error.message.includes('html2canvas') || error.message.includes('chart')) {
+      errorMessage = "❌ Erreur lors de la capture du graphique. Vérifiez que le graphique est affiché.";
+    }
+    
+    alert(errorMessage);
+  }
+};
+
 
   const currentLimits = useMemo(() => {
     if (!selectedParameter || !selectedClass) {
@@ -515,7 +641,15 @@ export default function DonneesGraphiques({
     if (!selectedParameter) return [];
     
     return filteredTableData.map((row, i) => {
-      const value = row[selectedParameter];
+      let value;
+      
+      // Pour le taux d'ajout, utiliser la colonne ajout_percent - SAME AS DonneesStatistiques
+      if (selectedParameter === "ajt") {
+        value = row.ajout_percent;
+      } else {
+        value = row[selectedParameter];
+      }
+      
       let numericValue = NaN;
       
       // Utiliser la même logique de parsing que calculateStats
@@ -537,24 +671,40 @@ export default function DonneesGraphiques({
       const formattedDate = formatDateForDisplay(date);
       
       return {
-        x: i + 1, // Keep index as fallback
-        date: date.getTime(), // Use timestamp for proper ordering
+        x: i + 1,
+        date: date.getTime(),
         formattedDate: formattedDate,
         y: numericValue,
         raw: row,
         fullDate: formatDateForTooltip(date),
-        index: i // Keep original index
+        index: i
       };
     });
   }, [filteredTableData, selectedParameter]);
 
-  // Custom XAxis tick formatter to show dates with rotation - AFFICHER TOUTES LES DATES
-// Custom XAxis tick formatter to show dates with vertical orientation
-const renderDateTicks = (props) => {
-  const { x, y, payload } = props;
-  const dataIndex = payload.value - 1; // Convert back to array index
-  
-  if (chartData[dataIndex] && chartData[dataIndex].formattedDate) {
+  // Custom XAxis tick formatter to show dates with vertical orientation
+  const renderDateTicks = (props) => {
+    const { x, y, payload } = props;
+    const dataIndex = payload.value - 1;
+    
+    if (chartData[dataIndex] && chartData[dataIndex].formattedDate) {
+      return (
+        <g transform={`translate(${x},${y})`}>
+          <text 
+            x={0} 
+            y={0} 
+            dy={16} 
+            textAnchor="end" 
+            fill="#666" 
+            fontSize={10}
+            transform="rotate(-90)"
+          >
+            {chartData[dataIndex].formattedDate}
+          </text>
+        </g>
+      );
+    }
+    
     return (
       <g transform={`translate(${x},${y})`}>
         <text 
@@ -564,31 +714,13 @@ const renderDateTicks = (props) => {
           textAnchor="end" 
           fill="#666" 
           fontSize={10}
-          transform="rotate(-90)" // Changed from -45 to -90 for vertical orientation
+          transform="rotate(-90)"
         >
-          {chartData[dataIndex].formattedDate}
+          {`Éch. ${payload.value}`}
         </text>
       </g>
     );
-  }
-  
-  // Fallback to index if no date
-  return (
-    <g transform={`translate(${x},${y})`}>
-      <text 
-        x={0} 
-        y={0} 
-        dy={16} 
-        textAnchor="end" 
-        fill="#666" 
-        fontSize={10}
-        transform="rotate(-90)" // Changed from -45 to -90 for vertical orientation
-      >
-        {`Éch. ${payload.value}`}
-      </text>
-    </g>
-  );
-};
+  };
 
   // Custom tooltip to show date and value
   const CustomTooltip = ({ active, payload, label }) => {
@@ -656,6 +788,7 @@ const renderDateTicks = (props) => {
         {produitInfo && (
           <>
             <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
+            <p><strong>Famille: {finalFamilleName} ({finalFamilleCode})</strong></p>
           </>
         )}
         <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
@@ -677,7 +810,21 @@ const renderDateTicks = (props) => {
           </select>
         </div>
       </div>
-
+        <button 
+  onClick={handleExportPDF}
+  className="export-pdf-button"
+  style={{
+    padding: '8px 16px',
+    backgroundColor: '#20313fff',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    marginLeft: '10px'
+  }}
+>
+  📊 Exporter PDF
+</button>
       <div className="dg-main-container">
         <div className="dg-main">
           <div className="dg-chart-card">
@@ -693,24 +840,24 @@ const renderDateTicks = (props) => {
                   margin={{ top: 20, right: 20, bottom: 100, left: 20 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-<XAxis 
-  dataKey="x" 
-  name="Date" 
-  tick={renderDateTicks}
-  interval={0}
-  height={80}
-  allowDataOverflow={true}
-  angle={-90}
-  textAnchor="end"
-  tickMargin={5}
-  padding={{ left: 3, right: 5 }} // Add padding on sides
-  minTickGap={15} // Minimum gap between ticks
-/>
+                  <XAxis 
+                    dataKey="x" 
+                    name="Date" 
+                    tick={renderDateTicks}
+                    interval={0}
+                    height={80}
+                    allowDataOverflow={true}
+                    angle={-90}
+                    textAnchor="end"
+                    tickMargin={5}
+                    padding={{ left: 3, right: 5 }}
+                    minTickGap={15}
+                  />
                   <YAxis 
                     dataKey="y" 
                     name={selectedParameter} 
                     domain={[0, 75]}
-                    ticks={[ 0, 20, 40, 60, 80, 100 ,120 ,140  ]}
+                    ticks={[0, 20, 40, 60, 80, 100, 120, 140]}
                     allowDataOverflow={true}
                     width={10}
                   />
@@ -811,7 +958,7 @@ const renderDateTicks = (props) => {
 
             <div className="dg-divider" />
             
-            {/* Statistiques des limites - TOUJOURS affichées */}
+            {/* Statistiques des limites */}
             <div className="dg-stat-row">
               <div className="limit-name li">Limit inferieur</div>
               <div>
@@ -842,7 +989,7 @@ const renderDateTicks = (props) => {
               <strong>{derivedStats.mean !== "-" ? derivedStats.mean : "-"}</strong>
             </div>
             
-            {/* Sélecteur de type de graphique en dessous de la carte de statistiques */}
+            {/* Sélecteur de type de graphique */}
             <div className="dg-chart-type-selector">
               <h3>Type de graphique</h3>
               <label>
@@ -868,6 +1015,8 @@ const renderDateTicks = (props) => {
             </div> 
           </div>
         </aside>
+
+
       </div>
     </div>
   );
