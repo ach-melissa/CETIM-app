@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import PDFExportService from "../ControleConformite/PDFExportService";
 import "./DonneesStatistiques.css";
 import { useData } from "../../context/DataContext";
+import CentralExportService from "../../services/CentralExportService"; 
 
 // ============================================================
 // Utility functions
@@ -159,7 +160,8 @@ const DonneesStatistiques = ({
   produitDescription, 
   clients = [], 
   produits = [] ,
-  ajoutsData = {}
+  ajoutsData = {},
+  phase,
 }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
@@ -351,35 +353,109 @@ const DonneesStatistiques = ({
     { key: "mean", label: "Moyenne" },
     { key: "std", label: "Écart type" },
   ];
+
+
 const handleExportPDF = async () => {
   try {
     // Prepare data for PDF export
     const pdfData = {
-      clientInfo: { nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client" },
+      clientInfo: { 
+        nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client",
+        id: clientId
+      },
       produitInfo: {
         ...produitInfo,
-        famille: finalFamilleName
+        famille: finalFamilleName,
+        familleCode: finalFamilleCode
       },
       period: filterPeriod,
       globalStats: allStats,
       parameters: parameters,
       classes: classes,
       dataToUse: dataToUse,
-      getLimitsByClass: getLimitsByClass, // Pass the function
-      evaluateLimits: evaluateLimits // Pass the function
+      getLimitsByClass: getLimitsByClass,
+      evaluateLimits: evaluateLimits
     };
 
-    // Generate PDF
-    const doc = await PDFExportService.generateStatsReport(pdfData);
+    // ⭐ NOUVEAU: Demander à l'utilisateur avec message amélioré
+    const userChoice = window.confirm(
+      "📊 OPTIONS D'EXPORT - DONNÉES STATISTIQUES\n\n" +
+      "Cliquez sur :\n" +
+      "• ✅ OK - Pour ajouter à l'export GLOBAL (toutes pages)\n" +
+      "• ❌ Annuler - Pour exporter INDIVIDUELLEMENT seulement\n\n" +
+      `📋 Statut actuel: ${CentralExportService.getStatusMessage()}`
+    );
 
-    // Save the PDF
-    const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
-    const fileName = `donnees_statistiques_${clientName}_${filterPeriod.start}_${filterPeriod.end}.pdf`.replace(/\s+/g, '_');
-    doc.save(fileName);
+    if (userChoice) {
+      // Ajouter à l'export global
+      CentralExportService.addDonneesStatistiques(pdfData, {
+        clientInfo: { 
+          nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client",
+          id: clientId
+        },
+        produitInfo: {
+          ...produitInfo,
+          famille: finalFamilleName,
+          familleCode: finalFamilleCode
+        },
+        periodStart: filterPeriod.start,
+        periodEnd: filterPeriod.end,
+        phase: phase || "situation_courante",
+        exportDate: new Date().toISOString(),
+        totalParameters: parameters.length,
+        totalClasses: classes.length,
+        sampleCount: dataToUse.length
+      });
+      
+      // Message de confirmation amélioré
+      const status = CentralExportService.getExportStatus();
+      const statusDetails = Object.entries(status)
+        .map(([key, value]) => {
+          const pageName = key === 'echantillonsTable' ? 'Échantillons' :
+                         key === 'tableauConformite' ? 'Tableau Conformité' :
+                         key === 'controleDetail' ? 'Contrôle Détail' :
+                         key === 'donneesGraphiques' ? 'Données Graphiques' :
+                         key === 'donneesStatistiques' ? 'Données Statistiques' : key;
+          return `${value} ${pageName}`;
+        })
+        .join('\n');
+      
+      alert(`✅ DONNÉES STATISTIQUES AJOUTÉES À L'EXPORT GLOBAL !\n\n` +
+            `📊 STATUT DES PAGES:\n${statusDetails}\n\n` +
+            `Utilisez le bouton "📤 Exporter Toutes les Pages" pour générer les PDFs complets.`);
+      
+      console.log("📤 Données statistiques ajoutées à l'export global:", {
+        client: clients.find(c => c.id == clientId)?.nom_raison_sociale,
+        produit: produitInfo?.nom,
+        parameters: parameters.length,
+        classes: classes.length,
+        samples: dataToUse.length
+      });
+
+    } else {
+      // ⭐ OPTION 2: Exporter seulement cette page
+      const doc = await PDFExportService.generateStatsReport(pdfData);
+
+      const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
+      const fileName = `donnees_statistiques_${clientName}_${filterPeriod.start}_${filterPeriod.end}.pdf`.replace(/\s+/g, '_');
+      doc.save(fileName);
+      
+      console.log("📄 PDF statistiques individuel exporté:", fileName);
+      
+      alert(`✅ Données Statistiques exportées individuellement!\n\nFichier: ${fileName}`);
+    }
 
   } catch (error) {
-    console.error("Error generating PDF:", error);
-    alert("Erreur lors de l'export PDF: " + error.message);
+    console.error("❌ Error generating PDF:", error);
+    
+    let errorMessage = "Erreur lors de l'export PDF: " + error.message;
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      errorMessage = "❌ Erreur de connexion. Vérifiez que le serveur est accessible.";
+    } else if (error.message.includes('jsPDF') || error.message.includes('PDF')) {
+      errorMessage = "❌ Erreur lors de la génération du PDF. Vérifiez les données.";
+    }
+    
+    alert(errorMessage);
   }
 };
 

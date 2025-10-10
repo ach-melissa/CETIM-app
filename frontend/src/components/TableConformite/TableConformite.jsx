@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import PDFExportService from "../ControleConformite/PDFExportService";
 import "./TableConformite.css";
 import { useData } from "../../context/DataContext";
+import CentralExportService from "../../services/CentralExportService"; 
 
 const calculateStats = (data, key) => {
   const missingValues = [];
@@ -153,6 +154,7 @@ const TableConformite = ({
   produits = [] ,
   ajoutsData,
   getAjoutDescription,
+  phase,
 }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
@@ -732,28 +734,96 @@ const handleExport = async () => {
       });
     });
 
-    // PDF options
-    const pdfOptions = {
-      clientInfo: { nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client" },
-      produitInfo: {
-        ...produitInfo,
-        famille: finalFamilleName
-      },
-      periodStart: filterPeriod.start,
-      periodEnd: filterPeriod.end
-    };
+    // ⭐ NOUVEAU: Demander à l'utilisateur avec message amélioré
+    const userChoice = window.confirm(
+      "📊 OPTIONS D'EXPORT - TABLEAU CONFORMITÉ\n\n" +
+      "Cliquez sur :\n" +
+      "• ✅ OK - Pour ajouter à l'export GLOBAL (toutes pages)\n" +
+      "• ❌ Annuler - Pour exporter INDIVIDUELLEMENT seulement\n\n" +
+      `📋 Statut actuel: ${CentralExportService.getStatusMessage()}`
+    );
 
-    // Generate TABLE PDF
-    const doc = await PDFExportService.generateTableReport(tableData, pdfOptions);
+    if (userChoice) {
+      // Ajouter à l'export global
+      CentralExportService.addTableauConformite(tableData, {
+        clientInfo: { 
+          nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client",
+          id: clientId
+        },
+        produitInfo: {
+          ...produitInfo,
+          famille: finalFamilleName,
+          familleCode: finalFamilleCode
+        },
+        periodStart: filterPeriod.start,
+        periodEnd: filterPeriod.end,
+        phase: phase || "situation_courante",
+        exportDate: new Date().toISOString(),
+        totalClasses: classes.length,
+        totalParameters: parameters.length
+      });
+      
+      // Message de confirmation amélioré
+      const status = CentralExportService.getExportStatus();
+      const statusDetails = Object.entries(status)
+        .map(([key, value]) => {
+          const pageName = key === 'echantillonsTable' ? 'Échantillons' :
+                         key === 'tableauConformite' ? 'Tableau Conformité' :
+                         key === 'controleDetail' ? 'Contrôle Détail' :
+                         key === 'donneesGraphiques' ? 'Données Graphiques' :
+                         key === 'donneesStatistiques' ? 'Données Statistiques' : key;
+          return `${value} ${pageName}`;
+        })
+        .join('\n');
+      
+      alert(`✅ TABLEAU CONFORMITÉ AJOUTÉ À L'EXPORT GLOBAL !\n\n` +
+            `📊 STATUT DES PAGES:\n${statusDetails}\n\n` +
+            `Utilisez le bouton "📤 Exporter Toutes les Pages" pour générer les PDFs complets.`);
+      
+      console.log("📤 Tableau conformité ajouté à l'export global:", {
+        client: clients.find(c => c.id == clientId)?.nom_raison_sociale,
+        produit: produitInfo?.nom,
+        classes: classes.length,
+        parameters: parameters.length
+      });
 
-    // Save the PDF
-    const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
-    const fileName = `tableau_conformite_${clientName}_${filterPeriod.start}_${filterPeriod.end}.pdf`.replace(/\s+/g, '_');
-    doc.save(fileName);
+    } else {
+      // ⭐ OPTION 2: Exporter seulement cette page
+      const pdfOptions = {
+        clientInfo: { 
+          nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client" 
+        },
+        produitInfo: {
+          ...produitInfo,
+          famille: finalFamilleName
+        },
+        periodStart: filterPeriod.start,
+        periodEnd: filterPeriod.end,
+        phase: phase || "situation_courante",
+      };
+
+      // Générer le PDF individuel
+      const doc = await PDFExportService.generateTableReport(tableData, pdfOptions);
+      
+      // Sauvegarder le PDF individuel
+      const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
+      const fileName = `tableau_conformite_${clientName}_${filterPeriod.start}_${filterPeriod.end}.pdf`.replace(/\s+/g, '_');
+      doc.save(fileName);
+      
+      console.log("📄 PDF individuel exporté:", fileName);
+      alert(`✅ PDF exporté individuellement: ${fileName}`);
+    }
 
   } catch (error) {
-    console.error("Error generating PDF:", error);
-    alert("Erreur lors de l'export PDF: " + error.message);
+    console.error("❌ Error generating PDF:", error);
+    
+    // Message d'erreur plus détaillé
+    let errorMessage = "Erreur lors de l'export PDF: " + error.message;
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      errorMessage = "❌ Erreur de connexion. Vérifiez que le serveur est accessible.";
+    }
+    
+    alert(errorMessage);
   }
 };
 

@@ -6,6 +6,7 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { useData } from "../../context/DataContext";
 import PDFExportService from "../ControleConformite/PDFExportService";
+import CentralExportService from '../../services/CentralExportService'; 
 
 
 const formatExcelDate = (excelDate) => {
@@ -432,9 +433,119 @@ const exportToPDF = async () => {
   console.log("Exporting to PDF:", dataToExport);
   
   try {
+    // ⭐ NOUVEAU: Demander à l'utilisateur avec message amélioré
+    const userChoice = window.confirm(
+      "📊 OPTIONS D'EXPORT - DONNÉES ÉCHANTILLONS\n\n" +
+      "Cliquez sur :\n" +
+      "• ✅ OK - Pour ajouter à l'export GLOBAL (toutes pages)\n" +
+      "• ❌ Annuler - Pour exporter INDIVIDUELLEMENT seulement\n\n" +
+      `📋 Statut actuel: ${CentralExportService.getStatusMessage()}`
+    );
+
+    if (userChoice) {
+      // ⭐ OPTION 1: Ajouter à l'export global
+      try {
+        const exportData = {
+          headers: ["Ech", "Date", "RC2J", "RC7J", "RC28J", "Prise", "Stabilité", "Hydratation", "P. Feu", "R. Insoluble", "SO3", "Chlorure"],
+          rows: dataToExport.map(row => {
+            const baseRow = [
+              row.num_ech || "",
+              row.date_test || "",
+              row.rc2j || "",
+              row.rc7j || "",
+              row.rc28j || "",
+              row.prise || "",
+              row.stabilite || "",
+              row.hydratation || "",
+              row.pfeu || "",
+              row.r_insoluble || "",
+              row.so3 || "",
+              row.chlorure || ""
+            ];
+            
+            if (showC3A) {
+              baseRow.push(row.c3a || "");
+            }
+            
+            if (showTauxAjout) {
+              baseRow.push(row.ajout_percent || "");
+            }
+            
+            return baseRow;
+          }),
+          totalRows: dataToExport.length,
+          showC3A: showC3A,
+          showTauxAjout: showTauxAjout
+        };
+
+        // Ajouter à l'export global
+        CentralExportService.addEchantillonsTable(exportData, {
+          clientInfo: { 
+            nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client",
+            id: clientId
+          },
+          produitInfo: {
+            ...produitInfo,
+            famille: produitInfo?.famille?.nom || ""
+          },
+          periodStart: start,
+          periodEnd: end,
+          phase: phase || "situation_courante",
+          exportDate: new Date().toISOString(),
+          totalSamples: dataToExport.length,
+          editedSamples: rowsToEdit.length
+        });
+        
+        // Message de confirmation amélioré
+        const status = CentralExportService.getExportStatus();
+        const statusDetails = Object.entries(status)
+          .map(([key, value]) => {
+            const pageName = key === 'echantillonsTable' ? 'Échantillons' :
+                           key === 'tableauConformite' ? 'Tableau Conformité' :
+                           key === 'controleDetail' ? 'Contrôle Détail' :
+                           key === 'donneesGraphiques' ? 'Données Graphiques' :
+                           key === 'donneesStatistiques' ? 'Données Statistiques' : key;
+            return `${value} ${pageName}`;
+          })
+          .join('\n');
+        
+        alert(`✅ DONNÉES ÉCHANTILLONS AJOUTÉES À L'EXPORT GLOBAL !\n\n` +
+              `📊 STATUT DES PAGES:\n${statusDetails}\n\n` +
+              `Utilisez le bouton "📤 Exporter Toutes les Pages" pour générer les PDFs complets.`);
+        
+        console.log("📤 Échantillons ajoutés à l'export global:", {
+          client: clients.find(c => c.id == clientId)?.nom_raison_sociale,
+          produit: produitInfo?.description,
+          samples: dataToExport.length,
+          edited: rowsToEdit.length,
+          status: CentralExportService.getStatusMessage()
+        });
+
+      } catch (globalError) {
+        console.error("❌ Erreur lors de l'ajout à l'export global:", globalError);
+        alert("❌ Erreur lors de l'ajout à l'export global. Export individuel en cours...");
+        
+        // Fallback: exporter individuellement
+        await exportIndividualPDF(dataToExport);
+      }
+
+    } else {
+      // ⭐ OPTION 2: Exporter individuellement
+      await exportIndividualPDF(dataToExport);
+    }
+
+  } catch (error) {
+    console.error("❌ Erreur générale export PDF:", error);
+    alert("❌ Erreur lors de l'export PDF: " + error.message);
+  }
+};
+
+// ⭐ Fonction séparée pour l'export individuel
+const exportIndividualPDF = async (dataToExport) => {
+  try {
     const { jsPDF } = await import('jspdf');
     
-    // Remove "Heure" from headers
+    // Headers
     const headers = ["Ech", "Date", "RC2J", "RC7J", "RC28J", "Prise", "Stabilité", "Hydratation", "P. Feu", "R. Insoluble", "SO3", "Chlorure"];
     
     if (showC3A) {
@@ -445,17 +556,11 @@ const exportToPDF = async () => {
       headers.push("Taux Ajout");
     }
 
-    // Préparer les données pour le PDF
+    // Préparer les données
     const pdfData = dataToExport.map(row => {
-      console.log(`Row ${row.num_ech}:`, {
-        date_test: row.date_test,
-        isEdited: rowsToEdit.some(editedRow => editedRow.num_ech === row.num_ech)
-      });
-
       const baseRow = [
         row.num_ech || "",
         row.date_test || "",
-        // Removed heure_test column completely
         row.rc2j || "",
         row.rc7j || "",
         row.rc28j || "",
@@ -481,7 +586,7 @@ const exportToPDF = async () => {
 
     const doc = new jsPDF();
 
-    // Add title and header information
+    // En-tête
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.text("Traitement Données", 14, 15);
@@ -497,7 +602,7 @@ const exportToPDF = async () => {
       doc.text(`Produit: ${produitInfo.description}`, 14, 39);
     }
 
-    // Manual table creation
+    // Table
     const startY = 50;
     const margin = 14;
     const pageWidth = doc.internal.pageSize.width;
@@ -507,7 +612,7 @@ const exportToPDF = async () => {
     
     let currentY = startY;
     
-    // Table header
+    // En-tête du tableau
     doc.setFillColor(41, 128, 185);
     doc.rect(margin, currentY - 5, availableWidth, 6, 'F');
     doc.setTextColor(255, 255, 255);
@@ -522,7 +627,7 @@ const exportToPDF = async () => {
     
     currentY += 4;
     
-    // Table rows
+    // Lignes du tableau
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
@@ -543,10 +648,12 @@ const exportToPDF = async () => {
       
       currentY += 4;
       
+      // Nouvelle page si nécessaire
       if (currentY > doc.internal.pageSize.height - 20) {
         doc.addPage();
         currentY = 20;
         
+        // Redessiner l'en-tête du tableau
         doc.setFillColor(41, 128, 185);
         doc.rect(margin, currentY - 5, availableWidth, 6, 'F');
         doc.setTextColor(255, 255, 255);
@@ -566,13 +673,17 @@ const exportToPDF = async () => {
       }
     });
 
-    doc.save("traitement_donnees.pdf");
+    // Sauvegarder
+    const clientNameForFile = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
+    const fileName = `traitement_donnees_${clientNameForFile}_${start}_${end}.pdf`.replace(/\s+/g, '_');
+    doc.save(fileName);
     
-    console.log("PDF exported successfully with title: Traitement Données");
-    console.log("PDF data without time column:", pdfData);
+    console.log("📄 PDF individuel exporté:", fileName);
+    alert(`✅ PDF exporté individuellement: ${fileName}`);
+    
   } catch (error) {
-    console.error("Error exporting PDF:", error);
-    alert("Erreur lors de l'export PDF: " + error.message);
+    console.error("❌ Erreur export individuel:", error);
+    throw error;
   }
 };
 
