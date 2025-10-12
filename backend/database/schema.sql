@@ -21,10 +21,8 @@ USE ciment_conformite;
 
 INSERT INTO utilisateurs (id, username, email, mot_de_passe, role)
 VALUES
-(1, NULL, 'infomely@gmail.com', '$2b$10$ENHY9KndaY4T.EWjsX7ageTJcUBjyfbXG4xQGnK.7Ics/gjAe2dO6', 'admin'),
-(2, NULL, 'info@gmail.com', '$2b$10$roOad22HTp7cxho/oX9p5uhJqFxtA1t5GeO2ulqSoi2duVfWKc9e.', 'user'),
-(3, NULL, 'maysabendou@gmail.com', '$2b$10$BLdl.I5DtXhFGIjFUrEHU.cbrebI.BgKbkoWpgWtYTRGhuYhuW/LK', 'user');
-
+(1, 'hamza', 'hamza@gmail.com', '$2b$10$F3FA6fqsU.frW57BEeLt1uEEcUBGWTlOS3PFfUMB3IEeV8kTjt.xO', 'admin'),
+(2, 'zakia', 'zakia@gmail.com', '$2b$10$pWSWUNgJcxahPXT9L/QN/uW/Ztps6g8uJ0tIUZfu66ZKLVMHSoo6W', 'user');
 
 -- =========================  
 -- 1. Families of Cement
@@ -160,7 +158,6 @@ INSERT INTO `client_types_ciment` (`id`, `client_id`, `typecement_id`) VALUES
 (64, 18, 34);
 
 
--- Exécutez cette commande SQL dans votre base de données
 CREATE TABLE IF NOT EXISTS phase_selection (
   id INT PRIMARY KEY AUTO_INCREMENT,
   client_id INT NOT NULL,
@@ -512,6 +509,32 @@ INSERT INTO `types_ciment_classes` (`id`, `type_ciment_id`, `classe_resistance_i
 (174, 34, 6);
 
 -- --------------------------------------------------------
+CREATE TABLE permissions ( 
+ id int(11) NOT NULL AUTO_INCREMENT, 
+ user_id int(11) NOT NULL, 
+ parnorm tinyint(1) DEFAULT 0, 
+ parametre_ciment tinyint(1) DEFAULT 0, 
+ parametre_clients tinyint(1) DEFAULT 0, 
+ traitement_donnees tinyint(1) DEFAULT 0, 
+ historique tinyint(1) DEFAULT 0, 
+ parametre_ciment_read tinyint(1) DEFAULT 0, 
+ parametre_ciment_create tinyint(1) DEFAULT 0, 
+ parametre_ciment_update tinyint(1) DEFAULT 0, 
+ parametre_ciment_delete tinyint(1) DEFAULT 0, 
+ parametre_entreprise_read tinyint(1) DEFAULT 0, 
+ parametre_entreprise_create tinyint(1) DEFAULT 0, 
+ parametre_entreprise_update tinyint(1) DEFAULT 0, 
+ parametre_entreprise_delete tinyint(1) DEFAULT 0, 
+ parnorm_read tinyint(1) DEFAULT 0, 
+ parnorm_create tinyint(1) DEFAULT 0, 
+ parnorm_update tinyint(1) DEFAULT 0, 
+ parnorm_delete tinyint(1) DEFAULT 0, 
+ PRIMARY KEY (`id`), 
+ UNIQUE KEY uq_permissions_user (`user_id`), 
+ CONSTRAINT permissions_ibfk_1 FOREIGN KEY (`user_id`) REFERENCES utilisateurs (`id`) ON DELETE CASCADE);
+ 
+-------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 
 ALTER TABLE `categories`

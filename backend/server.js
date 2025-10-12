@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
@@ -682,10 +684,6 @@ app.delete("/api/ajouts/:ajoutId/ciments/:cement", async (req, res) => {
 });
 
 
-//////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////
-
-// Récupérer tous les utilisateurs (sans mot de passe)
 // Récupérer tous les utilisateurs (sans mot de passe)
 app.get("/api/utilisateurs", async (req, res) => {
   try {
@@ -720,9 +718,6 @@ COALESCE(p.parnorm_delete,0) AS parnorm_delete
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
-
-
-
 
 // --- CREATE USER ---
 // --- CREATE USER ---
@@ -793,8 +788,6 @@ app.post("/api/utilisateurs", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-
 
 // Modifier un utilisateur (sauf mot de passe)
 // --- UPDATE USER ---
@@ -1456,78 +1449,93 @@ app.delete("/api/clients/:id", async (req, res) => {
 
 
 // --- Login --- //
-
 app.post('/api/login', async (req, res) => {
-  const { identifier, password } = req.body; 
-  // identifier can be email or username
+  
+  const identifiant = req.body.identifiant || req.body.identifier || req.body.email || req.body.username;
+  const mot_de_passe = req.body.mot_de_passe || req.body.password;
+
 
   try {
+    // ✅ 1. Check if user exists (by email OR username)
     const sql = `SELECT * FROM utilisateurs WHERE email = ? OR username = ? LIMIT 1`;
-    const [results] = await promisePool.execute(sql, [identifier, identifier]);
-    
+    const [results] = await promisePool.execute(sql, [identifiant, identifiant]);
+
     if (results.length === 0) {
       return res.status(401).json({ error: "Identifiant ou mot de passe incorrect" });
     }
 
     const user = results[0];
-    const match = await bcrypt.compare(password, user.mot_de_passe);
+
+    // ✅ 2. Compare password with bcrypt
+    const match = await bcrypt.compare(mot_de_passe, user.mot_de_passe);
     if (!match) {
       return res.status(401).json({ error: "Identifiant ou mot de passe incorrect" });
     }
 
+    // ✅ 3. Create JWT token
     const token = jwt.sign(
-      { id: user.id, username: user.username, email: user.email, role: user.role },
+      {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      },
       SECRET_KEY,
       { expiresIn: '2h' }
     );
 
-const [permRows] = await promisePool.execute(
-  `SELECT 
-       parnorm, parametre_ciment, parametre_clients, traitement_donnees, historique,
-       parametre_ciment_read, parametre_ciment_create, parametre_ciment_update, parametre_ciment_delete,
-       parametre_entreprise_read, parametre_entreprise_create, parametre_entreprise_update, parametre_entreprise_delete,
-       parnorm_read, parnorm_create, parnorm_update, parnorm_delete
-   FROM permissions
-   WHERE user_id = ?
-   LIMIT 1`,
-  [user.id]
-);
+    // ✅ 4. Retrieve user permissions
+    const [permRows] = await promisePool.execute(
+      `SELECT 
+         parnorm, parametre_ciment, parametre_clients, traitement_donnees, historique,
+         parametre_ciment_read, parametre_ciment_create, parametre_ciment_update, parametre_ciment_delete,
+         parametre_entreprise_read, parametre_entreprise_create, parametre_entreprise_update, parametre_entreprise_delete,
+         parnorm_read, parnorm_create, parnorm_update, parnorm_delete
+       FROM permissions
+       WHERE user_id = ?
+       LIMIT 1`,
+      [user.id]
+    );
 
+    const permissions = permRows[0] || {
+      parnorm: 0,
+      parametre_ciment: 0,
+      parametre_clients: 0,
+      traitement_donnees: 0,
+      historique: 0,
+      parametre_ciment_read: 0,
+      parametre_ciment_create: 0,
+      parametre_ciment_update: 0,
+      parametre_ciment_delete: 0,
+      parametre_entreprise_read: 0,
+      parametre_entreprise_create: 0,
+      parametre_entreprise_update: 0,
+      parametre_entreprise_delete: 0,
+      parnorm_read: 0,
+      parnorm_create: 0,
+      parnorm_update: 0,
+      parnorm_delete: 0
+    };
 
-
-const permissions = permRows[0] || {
-  parnorm: 0,
-  parametre_ciment: 0,
-  parametre_clients: 0,
-  traitement_donnees: 0,
-  historique: 0,
-  parametre_ciment_read: 0,
-  parametre_ciment_create: 0,
-  parametre_ciment_update: 0,
-  parametre_ciment_delete: 0,
-  parametre_entreprise_read: 0,
-  parametre_entreprise_create: 0,
-  parametre_entreprise_update: 0,
-  parametre_entreprise_delete: 0,
-  parnorm_read: 0,
-  parnorm_create: 0,
-  parnorm_update: 0,
-  parnorm_delete: 0
-};
-
-// return token + role + user + permissions
-res.json({
-  token,
-  role: user.role,
-  user: { id: user.id, username: user.username, email: user.email },
-  permissions
-});
+    // ✅ 5. Return token, role, user, and permissions
+    res.json({
+      message: "Connexion réussie",
+      token,
+      role: user.role,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      },
+      permissions
+    });
 
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ error: "Database error" });
+    res.status(500).json({ error: "Erreur serveur" });
   }
 });
+
 
 
 app.post("/api/client_types_ciment", (req, res) => {
