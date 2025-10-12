@@ -684,7 +684,7 @@ app.delete("/api/ajouts/:ajoutId/ciments/:cement", async (req, res) => {
 });
 
 
-// Récupérer tous les utilisateurs (sans mot de passe)
+// --- GET ALL USERS (sans mot de passe) ---
 app.get("/api/utilisateurs", async (req, res) => {
   try {
     const [rows] = await promisePool.query(`
@@ -703,11 +703,10 @@ app.get("/api/utilisateurs", async (req, res) => {
         COALESCE(p.parametre_entreprise_create,0) AS parametre_entreprise_create,
         COALESCE(p.parametre_entreprise_update,0) AS parametre_entreprise_update,
         COALESCE(p.parametre_entreprise_delete,0) AS parametre_entreprise_delete,
-COALESCE(p.parnorm_read,0) AS parnorm_read,
-COALESCE(p.parnorm_create,0) AS parnorm_create,
-COALESCE(p.parnorm_update,0) AS parnorm_update,
-COALESCE(p.parnorm_delete,0) AS parnorm_delete
-
+        COALESCE(p.parnorm_read,0) AS parnorm_read,
+        COALESCE(p.parnorm_create,0) AS parnorm_create,
+        COALESCE(p.parnorm_update,0) AS parnorm_update,
+        COALESCE(p.parnorm_delete,0) AS parnorm_delete
       FROM utilisateurs u
       LEFT JOIN permissions p ON p.user_id = u.id
       ORDER BY u.id ASC
@@ -719,7 +718,7 @@ COALESCE(p.parnorm_delete,0) AS parnorm_delete
   }
 });
 
-// --- CREATE USER ---
+
 // --- CREATE USER ---
 app.post("/api/utilisateurs", async (req, res) => {
   const {
@@ -727,24 +726,39 @@ app.post("/api/utilisateurs", async (req, res) => {
     email,
     mot_de_passe,
     role,
-    parnorm,
-    parametre_ciment,
-    parametre_clients,
-    traitement_donnees,
-    historique,
-    parametre_ciment_read,
-    parametre_ciment_create,
-    parametre_ciment_update,
-    parametre_ciment_delete,
-    parametre_entreprise_read,
-    parametre_entreprise_create,
-    parametre_entreprise_update,
-    parametre_entreprise_delete,
+    parnorm = 0,
+    parametre_ciment = 0,
+    parametre_clients = 0,
+    traitement_donnees = 0,
+    historique = 0,
+    parametre_ciment_read = 0,
+    parametre_ciment_create = 0,
+    parametre_ciment_update = 0,
+    parametre_ciment_delete = 0,
+    parametre_entreprise_read = 0,
+    parametre_entreprise_create = 0,
+    parametre_entreprise_update = 0,
+    parametre_entreprise_delete = 0,
+    parnorm_read = 0,
+    parnorm_create = 0,
+    parnorm_update = 0,
+    parnorm_delete = 0
   } = req.body;
 
   try {
+    // Check duplicate email
+    const [existing] = await promisePool.execute(
+      "SELECT id FROM utilisateurs WHERE email = ?",
+      [email]
+    );
+    if (existing.length > 0) {
+      return res.status(400).json({ error: "Cet email est déjà utilisé" });
+    }
+
+    // Hash password
     const hashedPassword = await bcrypt.hash(mot_de_passe, 10);
 
+    // Insert user
     const [result] = await promisePool.execute(
       "INSERT INTO utilisateurs (username, email, mot_de_passe, role) VALUES (?, ?, ?, ?)",
       [username, email, hashedPassword, role]
@@ -752,35 +766,35 @@ app.post("/api/utilisateurs", async (req, res) => {
 
     const userId = result.insertId;
 
-   await promisePool.execute(
-  `INSERT INTO permissions (
-    user_id, parnorm, parametre_ciment, parametre_clients, traitement_donnees, historique,
-    parametre_ciment_read, parametre_ciment_create, parametre_ciment_update, parametre_ciment_delete,
-    parametre_entreprise_read, parametre_entreprise_create, parametre_entreprise_update, parametre_entreprise_delete,
-    parnorm_read, parnorm_create, parnorm_update, parnorm_delete
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  [
-    userId,
-    parnorm ? 1 : 0,
-    parametre_ciment ? 1 : 0,
-    parametre_clients ? 1 : 0,
-    traitement_donnees ? 1 : 0,
-    historique ? 1 : 0,
-    parametre_ciment_read ? 1 : 0,
-    parametre_ciment_create ? 1 : 0,
-    parametre_ciment_update ? 1 : 0,
-    parametre_ciment_delete ? 1 : 0,
-    parametre_entreprise_read ? 1 : 0,
-    parametre_entreprise_create ? 1 : 0,
-    parametre_entreprise_update ? 1 : 0,
-    parametre_entreprise_delete ? 1 : 0,
-    parnorm_read ? 1 : 0,
-    parnorm_create ? 1 : 0,
-    parnorm_update ? 1 : 0,
-    parnorm_delete ? 1 : 0,
-  ]
-);
-
+    // Insert default permissions
+    await promisePool.execute(
+      `INSERT INTO permissions (
+        user_id, parnorm, parametre_ciment, parametre_clients, traitement_donnees, historique,
+        parametre_ciment_read, parametre_ciment_create, parametre_ciment_update, parametre_ciment_delete,
+        parametre_entreprise_read, parametre_entreprise_create, parametre_entreprise_update, parametre_entreprise_delete,
+        parnorm_read, parnorm_create, parnorm_update, parnorm_delete
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        userId,
+        parnorm ? 1 : 0,
+        parametre_ciment ? 1 : 0,
+        parametre_clients ? 1 : 0,
+        traitement_donnees ? 1 : 0,
+        historique ? 1 : 0,
+        parametre_ciment_read ? 1 : 0,
+        parametre_ciment_create ? 1 : 0,
+        parametre_ciment_update ? 1 : 0,
+        parametre_ciment_delete ? 1 : 0,
+        parametre_entreprise_read ? 1 : 0,
+        parametre_entreprise_create ? 1 : 0,
+        parametre_entreprise_update ? 1 : 0,
+        parametre_entreprise_delete ? 1 : 0,
+        parnorm_read ? 1 : 0,
+        parnorm_create ? 1 : 0,
+        parnorm_update ? 1 : 0,
+        parnorm_delete ? 1 : 0
+      ]
+    );
 
     res.json({ success: true, message: "Utilisateur créé avec succès" });
   } catch (err) {
@@ -789,7 +803,7 @@ app.post("/api/utilisateurs", async (req, res) => {
   }
 });
 
-// Modifier un utilisateur (sauf mot de passe)
+
 // --- UPDATE USER ---
 app.put("/api/utilisateurs/:id", async (req, res) => {
   const userId = req.params.id;
@@ -798,23 +812,23 @@ app.put("/api/utilisateurs/:id", async (req, res) => {
     email,
     mot_de_passe,
     role,
-    parnorm,
-    parametre_ciment,
-    parametre_clients,
-    traitement_donnees,
-    historique,
-    parametre_ciment_read,
-    parametre_ciment_create,
-    parametre_ciment_update,
-    parametre_ciment_delete,
-    parametre_entreprise_read,
-    parametre_entreprise_create,
-    parametre_entreprise_update,
-    parametre_entreprise_delete,
-     parnorm_read,
-    parnorm_create,
-    parnorm_update,
-    parnorm_delete,
+    parnorm = 0,
+    parametre_ciment = 0,
+    parametre_clients = 0,
+    traitement_donnees = 0,
+    historique = 0,
+    parametre_ciment_read = 0,
+    parametre_ciment_create = 0,
+    parametre_ciment_update = 0,
+    parametre_ciment_delete = 0,
+    parametre_entreprise_read = 0,
+    parametre_entreprise_create = 0,
+    parametre_entreprise_update = 0,
+    parametre_entreprise_delete = 0,
+    parnorm_read = 0,
+    parnorm_create = 0,
+    parnorm_update = 0,
+    parnorm_delete = 0
   } = req.body;
 
   try {
@@ -831,36 +845,34 @@ app.put("/api/utilisateurs/:id", async (req, res) => {
       );
     }
 
-    // Update permissions
     await promisePool.execute(
-  `UPDATE permissions SET 
-    parnorm=?, parametre_ciment=?, parametre_clients=?, traitement_donnees=?, historique=?,
-    parametre_ciment_read=?, parametre_ciment_create=?, parametre_ciment_update=?, parametre_ciment_delete=?,
-    parametre_entreprise_read=?, parametre_entreprise_create=?, parametre_entreprise_update=?, parametre_entreprise_delete=?,
-    parnorm_read=?, parnorm_create=?, parnorm_update=?, parnorm_delete=?
-  WHERE user_id=?`,
-  [
-    parnorm ? 1 : 0,
-    parametre_ciment ? 1 : 0,
-    parametre_clients ? 1 : 0,
-    traitement_donnees ? 1 : 0,
-    historique ? 1 : 0,
-    parametre_ciment_read ? 1 : 0,
-    parametre_ciment_create ? 1 : 0,
-    parametre_ciment_update ? 1 : 0,
-    parametre_ciment_delete ? 1 : 0,
-    parametre_entreprise_read ? 1 : 0,
-    parametre_entreprise_create ? 1 : 0,
-    parametre_entreprise_update ? 1 : 0,
-    parametre_entreprise_delete ? 1 : 0,
-    parnorm_read ? 1 : 0,
-    parnorm_create ? 1 : 0,
-    parnorm_update ? 1 : 0,
-    parnorm_delete ? 1 : 0,
-    userId,
-  ]
-);
-
+      `UPDATE permissions SET 
+        parnorm=?, parametre_ciment=?, parametre_clients=?, traitement_donnees=?, historique=?,
+        parametre_ciment_read=?, parametre_ciment_create=?, parametre_ciment_update=?, parametre_ciment_delete=?,
+        parametre_entreprise_read=?, parametre_entreprise_create=?, parametre_entreprise_update=?, parametre_entreprise_delete=?,
+        parnorm_read=?, parnorm_create=?, parnorm_update=?, parnorm_delete=?
+      WHERE user_id=?`,
+      [
+        parnorm ? 1 : 0,
+        parametre_ciment ? 1 : 0,
+        parametre_clients ? 1 : 0,
+        traitement_donnees ? 1 : 0,
+        historique ? 1 : 0,
+        parametre_ciment_read ? 1 : 0,
+        parametre_ciment_create ? 1 : 0,
+        parametre_ciment_update ? 1 : 0,
+        parametre_ciment_delete ? 1 : 0,
+        parametre_entreprise_read ? 1 : 0,
+        parametre_entreprise_create ? 1 : 0,
+        parametre_entreprise_update ? 1 : 0,
+        parametre_entreprise_delete ? 1 : 0,
+        parnorm_read ? 1 : 0,
+        parnorm_create ? 1 : 0,
+        parnorm_update ? 1 : 0,
+        parnorm_delete ? 1 : 0,
+        userId
+      ]
+    );
 
     res.json({ success: true, message: "Utilisateur mis à jour" });
   } catch (err) {
@@ -870,17 +882,17 @@ app.put("/api/utilisateurs/:id", async (req, res) => {
 });
 
 
-// Modifier mot de passe
+// --- UPDATE PASSWORD ---
 app.put("/api/utilisateurs/:id/password", async (req, res) => {
   const { id } = req.params;
   const { mot_de_passe } = req.body;
 
-  if (!mot_de_passe) return res.status(400).json({ error: "Mot de passe requis" });
+  if (!mot_de_passe)
+    return res.status(400).json({ error: "Mot de passe requis" });
 
   try {
     const hashedPassword = await bcrypt.hash(mot_de_passe, 10);
-    const sql = "UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?";
-    await promisePool.execute(sql, [hashedPassword, id]);
+    await promisePool.execute("UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?", [hashedPassword, id]);
     res.json({ message: "Mot de passe mis à jour" });
   } catch (err) {
     console.error("❌ Erreur update mot de passe:", err);
@@ -888,23 +900,25 @@ app.put("/api/utilisateurs/:id/password", async (req, res) => {
   }
 });
 
-// Supprimer un utilisateur
+
+// --- DELETE USER ---
 app.delete("/api/utilisateurs/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const sql = "DELETE FROM utilisateurs WHERE id = ?";
-    const [result] = await promisePool.execute(sql, [id]);
+    // Delete permissions first (foreign key safe)
+    await promisePool.execute("DELETE FROM permissions WHERE user_id = ?", [id]);
 
-    if (result.affectedRows === 0) {
+    const [result] = await promisePool.execute("DELETE FROM utilisateurs WHERE id = ?", [id]);
+    if (result.affectedRows === 0)
       return res.status(404).json({ error: "Utilisateur non trouvé" });
-    }
 
-    res.json({ message: "Utilisateur supprimé" });
+    res.json({ message: "Utilisateur supprimé avec succès" });
   } catch (err) {
     console.error("❌ Erreur suppression utilisateur:", err);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
+
 
 
 // Get all clients with types_ciment as array of objects
