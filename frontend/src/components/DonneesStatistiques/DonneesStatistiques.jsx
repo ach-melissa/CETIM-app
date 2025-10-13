@@ -242,9 +242,41 @@ const DonneesStatistiques = ({
     parameters.push({ key: "c3a", label: "C3A" });
   }
 
-  // Add Taux Ajout if famille is NOT CEM I
+  // Add Taux Ajout if famille is NOT CEM I - AVEC DESCRIPTION COMME TableConformite
   if (showTauxAjout) {
-    parameters.push({ key: "ajt", label: "Taux Ajout" });
+    // Récupérer la description de l'ajout depuis les données
+    const dataToUse = filteredTableData || [];
+    let ajoutDescription = "ajout"; // Default fallback
+    
+    if (dataToUse && dataToUse.length > 0) {
+      const uniqueAjoutTypes = [...new Set(dataToUse
+        .map(row => row.type_ajout)
+        .filter(type => type && type.trim() !== "")
+      )];
+      
+      if (uniqueAjoutTypes.length === 1) {
+        // Only one type of ajout in the data
+        ajoutDescription = uniqueAjoutTypes[0].toLowerCase();
+      } else if (uniqueAjoutTypes.length > 1) {
+        // Multiple types - use the most common or show "mixte"
+        const typeCounts = {};
+        dataToUse.forEach(row => {
+          if (row.type_ajout && row.type_ajout.trim() !== "") {
+            typeCounts[row.type_ajout] = (typeCounts[row.type_ajout] || 0) + 1;
+          }
+        });
+        
+        const mostCommonType = Object.keys(typeCounts).reduce((a, b) => 
+          typeCounts[a] > typeCounts[b] ? a : b
+        );
+        ajoutDescription = mostCommonType.toLowerCase();
+      }
+    }
+    
+    parameters.push({ 
+      key: "ajt", 
+      label: `Ajt(${ajoutDescription})`  // Format: "Ajt(description)" comme dans TableConformite
+    });
   }
 
   const getLimitsByClass = (classe, key) => {
@@ -351,37 +383,38 @@ const DonneesStatistiques = ({
     { key: "mean", label: "Moyenne" },
     { key: "std", label: "Écart type" },
   ];
-const handleExportPDF = async () => {
-  try {
-    // Prepare data for PDF export
-    const pdfData = {
-      clientInfo: { nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client" },
-      produitInfo: {
-        ...produitInfo,
-        famille: finalFamilleName
-      },
-      period: filterPeriod,
-      globalStats: allStats,
-      parameters: parameters,
-      classes: classes,
-      dataToUse: dataToUse,
-      getLimitsByClass: getLimitsByClass, // Pass the function
-      evaluateLimits: evaluateLimits // Pass the function
-    };
 
-    // Generate PDF
-    const doc = await PDFExportService.generateStatsReport(pdfData);
+  const handleExportPDF = async () => {
+    try {
+      // Prepare data for PDF export
+      const pdfData = {
+        clientInfo: { nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client" },
+        produitInfo: {
+          ...produitInfo,
+          famille: finalFamilleName
+        },
+        period: filterPeriod,
+        globalStats: allStats,
+        parameters: parameters,
+        classes: classes,
+        dataToUse: dataToUse,
+        getLimitsByClass: getLimitsByClass, // Pass the function
+        evaluateLimits: evaluateLimits // Pass the function
+      };
 
-    // Save the PDF
-    const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
-    const fileName = `donnees_statistiques_${clientName}_${filterPeriod.start}_${filterPeriod.end}.pdf`.replace(/\s+/g, '_');
-    doc.save(fileName);
+      // Generate PDF
+      const doc = await PDFExportService.generateStatsReport(pdfData);
 
-  } catch (error) {
-    console.error("Error generating PDF:", error);
-    alert("Erreur lors de l'export PDF: " + error.message);
-  }
-};
+      // Save the PDF
+      const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
+      const fileName = `donnees_statistiques_${clientName}_${filterPeriod.start}_${filterPeriod.end}.pdf`.replace(/\s+/g, '_');
+      doc.save(fileName);
+
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Erreur lors de l'export PDF: " + error.message);
+    }
+  };
 
   const classes = ["32.5 L", "32.5 N", "32.5 R", "42.5 L", "42.5 N", "42.5 R", "52.5 L", "52.5 N", "52.5 R"];
 
@@ -465,7 +498,7 @@ const handleExportPDF = async () => {
   );
 
   return (
- <div className="stats-section">
+    <div className="stats-section">
       {/* Add export button */}
       <div style={{ marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>

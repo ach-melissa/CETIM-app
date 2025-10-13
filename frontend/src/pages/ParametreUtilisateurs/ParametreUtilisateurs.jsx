@@ -5,31 +5,29 @@ import Header from "../../components/Header/Header";
 
 export default function ParametreUtilisateurs() {
   const [utilisateurs, setUtilisateurs] = useState([]);
- const [formData, setFormData] = useState({
-  username: "",
-  email: "",
-  mot_de_passe: "",
-  role: "user",
-  parnorm: false,
-  parametre_ciment: false,
-  parametre_clients: false,
-  traitement_donnees: false,
-  historique: false,
-  parametre_ciment_read: false,
-  parametre_ciment_create: false,
-  parametre_ciment_update: false,
-  parametre_ciment_delete: false,
-  // 🆕 Add these:
-  parametre_entreprise_read: false,
-  parametre_entreprise_create: false,
-  parametre_entreprise_update: false,
-  parametre_entreprise_delete: false,
-  // 🆕 Add these
-  parnorm_read: false,
-  parnorm_create: false,
-  parnorm_update: false,
-  parnorm_delete: false,
-});
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    mot_de_passe: "",
+    role: "user",
+    parnorm: false,
+    parametre_ciment: false,
+    parametre_clients: false,
+    traitement_donnees: false,
+    historique: false,
+    parametre_ciment_read: false,
+    parametre_ciment_create: false,
+    parametre_ciment_update: false,
+    parametre_ciment_delete: false,
+    parametre_entreprise_read: false,
+    parametre_entreprise_create: false,
+    parametre_entreprise_update: false,
+    parametre_entreprise_delete: false,
+    parnorm_read: false,
+    parnorm_create: false,
+    parnorm_update: false,
+    parnorm_delete: false,
+  });
 
   const [editingUser, setEditingUser] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -38,6 +36,15 @@ export default function ParametreUtilisateurs() {
 
   useEffect(() => {
     fetchUtilisateurs();
+  }, []);
+
+  // close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest(".actions-menu")) setOpenMenu(null);
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
   const fetchUtilisateurs = async () => {
@@ -57,6 +64,32 @@ export default function ParametreUtilisateurs() {
     });
   };
 
+  const resetForm = () => {
+    setFormData({
+      username: "",
+      email: "",
+      mot_de_passe: "",
+      role: "user",
+      parnorm: false,
+      parametre_ciment: false,
+      parametre_clients: false,
+      traitement_donnees: false,
+      historique: false,
+      parametre_ciment_read: false,
+      parametre_ciment_create: false,
+      parametre_ciment_update: false,
+      parametre_ciment_delete: false,
+      parametre_entreprise_read: false,
+      parametre_entreprise_create: false,
+      parametre_entreprise_update: false,
+      parametre_entreprise_delete: false,
+      parnorm_read: false,
+      parnorm_create: false,
+      parnorm_update: false,
+      parnorm_delete: false,
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -68,27 +101,7 @@ export default function ParametreUtilisateurs() {
       } else {
         await axios.post("http://localhost:5000/api/utilisateurs", formData);
       }
-
-      setFormData({
-  username: "",
-  email: "",
-  mot_de_passe: "",
-  role: "user",
-  parnorm: false,
-  parametre_ciment: false,
-  parametre_clients: false,
-  traitement_donnees: false,
-  historique: false,
-  parametre_ciment_read: false,
-  parametre_ciment_create: false,
-  parametre_ciment_update: false,
-  parametre_ciment_delete: false,
-  parametre_entreprise_read: false,
-  parametre_entreprise_create: false,
-  parametre_entreprise_update: false,
-  parametre_entreprise_delete: false,
-});
-
+      resetForm();
       setEditingUser(null);
       setShowForm(false);
       fetchUtilisateurs();
@@ -127,35 +140,16 @@ export default function ParametreUtilisateurs() {
         />
       </div>
 
-     <button
-  className="add-user-btn"
-  onClick={() => {
-    setEditingUser(null);
-    setFormData({
-      username: "",
-      email: "",
-      mot_de_passe: "",
-      role: "user",
-      parnorm: false,
-      parametre_ciment: false,
-      parametre_clients: false,
-      traitement_donnees: false,
-      historique: false,
-      parametre_ciment_read: false,
-      parametre_ciment_create: false,
-      parametre_ciment_update: false,
-      parametre_ciment_delete: false,
-      parametre_entreprise_read: false,
-      parametre_entreprise_create: false,
-      parametre_entreprise_update: false,
-      parametre_entreprise_delete: false,
-    });
-    setShowForm(true);
-  }}
->
-  + Ajouter un utilisateur
-</button>
-
+      <button
+        className="add-user-btn"
+        onClick={() => {
+          setEditingUser(null);
+          resetForm();
+          setShowForm(true);
+        }}
+      >
+        + Ajouter un utilisateur
+      </button>
 
       <table className="utilisateurs-table">
         <thead>
@@ -186,6 +180,7 @@ export default function ParametreUtilisateurs() {
                   >
                     ⋮
                   </button>
+
                   {openMenu === u.id && (
                     <div className="dropdown-menu">
                       <button
@@ -201,28 +196,18 @@ export default function ParametreUtilisateurs() {
                             parametre_clients: !!u.parametre_clients,
                             traitement_donnees: !!u.traitement_donnees,
                             historique: !!u.historique,
-                            // ✅ load cement sub-permissions too
                             parametre_ciment_read: !!u.parametre_ciment_read,
-                            parametre_ciment_create:
-                              !!u.parametre_ciment_create,
-                            parametre_ciment_update:
-                              !!u.parametre_ciment_update,
-                            parametre_ciment_delete:
-                              !!u.parametre_ciment_delete,
-                              parnorm_read: !!u.parnorm_read,
-parnorm_create: !!u.parnorm_create,
-parnorm_update: !!u.parnorm_update,
-parnorm_delete: !!u.parnorm_delete,
-
-                            
-
-// ✅ Add entreprise sub-permissions here too
-parametre_entreprise_read: !!u.parametre_entreprise_read,
-parametre_entreprise_create: !!u.parametre_entreprise_create,
-parametre_entreprise_update: !!u.parametre_entreprise_update,
-parametre_entreprise_delete: !!u.parametre_entreprise_delete,
-
-
+                            parametre_ciment_create: !!u.parametre_ciment_create,
+                            parametre_ciment_update: !!u.parametre_ciment_update,
+                            parametre_ciment_delete: !!u.parametre_ciment_delete,
+                            parametre_entreprise_read: !!u.parametre_entreprise_read,
+                            parametre_entreprise_create: !!u.parametre_entreprise_create,
+                            parametre_entreprise_update: !!u.parametre_entreprise_update,
+                            parametre_entreprise_delete: !!u.parametre_entreprise_delete,
+                            parnorm_read: !!u.parnorm_read,
+                            parnorm_create: !!u.parnorm_create,
+                            parnorm_update: !!u.parnorm_update,
+                            parnorm_delete: !!u.parnorm_delete,
                           });
                           setShowForm(true);
                           setOpenMenu(null);
@@ -230,8 +215,16 @@ parametre_entreprise_delete: !!u.parametre_entreprise_delete,
                       >
                         Modifier
                       </button>
+
                       <button onClick={() => handleDelete(u.id)}>
                         Supprimer
+                      </button>
+
+                      <button
+                        className="menu-btn cancel-btn"
+                        onClick={() => setOpenMenu(null)}
+                      >
+                        Annuler
                       </button>
                     </div>
                   )}
@@ -332,137 +325,68 @@ parametre_entreprise_delete: !!u.parametre_entreprise_delete,
                     </label>
                   </div>
 
-                  {/* ✅ Cement sub-permissions */}
                   <div className="permissions-section">
                     <h4>Autorisations – Paramètre Ciment</h4>
-
-                    <label>
-                      <input
-                        type="checkbox"
-                        name="parametre_ciment_read"
-                        checked={formData.parametre_ciment_read}
-                        onChange={handleChange}
-                      />{" "}
-                      Lire / Voir
-                    </label>
-
-                    <label>
-                      <input
-                        type="checkbox"
-                        name="parametre_ciment_create"
-                        checked={formData.parametre_ciment_create}
-                        onChange={handleChange}
-                      />{" "}
-                      Ajouter
-                    </label>
-
-                    <label>
-                      <input
-                        type="checkbox"
-                        name="parametre_ciment_update"
-                        checked={formData.parametre_ciment_update}
-                        onChange={handleChange}
-                      />{" "}
-                      Modifier
-                    </label>
-
-                    <label>
-                      <input
-                        type="checkbox"
-                        name="parametre_ciment_delete"
-                        checked={formData.parametre_ciment_delete}
-                        onChange={handleChange}
-                      />{" "}
-                      Supprimer
-                    </label>
+                    {["read", "create", "update", "delete"].map((action) => (
+                      <label key={action}>
+                        <input
+                          type="checkbox"
+                          name={`parametre_ciment_${action}`}
+                          checked={formData[`parametre_ciment_${action}`]}
+                          onChange={handleChange}
+                        />{" "}
+                        {action === "read"
+                          ? "Lire / Voir"
+                          : action === "create"
+                          ? "Ajouter"
+                          : action === "update"
+                          ? "Modifier"
+                          : "Supprimer"}
+                      </label>
+                    ))}
                   </div>
+
                   <div className="permissions-section">
-  <h4>Autorisations – Paramètre Entreprise</h4>
+                    <h4>Autorisations – Paramètre Entreprise</h4>
+                    {["read", "create", "update", "delete"].map((action) => (
+                      <label key={action}>
+                        <input
+                          type="checkbox"
+                          name={`parametre_entreprise_${action}`}
+                          checked={formData[`parametre_entreprise_${action}`]}
+                          onChange={handleChange}
+                        />{" "}
+                        {action === "read"
+                          ? "Lire / Voir"
+                          : action === "create"
+                          ? "Ajouter"
+                          : action === "update"
+                          ? "Modifier"
+                          : "Supprimer"}
+                      </label>
+                    ))}
+                  </div>
 
-  <label>
-    <input
-      type="checkbox"
-      name="parametre_entreprise_read"
-      checked={formData.parametre_entreprise_read}
-      onChange={handleChange}
-    />{" "}
-    Lire / Voir
-  </label>
-
-  <label>
-    <input
-      type="checkbox"
-      name="parametre_entreprise_create"
-      checked={formData.parametre_entreprise_create}
-      onChange={handleChange}
-    />{" "}
-    Ajouter
-  </label>
-
-  <label>
-    <input
-      type="checkbox"
-      name="parametre_entreprise_update"
-      checked={formData.parametre_entreprise_update}
-      onChange={handleChange}
-    />{" "}
-    Modifier
-  </label>
-
-  <label>
-    <input
-      type="checkbox"
-      name="parametre_entreprise_delete"
-      checked={formData.parametre_entreprise_delete}
-      onChange={handleChange}
-    />{" "}
-    Supprimer
-  </label>
-</div>
-<div className="permissions-section">
-  <h4>Autorisations – Paramètre Norm</h4>
-
-  <label>
-    <input
-      type="checkbox"
-      name="parnorm_read"
-      checked={formData.parnorm_read}
-      onChange={handleChange}
-    />{" "}
-    Lire / Voir
-  </label>
-
-  <label>
-    <input
-      type="checkbox"
-      name="parnorm_create"
-      checked={formData.parnorm_create}
-      onChange={handleChange}
-    />{" "}
-    Ajouter
-  </label>
-
-  <label>
-    <input
-      type="checkbox"
-      name="parnorm_update"
-      checked={formData.parnorm_update}
-      onChange={handleChange}
-    />{" "}
-    Modifier
-  </label>
-
-  <label>
-    <input
-      type="checkbox"
-      name="parnorm_delete"
-      checked={formData.parnorm_delete}
-      onChange={handleChange}
-    />{" "}
-    Supprimer
-  </label>
-</div>
-
+                  <div className="permissions-section">
+                    <h4>Autorisations – Paramètre Norm</h4>
+                    {["read", "create", "update", "delete"].map((action) => (
+                      <label key={action}>
+                        <input
+                          type="checkbox"
+                          name={`parnorm_${action}`}
+                          checked={formData[`parnorm_${action}`]}
+                          onChange={handleChange}
+                        />{" "}
+                        {action === "read"
+                          ? "Lire / Voir"
+                          : action === "create"
+                          ? "Ajouter"
+                          : action === "update"
+                          ? "Modifier"
+                          : "Supprimer"}
+                      </label>
+                    ))}
+                  </div>
                 </>
               )}
 

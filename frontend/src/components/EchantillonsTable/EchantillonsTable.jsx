@@ -101,9 +101,7 @@ const fetchRows = async () => {
     if (phase) params.phase = phase;
     if (start) params.start = new Date(start).toISOString().split("T")[0];
     if (end) {
-      const endDate = new Date(end);
-      endDate.setDate(endDate.getDate() + 1);
-      params.end = endDate.toISOString().split("T")[0];
+      params.end = new Date(end).toISOString().split("T")[0];
     }
 
     const resp = await axios.get("http://localhost:5000/api/echantillons", { params });
@@ -342,76 +340,72 @@ const fetchRows = async () => {
       fetchRows();
     };
 
-    const handleImportExcel = (e) => {
-      console.log("🔍 DEBUG IMPORT - Phase:", phase, "Type:", typeof phase);
-      const file = e.target.files[0];
-      if (!file) return;
+const handleImportExcel = (e) => {
+  console.log("🔍 DEBUG IMPORT - Phase:", phase, "Type:", typeof phase);
+  const file = e.target.files[0];
+  if (!file) return;
 
-      if (!window.confirm("Êtes-vous sûr de vouloir importer ce fichier ? Les données seront ajoutées à la base de données.")) {
-        return;
-      }
+  if (!window.confirm("Êtes-vous sûr de vouloir importer ce fichier ? Les données seront ajoutées à la base de données.")) {
+    return;
+  }
 
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+  const reader = new FileReader();
+  reader.onload = async (evt) => { // Changez en async
+    const data = new Uint8Array(evt.target.result);
+    const workbook = XLSX.read(data, { type: "array" });
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-        const formattedRows = jsonData.map((row, index) => ({
-          id: Date.now() + index,
-          num_ech: row["N° ech"] || row["Ech"] || "",
-          date_test: formatExcelDate(row["Date"] || row.date_test || ""),
-          heure_test: formatExcelTime(row["Heure"] || row["Heure essai"] || row.heure_test || ""),
-          rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
-          rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
-          rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
-          prise: row["Début prise(min)"] || "",
-          stabilite: row["Stabilité (mm)"] || "",
-          hydratation: row["Hydratation"] || "",
-          pfeu: row["Perte au feu (%)"] || "",
-          r_insoluble: row["Résidu insoluble (%)"] || "",
-          so3: row["SO3 (%)"] || "",
-          chlorure: row["Cl (%)"] || "",
-          c3a: row["C3A"] || "",
-          ajout_percent: row["Taux d'Ajouts (%)"] || row["Taux Ajout"] || "",
-          type_ajout: row["Type ajout"] || "",
-          source: row["SILO N°"] || "",
-        }));
+    const formattedRows = jsonData.map((row, index) => ({
+      id: Date.now() + index,
+      num_ech: row["N° ech"] || row["Ech"] || "",
+      date_test: formatExcelDate(row["Date"] || row.date_test || ""),
+      heure_test: formatExcelTime(row["Heure"] || row["Heure essai"] || row.heure_test || ""),
+      rc2j: row["RC 2j (Mpa)"] || row["RC2J"] || "",
+      rc7j: row["RC 7j (Mpa)"] || row["RC7J"] || "",
+      rc28j: row["RC 28 j (Mpa)"] || row["RC28J"] || "",
+      prise: row["Début prise(min)"] || "",
+      stabilite: row["Stabilité (mm)"] || "",
+      hydratation: row["Hydratation"] || "",
+      pfeu: row["Perte au feu (%)"] || "",
+      r_insoluble: row["Résidu insoluble (%)"] || "",
+      so3: row["SO3 (%)"] || "",
+      chlorure: row["Cl (%)"] || "",
+      c3a: row["C3A"] || "",
+      ajout_percent: row["Taux d'Ajouts (%)"] || row["Taux Ajout"] || "",
+      type_ajout: row["Type ajout"] || "",
+      source: row["SILO N°"] || "",
+    }));
 
-        setRows((prevRows) => {
-          const updated = [...prevRows, ...formattedRows];
-          updateFilteredData(updated, start, end);
-          if (onTableDataChange) {
-            onTableDataChange(updated, start, end);
-          }
-          return updated;
-        });
+    try {
+      console.log("🚀 Envoi import avec phase:", phase);
+      
+      // 1. Envoyer les données à l'API
+      const response = await axios.post("http://localhost:5000/api/echantillons/import", {
+        clientId: clientId,
+        produitId: clientTypeCimentId,
+        phase: phase,
+        rows: formattedRows,
+      });
 
-        console.log("🚀 Envoi import avec phase:", phase);
-        axios
-          .post("http://localhost:5000/api/echantillons/import", {
-            clientId: clientId,
-            produitId: clientTypeCimentId,
-            phase: phase,
-            rows: formattedRows,
-          })
-          .then((res) => {
-            console.log("✅ Réponse import:", res.data);
-            alert("Fichier importé avec succès !");
-            e.target.value = "";
-            fetchRows();
-          })
-          .catch((err) => {
-            console.error("❌ Import error:", err);
-            alert("Erreur lors de l'importation.");
-          });
+      console.log("✅ Réponse import:", response.data);
+      
+      // 2. Rafraîchir IMMÉDIATEMENT les données après l'import réussi
+      await fetchRows(); // Attendre le rafraîchissement
+      
+      // 3. Réinitialiser le fichier input
+      e.target.value = "";
+      
+      alert("Fichier importé avec succès ! Les données sont maintenant affichées.");
+      
+    } catch (err) {
+      console.error("❌ Import error:", err);
+      alert("Erreur lors de l'importation.");
+    }
+  };
 
-        setSelected(new Set());
-      };
-
-      reader.readAsArrayBuffer(file);
-    };
+  reader.readAsArrayBuffer(file);
+};
 
     const exportToExcel = () => {
       const dataToExport = rowsToEdit.length > 0 ? rowsToEdit : filteredRows;

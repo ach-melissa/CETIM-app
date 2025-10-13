@@ -125,22 +125,53 @@ if (!can("parnorm_read") && !can("parnorm")) {
   }, []);
 
   // Extraire les types et familles existants des données
-  const extractExistingTypesAndFamilles = (parnormData) => {
-    const types = new Set();
-    const familles = new Set();
+// VERSION AVEC NORMALISATION
+const extractExistingTypesAndFamilles = (parnormData) => {
+  const types = new Set();
+  const familles = new Set();
+  const normalizedTypes = new Map(); // Pour normaliser la casse/espaces
 
-    Object.values(parnormData).forEach(paramData => {
-      Object.entries(paramData).forEach(([famille_code, typesData]) => {
-        familles.add(famille_code);
-        Object.keys(typesData).forEach(type_code => {
-          types.add(type_code);
-        });
+  console.log("🔍 Extraction avec normalisation...");
+
+  Object.values(parnormData).forEach(paramData => {
+    if (typeof paramData === 'object' && paramData !== null) {
+      Object.entries(paramData).forEach(([famille, typesData]) => {
+        // Normaliser la famille
+        const normFamille = famille.trim();
+        if (normFamille.match(/^CEM\s+[I|II|III|IV|V]/i) || normFamille === 'Ajout') {
+          familles.add(normFamille);
+        }
+        
+        if (typeof typesData === 'object' && typesData !== null) {
+          Object.keys(typesData).forEach(type => {
+            // Normaliser le type (supprimer espaces, uniformiser casse)
+            const normType = type.trim();
+            
+            if (normType.match(/^CEM\s+[I|II|III|IV|V]/i)) {
+              // Créer une clé de comparaison normalisée
+              const comparisonKey = normType.toUpperCase().replace(/\s+/g, ' ');
+              
+              // Si cette version normalisée n'existe pas encore
+              if (!normalizedTypes.has(comparisonKey)) {
+                normalizedTypes.set(comparisonKey, normType);
+                types.add(normType);
+                console.log(`✅ Ajout: "${normType}"`);
+              } else {
+                console.log(`🔄 Doublon ignoré: "${normType}" → "${normalizedTypes.get(comparisonKey)}"`);
+              }
+            }
+          });
+        }
       });
-    });
+    }
+  });
 
-    setExistingTypes(Array.from(types));
-    setExistingFamilles(Array.from(familles));
-  };
+  console.log("🏷️ Types uniques:", Array.from(types).sort());
+  console.log("👥 Familles uniques:", Array.from(familles).sort());
+
+  setExistingTypes(Array.from(types).sort());
+  setExistingFamilles(Array.from(familles).sort());
+};
 
   // Charger les paramètres quand la catégorie change
   useEffect(() => {
