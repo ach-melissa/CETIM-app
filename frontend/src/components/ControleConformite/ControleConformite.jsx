@@ -3,7 +3,6 @@ import ClassSelector from './ClassSelector';
 import PDFExportService from './PDFExportService';
 import './ControleConformite.css';
 import { useData } from "../../context/DataContext";
-import CentralExportService from "../../services/CentralExportService"; 
 
 
 const calculateStats = (data, key) => {
@@ -622,170 +621,69 @@ const handleExportSelectedPDF = async () => {
   try {
     setLoading(true);
     
-    const getClassData = (classe) => {
-      const { classCompliance, statisticalCompliance } = calculateClassData(classe);
-      const { mesureParamsWithData, attributParamsWithData } = getParametersWithData(classe, classCompliance);
-      const conformityResult = calculateClassConformity(classCompliance, statisticalCompliance, conditionsStatistiques, classe);
-      
-      return {
-        classe,
-        classCompliance,
-        statisticalCompliance,
-        mesureParamsWithData,
-        attributParamsWithData,
-        conformityResult,
-        conditionsStatistiques,
-        hasDataForParameter,
-        allParameters,
-        deviationOnlyParams,
-        coverageRequirements,
-        conformiteData,
-        dataToUse
-      };
-    };
+// In your handleExportSelectedPDF function, update the getClassData function:
+const getClassData = (classe) => {
+  const { classCompliance, statisticalCompliance } = calculateClassData(classe);
+  const { mesureParamsWithData, attributParamsWithData } = getParametersWithData(classe, classCompliance);
+  const conformityResult = calculateClassConformity(classCompliance, statisticalCompliance, conditionsStatistiques, classe);
+  
+  return {
+    classe,
+    classCompliance,
+    statisticalCompliance,
+    mesureParamsWithData,
+    attributParamsWithData,
+    conformityResult,
+    conditionsStatistiques,
+    hasDataForParameter,
+    allParameters,
+    deviationOnlyParams,
+    coverageRequirements, // ✅ ADD THIS
+    conformiteData,       // ✅ ADD THIS
+    dataToUse             // ✅ ADD THIS
+  };
+};
 
-    const helpers = {
-      getDeviationParameters,
-      checkEquationSatisfaction, 
-      generateGeneralConclusion
-    };
+// And update the helpers to include generateGeneralConclusion:
+const helpers = {
+  getDeviationParameters,
+  checkEquationSatisfaction, 
+  generateGeneralConclusion // ✅ ADD THIS
+};
 
-    const classData = {
-      selectedClasses,
-      getClassData,
-      helpers,
-      options: {
-        clientInfo: {
-          nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Non spécifié",
-          id: clientId
-        },
-        produitInfo: {
-          nom: produitInfo?.nom || "Non spécifié",
-          description: produitInfo?.description || "",
-          famille: finalFamilleName,
-          familleCode: finalFamilleCode
-        },
-        period: {
-          start: filterPeriod.start,
-          end: filterPeriod.end
-        },
-        showAjout,
-        ajoutDescription: getAjoutDescription(produitInfo?.type_ajout, ajoutsData),
-        phase
-      },
-      totalClasses: selectedClasses.length,
-      exportDate: new Date().toISOString()
-    };
+// And update the options to include phase and showAjout:
+const doc = await PDFExportService.generateClassReport(
+  selectedClasses,
+  getClassData,
+  helpers,
+  {
+    clientInfo: {
+      nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Non spécifié"
+    },
+    produitInfo: {
+      nom: produitInfo?.nom || "Non spécifié",
+      description: produitInfo?.description || "",
+      famille: finalFamilleName
+    },
+    period: {
+      start: filterPeriod.start,
+      end: filterPeriod.end
+    },
+    showAjout, // ✅ ADD THIS
+    ajoutDescription: getAjoutDescription(produitInfo?.type_ajout, ajoutsData), // ✅ ADD THIS
+    phase // ✅ ADD THIS
+  }
+);
 
-    // ⭐ NOUVEAU: Demander à l'utilisateur avec message amélioré
-    const userChoice = window.confirm(
-      "📊 OPTIONS D'EXPORT - CONTRÔLE CONFORMITÉ\n\n" +
-      `🎯 ${selectedClasses.length} classe(s) sélectionnée(s)\n` +
-      `📋 Classes: ${selectedClasses.join(', ')}\n\n` +
-      "Cliquez sur :\n" +
-      "• ✅ OK - Pour ajouter à l'export GLOBAL (toutes pages)\n" +
-      "• ❌ Annuler - Pour exporter INDIVIDUELLEMENT seulement\n\n" +
-      `📋 Statut actuel: ${CentralExportService.getStatusMessage()}`
-    );
-
-    if (userChoice) {
-      // Ajouter à l'export global
-      CentralExportService.addControleDetail(classData, {
-        clientInfo: {
-          nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Non spécifié",
-          id: clientId
-        },
-        produitInfo: {
-          nom: produitInfo?.nom || "Non spécifié",
-          description: produitInfo?.description || "",
-          famille: finalFamilleName,
-          familleCode: finalFamilleCode
-        },
-        periodStart: filterPeriod.start,
-        periodEnd: filterPeriod.end,
-        phase: phase,
-        exportDate: new Date().toISOString(),
-        selectedClasses: selectedClasses,
-        totalClasses: selectedClasses.length,
-        showAjout: showAjout,
-        ajoutDescription: getAjoutDescription(produitInfo?.type_ajout, ajoutsData)
-      });
-      
-      // Message de confirmation amélioré
-      const status = CentralExportService.getExportStatus();
-      const statusDetails = Object.entries(status)
-        .map(([key, value]) => {
-          const pageName = key === 'echantillonsTable' ? 'Échantillons' :
-                         key === 'tableauConformite' ? 'Tableau Conformité' :
-                         key === 'controleDetail' ? 'Contrôle Détail' :
-                         key === 'donneesGraphiques' ? 'Données Graphiques' :
-                         key === 'donneesStatistiques' ? 'Données Statistiques' : key;
-          return `${value} ${pageName}`;
-        })
-        .join('\n');
-      
-      alert(`✅ CONTRÔLE CONFORMITÉ AJOUTÉ À L'EXPORT GLOBAL !\n\n` +
-            `🎯 ${selectedClasses.length} classe(s) sélectionnée(s)\n` +
-            `📋 Classes: ${selectedClasses.join(', ')}\n\n` +
-            `📊 STATUT DES PAGES:\n${statusDetails}\n\n` +
-            `Utilisez le bouton "📤 Exporter Toutes les Pages" pour générer les PDFs complets.`);
-      
-      console.log("📤 Contrôle conformité ajouté à l'export global:", {
-        client: clients.find(c => c.id == clientId)?.nom_raison_sociale,
-        produit: produitInfo?.nom,
-        classes: selectedClasses,
-        totalClasses: selectedClasses.length,
-        showAjout: showAjout
-      });
-
-    } else {
-      // ⭐ OPTION 2: Exporter seulement cette page
-      const doc = await PDFExportService.generateClassReport(
-        selectedClasses,
-        getClassData,
-        helpers,
-        {
-          clientInfo: {
-            nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Non spécifié"
-          },
-          produitInfo: {
-            nom: produitInfo?.nom || "Non spécifié",
-            description: produitInfo?.description || "",
-            famille: finalFamilleName
-          },
-          period: {
-            start: filterPeriod.start,
-            end: filterPeriod.end
-          },
-          showAjout,
-          ajoutDescription: getAjoutDescription(produitInfo?.type_ajout, ajoutsData),
-          phase
-        }
-      );
-
-      const fileName = `rapport_conformite_${selectedClasses.length}_classes_${new Date().toISOString().split('T')[0]}.pdf`;
-      doc.save(fileName);
-      
-      console.log("📄 PDF contrôle conformité individuel exporté:", fileName);
-      
-      alert(`✅ PDF exporté avec succès pour ${selectedClasses.length} classe(s)!\n\n` +
-            `Fichier: ${fileName}\n` +
-            `Classes: ${selectedClasses.join(', ')}`);
-      
-      setShowClassSelector(false);
-    }
-
+    // ✅ STEP 4: Save the PDF
+    doc.save(`rapport_conformite_${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    alert(`PDF exporté avec succès pour ${selectedClasses.length} classe(s)!`);
+    setShowClassSelector(false);
+    
   } catch (error) {
-    console.error('❌ Erreur lors de l\'export PDF:', error);
-    
-    let errorMessage = "Erreur lors de l'export PDF: " + error.message;
-    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-      errorMessage = "❌ Erreur de connexion. Vérifiez que le serveur est accessible.";
-    } else if (error.message.includes('generateClassReport') || error.message.includes('PDF')) {
-      errorMessage = "❌ Erreur lors de la génération du rapport PDF. Vérifiez les données des classes.";
-    }
-    
-    alert(errorMessage);
+    console.error('Erreur lors de l\'export PDF:', error);
+    alert('Erreur lors de l\'export PDF: ' + error.message);
   } finally {
     setLoading(false);
   }
@@ -2924,4 +2822,3 @@ Object.keys(statisticalCompliance).forEach(key => {
 
 
 export default ControleConformite;
-

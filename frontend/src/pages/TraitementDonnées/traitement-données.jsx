@@ -6,7 +6,6 @@ import EchantillonsTable from "../../components/EchantillonsTable/EchantillonsTa
 import ControleConformite from "../../components/ControleConformite/ControleConformite";
 import TableConformite from "../../components/TableConformite/TableConformite";
 import DonneesGraphiques from "../../components/DonneesGraphiques/DonneesGraphiques";
-import CentralExportService from "../../services/CentralExportService";
 import * as XLSX from "xlsx";
 
 const formatExcelDate = (excelDate) => {
@@ -158,25 +157,9 @@ const checkProductPhase = async (clientId, produitId) => {
   }
 };
 
-  // ⭐ NOUVEAU: State pour le statut d'export
-  const [exportStatus, setExportStatus] = useState("");
-
-  // ⭐ NOUVEAU: Mettre à jour le statut d'export
-  useEffect(() => {
-    setExportStatus(CentralExportService.getStatusMessage());
-  }, [activeTab]); // Mettre à jour quand on change d'onglet
-
-  // Fonction pour afficher le détail du statut
-  const showExportDetails = () => {
-    const status = CentralExportService.getExportStatus();
-    const details = Object.entries(status)
-      .map(([key, value]) => `${value} ${key.replace(/([A-Z])/g, ' $1').toLowerCase()}`)
-      .join('\n');
-    
-    alert(`📊 DÉTAIL DES PAGES:\n\n${details}`);
-  };
-
-
+  // Handle file import
+// Handle file import - VERSION COMPLÈTE MISE À JOUR
+// Handle file import - VERSION COMPLÈTE MISE À JOUR
 const handleFileImport = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -419,102 +402,6 @@ const handleFileImport = async (e) => {
   reader.readAsBinaryString(file);
 };
 
-// Ajoutez ces fonctions dans votre composant
-const handleExportAllPages = async () => {
-  try {
-    console.log("🔄 Début de l'export de toutes les pages...");
-    
-    // Essayer d'abord le PDF combiné
-    const success = await CentralExportService.exportAllToPDF();
-    
-    if (success) {
-      setExportStatus(CentralExportService.getStatusMessage());
-    } else {
-      // Fallback: PDFs séparés
-      console.log("🔄 Fallback vers PDFs séparés...");
-      const fallbackSuccess = await CentralExportService.exportAllSeparatePDFs();
-      if (fallbackSuccess) {
-        setExportStatus(CentralExportService.getStatusMessage());
-      } else {
-        alert("❌ L'export a échoué pour toutes les méthodes.");
-      }
-    }
-    
-  } catch (error) {
-    console.error("❌ Erreur lors de l'export global:", error);
-    alert("Erreur lors de l'export: " + error.message);
-  }
-};
-
-const handleClearAllExport = () => {
-  if (window.confirm("Êtes-vous sûr de vouloir effacer toutes les données d'export ?")) {
-    CentralExportService.clearAllData();
-    setExportStatus(CentralExportService.getStatusMessage());
-    alert("🗑️ Toutes les données d'export ont été effacées");
-  }
-};
-
-
-
-// Option avec choix
-const handleExportWithChoice = async () => {
-  try {
-    const choice = window.confirm(
-      "Choisissez le mode d'export:\n\n" +
-      "✅ OK - PDF COMBINÉ (toutes pages en un seul fichier)\n" +
-      "❌ Annuler - PDFs SÉPARÉS (chaque page individuellement)"
-    );
-
-    let success;
-    if (choice) {
-      // PDF combiné
-      success = await CentralExportService.exportAllToPDF();
-    } else {
-      // PDFs séparés
-      success = await CentralExportService.exportAllSequential();
-    }
-
-    if (success) {
-      setExportStatus(CentralExportService.getStatusMessage());
-    }
-    
-  } catch (error) {
-    console.error("❌ Erreur export:", error);
-    alert("Erreur: " + error.message);
-  }
-};
-
-
-
-
-
-// Version alternative avec choix d'export
-const handleExportAllPagesWithChoice = async () => {
-  try {
-    const choice = window.confirm(
-      "Choisissez le mode d'export:\n\n" +
-      "✅ OK - Export COMBINÉ (toutes pages en un seul PDF)\n" +
-      "❌ Annuler - Export SÉQUENTIEL (PDFs individuels)"
-    );
-
-    let success;
-    if (choice) {
-      // Export combiné
-      success = await CentralExportService.exportAllToPDF();
-    } else {
-      // Export séquentiel
-      success = await CentralExportService.exportAllSequential();
-    }
-
-    if (success) {
-      setExportStatus(CentralExportService.getStatusMessage());
-    }
-    
-  } catch (error) {
-    console.error("❌ Erreur export:", error);
-    alert("Erreur: " + error.message);
-  }
-};
 
 // Fonction pour sauvegarder la phase
 const savePhaseToDatabase = async (clientId, produitId, phase) => {
@@ -600,6 +487,7 @@ const formatExcelDate = (excelDate) => {
     <div className="trait-donnees-container">
       <Header />
       <h1 className="trait-donnees-title">Traitement Données</h1>
+      
       <div className="tabs-container">
         <button className={activeTab === "donnees" ? "active-tab" : "tab"} onClick={() => setActiveTab("donnees")}>
           Données Traitées
@@ -707,7 +595,7 @@ const formatExcelDate = (excelDate) => {
           clientId={selectedClient}
           clientTypeCimentId={clientTypeCimentId}
           produitInfo={selectedProduitInfo}
-           phase={displayPhase}
+          phase={phase}
           tableData={tableData}
           ajoutsData={ajoutsData}  
           selectedRows={selectedRows}
@@ -726,7 +614,7 @@ const formatExcelDate = (excelDate) => {
           clients={clients}
           produits={produits}
           ajoutsData={ajoutsData} 
-           phase={displayPhase}
+          phase={phase}
           onTableDataChange={handleTableDataChange}
         />
       )}
@@ -741,7 +629,7 @@ const formatExcelDate = (excelDate) => {
           initialEnd={endDate}
           clients={clients}
           produits={produits}
-           phase={displayPhase}
+          phase={phase}
         />
       )}
 
@@ -773,86 +661,11 @@ const formatExcelDate = (excelDate) => {
           produits={produits}
           ajoutsData={ajoutsData}
           getAjoutDescription={getAjoutDescription}
-           phase={displayPhase} 
+          phase={phase}
           onTableDataChange={handleTableDataChange}
         />
       )}
-
-                  {/* ⭐ NOUVEAU: Barre d'export global */}
-    <div style={{ padding: '20px', border: '1px solid #ddd', borderRadius: '8px', margin: '10px 0' }}>
-      <h3>Export Global des Pages</h3>
-      
-      {/* Statut actuel */}
-      <div style={{ marginBottom: '15px' }}>
-        <div>
-          <strong>Statut Export:</strong>
-          <span 
-            style={{ 
-              marginLeft: '10px', 
-              color: CentralExportService.hasData() ? '#28a745' : '#6c757d',
-              cursor: 'pointer'
-            }}
-            onClick={showExportDetails}
-            title="Cliquez pour voir le détail"
-          >
-            {exportStatus}
-          </span>
-        </div>
-        
-        {/* Détail des pages (optionnel) */}
-        <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
-          {Object.entries(CentralExportService.getExportStatus()).map(([key, status]) => (
-            <div key={key}>
-              {status} - {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Boutons d'action */}
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        <button 
-          onClick={handleExportAllPages}
-          disabled={!CentralExportService.hasData()}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: CentralExportService.hasData() ? '#28a745' : '#6c757d',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: CentralExportService.hasData() ? 'pointer' : 'not-allowed',
-            fontSize: '14px',
-            fontWeight: 'bold'
-          }}
-          title={CentralExportService.hasData() ? 
-            "Exporter toutes les pages en un seul PDF" : 
-            "Aucune donnée à exporter"
-          }
-        >
-          📊 Exporter Toutes les Pages
-        </button>
-        
-        <button 
-          onClick={handleClearAllExport}
-          disabled={!CentralExportService.hasData()}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: CentralExportService.hasData() ? '#dc3545' : '#6c757d',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: CentralExportService.hasData() ? 'pointer' : 'not-allowed',
-            fontSize: '14px'
-          }}
-          title="Effacer toutes les données d'export"
-        >
-          🗑️ Effacer Tout
-        </button>
-        </div>
-      </div>
-      
     </div>
-    
   );
 };
 
