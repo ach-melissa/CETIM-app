@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo,forwardRef, useImperativeHandle, useCallback, useRef } from "react";
 import ClassSelector from './ClassSelector'; 
 import PDFExportService from './PDFExportService';
 import './ControleConformite.css';
 import { useData } from "../../context/DataContext";
 import CentralExportService from "../../services/CentralExportService"; 
 
-
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 const calculateStats = (data, key) => {
   const missingValues = [];
   const values = [];
