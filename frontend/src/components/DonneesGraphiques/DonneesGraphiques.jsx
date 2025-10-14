@@ -767,36 +767,38 @@ const handleExportPDF = async () => {
                   margin={{ top: 20, right: 20, bottom: 100, left: 20 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="x" 
-                    name="Date" 
-                    tick={renderDateTicks}
-                    interval={0}
-                    height={80}
-                    allowDataOverflow={true}
-                    angle={-90}
-                    textAnchor="end"
-                    tickMargin={5}
-                    padding={{ left: 3, right: 5 }}
-                    minTickGap={15}
-                  />
-                  <YAxis 
-                    dataKey="y" 
-                    name={selectedParameter} 
-                    domain={[0, 75]}
-                    ticks={[0, 20, 40, 60, 80, 100, 120, 140]}
-                    allowDataOverflow={true}
-                    width={10}
-                  />
+ <XAxis 
+    dataKey="x" 
+    name="Date" 
+    tick={renderDateTicks}
+    interval={0}
+    height={80}
+    allowDataOverflow={true}
+    angle={-90}
+    textAnchor="end"
+    tickMargin={5}
+    padding={{ left: 3, right: 5 }}
+    minTickGap={15}
+    domain={[0, 'dataMax + 20']}
+    tickCount={Math.ceil(chartData.length / 20) + 1}
+  />
+  <YAxis 
+    dataKey="y" 
+    name={selectedParameter} 
+    domain={[0, 150]}
+    tickCount={8}
+    allowDataOverflow={true}
+    width={80}
+  />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <Scatter
-                    name="Mesures"
-                    data={chartData.filter((point) => !isNaN(point.y))}
-                    fill="#FFC107"
-                    shape="circle"
-                    size={6}
-                  />
+<Scatter
+  name="Mesures"
+  data={chartData.filter((point) => !isNaN(point.y))}
+  fill="#FFC107"
+  shape="circle"
+  size={8} // Augmenté de 6 à 8
+/>
 
                   {derivedStats.mean !== "-" && !isNaN(derivedStats.mean) && (
                     <ReferenceLine

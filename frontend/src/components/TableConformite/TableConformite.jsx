@@ -178,7 +178,7 @@ const TableConformite = ({
     r_insoluble: "residu_insoluble",
     so3: "SO3",
     chlorure: "teneur_chlour",
-    ajt: "Ajout", // MÊME CORRECTION : "Ajout" avec majuscule
+    ajt: "Ajout", 
     c3a: "C3A",
   };
 
@@ -226,10 +226,37 @@ const TableConformite = ({
     parameters.push({ key: "c3a", label: "C3A" });
   }
 
-  // Add Taux Ajout if famille is NOT CEM I - MÊME LOGIQUE
-  if (showTauxAjout) {
-    parameters.push({ key: "ajt", label: "Taux Ajout" });
+// Add Ajt with specific name if famille is NOT CEM I
+if (showTauxAjout) {
+  let ajoutDescription = "ajout"; // Default fallback
+  
+  if (dataToUse && dataToUse.length > 0) {
+    const uniqueAjoutTypes = [...new Set(dataToUse
+      .map(row => row.type_ajout)
+      .filter(type => type && type.trim() !== "")
+    )];
+    
+    if (uniqueAjoutTypes.length === 1) {
+      // Only one type of ajout in the data
+      ajoutDescription = uniqueAjoutTypes[0].toLowerCase();
+    } else if (uniqueAjoutTypes.length > 1) {
+      // Multiple types - use the most common or show "mixte"
+      const typeCounts = {};
+      dataToUse.forEach(row => {
+        if (row.type_ajout && row.type_ajout.trim() !== "") {
+          typeCounts[row.type_ajout] = (typeCounts[row.type_ajout] || 0) + 1;
+        }
+      });
+      
+      const mostCommonType = Object.keys(typeCounts).reduce((a, b) => 
+        typeCounts[a] > typeCounts[b] ? a : b
+      );
+      ajoutDescription = mostCommonType.toLowerCase();
+    }
   }
+  
+  parameters.push({ key: "ajt", label: `Ajt(${ajoutDescription})` });
+}
 
   // Charger les données depuis le fichier JSON - MÊME LOGIQUE
   useEffect(() => {
@@ -388,7 +415,7 @@ const TableConformite = ({
     return relevantLimits;
   };
 
-  // FONCTION CORRIGÉE : getDeviationDisplay
+
   const getDeviationDisplay = (paramKey, compliance) => {
     const { limits, stats, values } = compliance;
     const hasData = values && values.length > 0;
@@ -665,15 +692,18 @@ const TableConformite = ({
 const handleExport = async () => { 
   try {
     // Prepare complete table data for PDF export
-    const tableData = {
-      headers: ["Classe", ...parameters.map(param => {
-        // Shorten long parameter names
-        const shortName = param.label.length > 20 ? param.label.substring(0, 17) + '...' : param.label;
-        return shortName;
-      })],
-      rows: []
-    };
-
+const tableData = {
+  headers: ["Classe", ...parameters.map(param => {
+    // For Ajt, keep the full name with parentheses, shorten others
+    if (param.key === "ajt") {
+      return param.label; // Keep "Ajt(calcaire)" as is
+    }
+    // Shorten long parameter names for other parameters
+    const shortName = param.label.length > 20 ? param.label.substring(0, 17) + '...' : param.label;
+    return shortName;
+  })],
+  rows: []
+};
     // Build rows for each class
     classes.forEach((classe) => {
       const classCompliance = {};
@@ -790,17 +820,13 @@ const handleExport = async () => {
           {produitInfo && (
             <>
               <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
-              <p><strong>Famille: {finalFamilleName} ({finalFamilleCode})</strong></p>
-              <p style={{ color: showC3A ? 'blue' : showTauxAjout ? 'green' : 'red' }}>
-                {showC3A ? "🔵 CEM I - Affichage C3A" : showTauxAjout ? "🟢 Autre famille - Affichage Taux Ajout" : "🔴 Famille non reconnue"}
-              </p>
             </>
           )}
           <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
         </div>
 
         <div className="table-section">
-          <h3>Conformité</h3>
+          
           <table className="conformity-table">
             <thead>
               <tr>
@@ -808,7 +834,7 @@ const handleExport = async () => {
                 {parameters.map((param) => (
                   <th key={param.key}>
                     {param.label}
-                    {(param.key === "c3a" || param.key === "ajt") && " *"}
+                    
                   </th>
                 ))}
               </tr>
@@ -924,7 +950,6 @@ const handleExport = async () => {
           <p><span className="yellow-box"></span>% Déviation &gt; 5%</p>
           <p><span className="red-box"></span>% Défaut &gt; 5%</p>
           <p><span className="grey-box"></span> -- Non définie ND/NS Données insuffisantes</p>
-          <p><span style={{color: 'blue', fontWeight: 'bold'}}>*</span> Paramètre conditionnel selon la famille</p>
         </div>
       </div>
 
