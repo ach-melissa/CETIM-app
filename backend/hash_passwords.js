@@ -1,19 +1,20 @@
 // hash_passwords.js
-// imports the bcrypt library (used for hashing passwords)
 const bcrypt = require('bcrypt');
 
-//2 user objects eache with (email , password)
+// Users list with username, email, plain password, and role
 const users = [
-  { email: 'infomely@gmail.com', password: 'mrhamza' },
-  { email: 'info@gmail.com', password: 'mrszakia' }
+  { username: 'hamza', email: 'hamza@gmail.com', password: 'mrhamza', role: 'admin' },
+  { username: 'zakia', email: 'zakia@gmail.com', password: 'mrszakia', role: 'user' }
 ];
 
-/* Get their email and password (hamza , zakia), Hash the password with bcrypt , Print the email and the hashed password */
-users.forEach(({ email, password }) => {
-  bcrypt.hash(password, 10).then(hash => {
-    console.log(`Email: ${email}`);
-    console.log(`Hashed password: ${hash}`);
-    console.log('----------------------------');
-  });
-});
+// Hash passwords and generate SQL INSERT lines
+(async () => {
+  console.log("INSERT INTO utilisateurs (username, email, mot_de_passe, role) VALUES");
+  
+  for (const { username, email, password, role } of users) {
+    const hash = await bcrypt.hash(password, 10);
+    console.log(`('${username}', '${email}', '${hash}', '${role}'),`);
+  }
+})();
+
 

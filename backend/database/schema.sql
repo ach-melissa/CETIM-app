@@ -21,70 +21,8 @@ USE ciment_conformite;
 
 INSERT INTO utilisateurs (id, username, email, mot_de_passe, role)
 VALUES
-(1, NULL, 'infomely@gmail.com', '$2b$10$ENHY9KndaY4T.EWjsX7ageTJcUBjyfbXG4xQGnK.7Ics/gjAe2dO6', 'admin'),
-(2, NULL, 'info@gmail.com', '$2b$10$roOad22HTp7cxho/oX9p5uhJqFxtA1t5GeO2ulqSoi2duVfWKc9e.', 'user'),
-(3, NULL, 'maysabendou@gmail.com', '$2b$10$BLdl.I5DtXhFGIjFUrEHU.cbrebI.BgKbkoWpgWtYTRGhuYhuW/LK', 'user');
-
-
--- =========================  
--- 1. Families of Cement
--- =========================
-CREATE TABLE familles_ciment (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  code VARCHAR(10) NOT NULL,      -- e.g., "CEM I", "CEM II", ...
-  nom VARCHAR(255) NOT NULL       -- e.g., "Ciment Portland"
-);
-
-INSERT INTO familles_ciment (code, nom) VALUES
-('CEM I', 'Ciment Portland'),
-('CEM II', 'Ciment Portland composé'),
-('CEM III', 'Ciment de haut fourneau'),
-('CEM IV', 'Ciment pouzzolanique'),
-('CEM V', 'Ciment composé');
-
-
-CREATE TABLE `categories` (
-  `id` int(11) NOT NULL,
-  `nom` enum('mecanique','physique','chimique','supplémentaire') NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Déchargement des données de la table `categories`
---
-
-INSERT INTO `categories` (`id`, `nom`) VALUES
-(1, 'mecanique'),
-(2, 'physique'),
-(3, 'chimique');
-
--- --------------------------------------------------------
-
---
--- Structure de la table `classes_resistance`
---
-
-CREATE TABLE `classes_resistance` (
-  `id` int(11) NOT NULL,
-  `classe` varchar(10) NOT NULL,
-  `type_court_terme` enum('N','R','L') NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Déchargement des données de la table `classes_resistance`
---
-
-INSERT INTO `classes_resistance` (`id`, `classe`, `type_court_terme`) VALUES
-(1, '32.5', 'N'),
-(2, '32.5', 'R'),
-(3, '42.5', 'N'),
-(4, '42.5', 'R'),
-(5, '52.5', 'N'),
-(6, '52.5', 'R'),
-(7, '32.5', 'L'),
-(8, '42.5', 'L'),
-(9, '52.5', 'L');
-
--- --------------------------------------------------------
+(1, 'hamza', 'hamza@gmail.com', '$2b$10$F3FA6fqsU.frW57BEeLt1uEEcUBGWTlOS3PFfUMB3IEeV8kTjt.xO', 'admin'),
+(2, 'zakia', 'zakia@gmail.com', '$2b$10$pWSWUNgJcxahPXT9L/QN/uW/Ztps6g8uJ0tIUZfu66ZKLVMHSoo6W', 'user');
 
 --
 -- Structure de la table `clients`
@@ -140,27 +78,26 @@ CREATE TABLE `client_types_ciment` (
 --
 
 INSERT INTO `client_types_ciment` (`id`, `client_id`, `typecement_id`) VALUES
-(43, 19, 3),
+(439, 3),
 (44, 20, 4),
 (45, 20, 5),
 (48, 22, 2),
 (49, 22, 3),
 (50, 22, 4),
 (51, 23, 5),
-(59, 21, 1),
+(59, 21),
 (60, 21, 6),
-(61, 18, 1),
-(62, 18, 4),
-(63, 18, 33),
-(64, 18, 34),
-(72, 18, 32),
-(73, 18, 20),
-(74, 18, 16),
+(618),
+(628, 4),
+(638, 33),
+(648, 34),
+(728, 32),
+(738, 20),
+(7486),
 (75, 20, 24);
-(64, 18, 34);
+(648, 34);
 
 
--- Exécutez cette commande SQL dans votre base de données
 CREATE TABLE IF NOT EXISTS phase_selection (
   id INT PRIMARY KEY AUTO_INCREMENT,
   client_id INT NOT NULL,
@@ -217,311 +154,83 @@ INSERT INTO `familles_ciment` (`id`, `code`, `nom`) VALUES
 (4, 'CEM IV', 'Ciment pouzzolanique'),
 (5, 'CEM V', 'Ciment composé');
 
--- --------------------------------------------------------
-
---
--- Structure de la table `proprietes_chimiques`
---
-
-
-
 
 CREATE TABLE `types_ciment` (
   `id` int(11) NOT NULL,
   `famille_id` int(11) NOT NULL,
   `code` varchar(20) NOT NULL,
-  `description` text DEFAULT NULL,
-  `sr` tinyint(1) DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  `description` text DEFAULT NULL
+);
 
 --
 -- Déchargement des données de la table `types_ciment`
 --
 
-INSERT INTO `types_ciment` (`id`, `famille_id`, `code`, `description`, `sr`) VALUES
-(1, 1, 'CEM I', 'Ciment Portland', 0),
-(2, 1, 'CEM I-SR 0', 'Ciment Portland SR ', 1),
-(3, 1, 'CEM I-SR 3', 'Ciment Portland SR ', 1),
-(4, 1, 'CEM I-SR 5', 'Ciment Portland SR ', 1),
-(5, 2, 'CEM II/A-S', 'Portland au laitier ', 0),
-(6, 2, 'CEM II/B-S', 'Portland au laitier ', 0),
-(7, 2, 'CEM II/A-D', 'Ciment portland a la fumee de silice ', 0),
-(8, 2, 'CEM II/A-P', 'Ciment portland a la pouzzolane naturelle', 0),
-(9, 2, 'CEM II/B-P', 'Ciment portland a la pouzzolane naturelle', 0),
-(10, 2, 'CEM II/A-Q', 'Ciment portland a la pouzzolane naturelle calcinee', 0),
-(11, 2, 'CEM II/B-Q', 'Ciment portland a la pouzzolane naturelle calcinee', 0),
-(12, 2, 'CEM II/A-V', 'Ciment portland aux cendres volantes ', 0),
-(13, 2, 'CEM II/B-V', 'Ciment portland aux cendres volantes ', 0),
-(14, 2, 'CEM II/A-W', 'Ciment portland aux cendres volantes ', 0),
-(15, 2, 'CEM II/B-W', 'Ciment portland aux cendres volantes ', 0),
-(16, 2, 'CEM II/A-T', 'Ciment portland aux schistes calcine ', 0),
-(17, 2, 'CEM II/B-T', 'Ciment portland aux schistes calcine ', 0),
-(18, 2, 'CEM II/A-L', 'Ciment portland au calcaire ', 0),
-(19, 2, 'CEM II/B-L', 'Ciment portland au calcaire ', 0),
-(20, 2, 'CEM II/A-LL', 'Ciment portland au calcaire ', 0),
-(21, 2, 'CEM II/B-LL', 'Ciment portland au calcaire ', 0),
-(22, 2, 'CEM II/A-M', 'Ciment portland compose ', 0),
-(23, 2, 'CEM II/B-M', 'Ciment portland compose ', 0),
-(24, 3, 'CEM III/A', 'Ciment Haut fourneau ', 0),
-(25, 3, 'CEM III/B', 'Ciment Haut fourneau ', 0),
-(26, 3, 'CEM III/C', 'Ciment Haut fourneau ', 0),
-(27, 3, 'CEM III/B-SR', 'Ciment Haut fourneau SR', 1),
-(28, 3, 'CEM III/C-SR', 'Ciment Haut fourneau SR', 1),
-(29, 4, 'CEM IV/A', 'Ciment Pouzzolanique ', 0),
-(30, 4, 'CEM IV/B', 'Ciment Pouzzolanique ', 0),
-(31, 4, 'CEM IV/A-SR', 'Ciment Pouzzolanique SR ', 1),
-(32, 4, 'CEM IV/B-SR', 'Ciment Pouzzolanique SR ', 1),
-(33, 5, 'CEM V/A', 'Ciment Compose ', 0),
-(34, 5, 'CEM V/B', 'Ciment Compose ', 0);
+INSERT INTO `types_ciment` (`id`, `famille_id`, `code`, `description`) VALUES
+(1, 'CEM I', 'Ciment Portland'),
+(2, 'CEM I-SR 0', 'Ciment Portland SR '),
+(3, 'CEM I-SR 3', 'Ciment Portland SR '),
+(4, 'CEM I-SR 5', 'Ciment Portland SR '),
+(5, 2, 'CEM II/A-S', 'Portland au laitier '),
+(6, 2, 'CEM II/B-S', 'Portland au laitier '),
+(7, 2, 'CEM II/A-D', 'Ciment portland a la fumee de silice '),
+(8, 2, 'CEM II/A-P', 'Ciment portland a la pouzzolane naturelle'),
+(9, 2, 'CEM II/B-P', 'Ciment portland a la pouzzolane naturelle'),
+(10, 2, 'CEM II/A-Q', 'Ciment portland a la pouzzolane naturelle calcinee'),
+(11, 2, 'CEM II/B-Q', 'Ciment portland a la pouzzolane naturelle calcinee'),
+(12, 2, 'CEM II/A-V', 'Ciment portland aux cendres volantes '),
+(13, 2, 'CEM II/B-V', 'Ciment portland aux cendres volantes '),
+(14, 2, 'CEM II/A-W', 'Ciment portland aux cendres volantes '),
+(15, 2, 'CEM II/B-W', 'Ciment portland aux cendres volantes '),
+(16, 2, 'CEM II/A-T', 'Ciment portland aux schistes calcine '),
+(17, 2, 'CEM II/B-T', 'Ciment portland aux schistes calcine '),
+(18, 2, 'CEM II/A-L', 'Ciment portland au calcaire '),
+(19, 2, 'CEM II/B-L', 'Ciment portland au calcaire '),
+(20, 2, 'CEM II/A-LL', 'Ciment portland au calcaire '),
+(21, 2, 'CEM II/B-LL', 'Ciment portland au calcaire '),
+(22, 2, 'CEM II/A-M', 'Ciment portland compose '),
+(23, 2, 'CEM II/B-M', 'Ciment portland compose '),
+(24, 3, 'CEM III/A', 'Ciment Haut fourneau '),
+(25, 3, 'CEM III/B', 'Ciment Haut fourneau '),
+(26, 3, 'CEM III/C', 'Ciment Haut fourneau '),
+(27, 3, 'CEM III/B-SR', 'Ciment Haut fourneau SR'),
+(28, 3, 'CEM III/C-SR', 'Ciment Haut fourneau SR'),
+(29, 4, 'CEM IV/A', 'Ciment Pouzzolanique '),
+(30, 4, 'CEM IV/B', 'Ciment Pouzzolanique '),
+(31, 4, 'CEM IV/A-SR', 'Ciment Pouzzolanique SR '),
+(32, 4, 'CEM IV/B-SR', 'Ciment Pouzzolanique SR '),
+(33, 5, 'CEM V/A', 'Ciment Compose '),
+(34, 5, 'CEM V/B', 'Ciment Compose ');
+
 
 -- --------------------------------------------------------
-
---
--- Structure de la table `types_ciment_classes`
---
-
-CREATE TABLE `types_ciment_classes` (
-  `id` int(11) NOT NULL,
-  `type_ciment_id` int(11) NOT NULL,
-  `classe_resistance_id` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Déchargement des données de la table `types_ciment_classes`
---
-
-INSERT INTO `types_ciment_classes` (`id`, `type_ciment_id`, `classe_resistance_id`) VALUES
-(1, 1, 1),
-(30, 1, 2),
-(59, 1, 3),
-(88, 1, 4),
-(117, 1, 5),
-(146, 1, 6),
-(2, 2, 1),
-(31, 2, 2),
-(60, 2, 3),
-(89, 2, 4),
-(118, 2, 5),
-(147, 2, 6),
-(3, 3, 1),
-(32, 3, 2),
-(61, 3, 3),
-(90, 3, 4),
-(119, 3, 5),
-(148, 3, 6),
-(4, 4, 1),
-(33, 4, 2),
-(62, 4, 3),
-(91, 4, 4),
-(120, 4, 5),
-(149, 4, 6),
-(5, 5, 1),
-(34, 5, 2),
-(63, 5, 3),
-(92, 5, 4),
-(121, 5, 5),
-(150, 5, 6),
-(6, 6, 1),
-(35, 6, 2),
-(64, 6, 3),
-(93, 6, 4),
-(122, 6, 5),
-(151, 6, 6),
-(7, 7, 1),
-(36, 7, 2),
-(65, 7, 3),
-(94, 7, 4),
-(123, 7, 5),
-(152, 7, 6),
-(8, 8, 1),
-(37, 8, 2),
-(66, 8, 3),
-(95, 8, 4),
-(124, 8, 5),
-(153, 8, 6),
-(9, 9, 1),
-(38, 9, 2),
-(67, 9, 3),
-(96, 9, 4),
-(125, 9, 5),
-(154, 9, 6),
-(10, 10, 1),
-(39, 10, 2),
-(68, 10, 3),
-(97, 10, 4),
-(126, 10, 5),
-(155, 10, 6),
-(11, 11, 1),
-(40, 11, 2),
-(69, 11, 3),
-(98, 11, 4),
-(127, 11, 5),
-(156, 11, 6),
-(12, 12, 1),
-(41, 12, 2),
-(70, 12, 3),
-(99, 12, 4),
-(128, 12, 5),
-(157, 12, 6),
-(13, 13, 1),
-(42, 13, 2),
-(71, 13, 3),
-(100, 13, 4),
-(129, 13, 5),
-(158, 13, 6),
-(14, 14, 1),
-(43, 14, 2),
-(72, 14, 3),
-(101, 14, 4),
-(130, 14, 5),
-(159, 14, 6),
-(15, 15, 1),
-(44, 15, 2),
-(73, 15, 3),
-(102, 15, 4),
-(131, 15, 5),
-(160, 15, 6),
-(16, 16, 1),
-(45, 16, 2),
-(74, 16, 3),
-(103, 16, 4),
-(132, 16, 5),
-(161, 16, 6),
-(17, 17, 1),
-(46, 17, 2),
-(75, 17, 3),
-(104, 17, 4),
-(133, 17, 5),
-(162, 17, 6),
-(18, 18, 1),
-(47, 18, 2),
-(76, 18, 3),
-(105, 18, 4),
-(134, 18, 5),
-(163, 18, 6),
-(19, 19, 1),
-(48, 19, 2),
-(77, 19, 3),
-(106, 19, 4),
-(135, 19, 5),
-(164, 19, 6),
-(20, 20, 1),
-(49, 20, 2),
-(78, 20, 3),
-(107, 20, 4),
-(136, 20, 5),
-(165, 20, 6),
-(21, 21, 1),
-(50, 21, 2),
-(79, 21, 3),
-(108, 21, 4),
-(137, 21, 5),
-(166, 21, 6),
-(22, 22, 1),
-(51, 22, 2),
-(80, 22, 3),
-(109, 22, 4),
-(138, 22, 5),
-(167, 22, 6),
-(23, 23, 1),
-(52, 23, 2),
-(81, 23, 3),
-(110, 23, 4),
-(139, 23, 5),
-(168, 23, 6),
-(256, 24, 1),
-(261, 24, 2),
-(266, 24, 3),
-(271, 24, 4),
-(276, 24, 5),
-(281, 24, 6),
-(286, 24, 7),
-(291, 24, 8),
-(296, 24, 9),
-(257, 25, 1),
-(262, 25, 2),
-(267, 25, 3),
-(272, 25, 4),
-(277, 25, 5),
-(282, 25, 6),
-(287, 25, 7),
-(292, 25, 8),
-(297, 25, 9),
-(258, 26, 1),
-(263, 26, 2),
-(268, 26, 3),
-(273, 26, 4),
-(278, 26, 5),
-(283, 26, 6),
-(288, 26, 7),
-(293, 26, 8),
-(298, 26, 9),
-(259, 27, 1),
-(264, 27, 2),
-(269, 27, 3),
-(274, 27, 4),
-(279, 27, 5),
-(284, 27, 6),
-(289, 27, 7),
-(294, 27, 8),
-(299, 27, 9),
-(260, 28, 1),
-(265, 28, 2),
-(270, 28, 3),
-(275, 28, 4),
-(280, 28, 5),
-(285, 28, 6),
-(290, 28, 7),
-(295, 28, 8),
-(300, 28, 9),
-(24, 29, 1),
-(53, 29, 2),
-(82, 29, 3),
-(111, 29, 4),
-(140, 29, 5),
-(169, 29, 6),
-(25, 30, 1),
-(54, 30, 2),
-(83, 30, 3),
-(112, 30, 4),
-(141, 30, 5),
-(170, 30, 6),
-(26, 31, 1),
-(55, 31, 2),
-(84, 31, 3),
-(113, 31, 4),
-(142, 31, 5),
-(171, 31, 6),
-(27, 32, 1),
-(56, 32, 2),
-(85, 32, 3),
-(114, 32, 4),
-(143, 32, 5),
-(172, 32, 6),
-(28, 33, 1),
-(57, 33, 2),
-(86, 33, 3),
-(115, 33, 4),
-(144, 33, 5),
-(173, 33, 6),
-(29, 34, 1),
-(58, 34, 2),
-(87, 34, 3),
-(116, 34, 4),
-(145, 34, 5),
-(174, 34, 6);
-
--- --------------------------------------------------------
+CREATE TABLE permissions ( 
+ id int(11) NOT NULL AUTO_INCREMENT, 
+ user_id int(11) NOT NULL, 
+ parnorm tinyint(1) DEFAULT 0, 
+ parametre_ciment tinyint(1) DEFAULT 0, 
+ parametre_clients tinyint(1) DEFAULT 0, 
+ traitement_donnees tinyint(1) DEFAULT 0, 
+ historique tinyint(1) DEFAULT 0, 
+ parametre_ciment_read tinyint(1) DEFAULT 0, 
+ parametre_ciment_create tinyint(1) DEFAULT 0, 
+ parametre_ciment_update tinyint(1) DEFAULT 0, 
+ parametre_ciment_delete tinyint(1) DEFAULT 0, 
+ parametre_entreprise_read tinyint(1) DEFAULT 0, 
+ parametre_entreprise_create tinyint(1) DEFAULT 0, 
+ parametre_entreprise_update tinyint(1) DEFAULT 0, 
+ parametre_entreprise_delete tinyint(1) DEFAULT 0, 
+ parnorm_read tinyint(1) DEFAULT 0, 
+ parnorm_create tinyint(1) DEFAULT 0, 
+ parnorm_update tinyint(1) DEFAULT 0, 
+ parnorm_delete tinyint(1) DEFAULT 0, 
+ PRIMARY KEY (`id`), 
+ UNIQUE KEY uq_permissions_user (`user_id`), 
+ CONSTRAINT permissions_ibfk_1 FOREIGN KEY (`user_id`) REFERENCES utilisateurs (`id`) ON DELETE CASCADE);
+ 
+-------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-ALTER TABLE `categories`
-  ADD PRIMARY KEY (`id`);
-
---
--- Index pour la table `classes_resistance`
---
-ALTER TABLE `classes_resistance`
-  ADD PRIMARY KEY (`id`);
 
 --
 -- Index pour la table `clients`

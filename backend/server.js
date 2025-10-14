@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
@@ -682,11 +684,7 @@ app.delete("/api/ajouts/:ajoutId/ciments/:cement", async (req, res) => {
 });
 
 
-//////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////
-
-// Récupérer tous les utilisateurs (sans mot de passe)
-// Récupérer tous les utilisateurs (sans mot de passe)
+// --- GET ALL USERS (sans mot de passe) ---
 app.get("/api/utilisateurs", async (req, res) => {
   try {
     const [rows] = await promisePool.query(`
@@ -705,11 +703,10 @@ app.get("/api/utilisateurs", async (req, res) => {
         COALESCE(p.parametre_entreprise_create,0) AS parametre_entreprise_create,
         COALESCE(p.parametre_entreprise_update,0) AS parametre_entreprise_update,
         COALESCE(p.parametre_entreprise_delete,0) AS parametre_entreprise_delete,
-COALESCE(p.parnorm_read,0) AS parnorm_read,
-COALESCE(p.parnorm_create,0) AS parnorm_create,
-COALESCE(p.parnorm_update,0) AS parnorm_update,
-COALESCE(p.parnorm_delete,0) AS parnorm_delete
-
+        COALESCE(p.parnorm_read,0) AS parnorm_read,
+        COALESCE(p.parnorm_create,0) AS parnorm_create,
+        COALESCE(p.parnorm_update,0) AS parnorm_update,
+        COALESCE(p.parnorm_delete,0) AS parnorm_delete
       FROM utilisateurs u
       LEFT JOIN permissions p ON p.user_id = u.id
       ORDER BY u.id ASC
@@ -722,9 +719,6 @@ COALESCE(p.parnorm_delete,0) AS parnorm_delete
 });
 
 
-
-
-// --- CREATE USER ---
 // --- CREATE USER ---
 app.post("/api/utilisateurs", async (req, res) => {
   const {
@@ -732,24 +726,39 @@ app.post("/api/utilisateurs", async (req, res) => {
     email,
     mot_de_passe,
     role,
-    parnorm,
-    parametre_ciment,
-    parametre_clients,
-    traitement_donnees,
-    historique,
-    parametre_ciment_read,
-    parametre_ciment_create,
-    parametre_ciment_update,
-    parametre_ciment_delete,
-    parametre_entreprise_read,
-    parametre_entreprise_create,
-    parametre_entreprise_update,
-    parametre_entreprise_delete,
+    parnorm = 0,
+    parametre_ciment = 0,
+    parametre_clients = 0,
+    traitement_donnees = 0,
+    historique = 0,
+    parametre_ciment_read = 0,
+    parametre_ciment_create = 0,
+    parametre_ciment_update = 0,
+    parametre_ciment_delete = 0,
+    parametre_entreprise_read = 0,
+    parametre_entreprise_create = 0,
+    parametre_entreprise_update = 0,
+    parametre_entreprise_delete = 0,
+    parnorm_read = 0,
+    parnorm_create = 0,
+    parnorm_update = 0,
+    parnorm_delete = 0
   } = req.body;
 
   try {
+    // Check duplicate email
+    const [existing] = await promisePool.execute(
+      "SELECT id FROM utilisateurs WHERE email = ?",
+      [email]
+    );
+    if (existing.length > 0) {
+      return res.status(400).json({ error: "Cet email est déjà utilisé" });
+    }
+
+    // Hash password
     const hashedPassword = await bcrypt.hash(mot_de_passe, 10);
 
+    // Insert user
     const [result] = await promisePool.execute(
       "INSERT INTO utilisateurs (username, email, mot_de_passe, role) VALUES (?, ?, ?, ?)",
       [username, email, hashedPassword, role]
@@ -757,35 +766,35 @@ app.post("/api/utilisateurs", async (req, res) => {
 
     const userId = result.insertId;
 
-   await promisePool.execute(
-  `INSERT INTO permissions (
-    user_id, parnorm, parametre_ciment, parametre_clients, traitement_donnees, historique,
-    parametre_ciment_read, parametre_ciment_create, parametre_ciment_update, parametre_ciment_delete,
-    parametre_entreprise_read, parametre_entreprise_create, parametre_entreprise_update, parametre_entreprise_delete,
-    parnorm_read, parnorm_create, parnorm_update, parnorm_delete
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  [
-    userId,
-    parnorm ? 1 : 0,
-    parametre_ciment ? 1 : 0,
-    parametre_clients ? 1 : 0,
-    traitement_donnees ? 1 : 0,
-    historique ? 1 : 0,
-    parametre_ciment_read ? 1 : 0,
-    parametre_ciment_create ? 1 : 0,
-    parametre_ciment_update ? 1 : 0,
-    parametre_ciment_delete ? 1 : 0,
-    parametre_entreprise_read ? 1 : 0,
-    parametre_entreprise_create ? 1 : 0,
-    parametre_entreprise_update ? 1 : 0,
-    parametre_entreprise_delete ? 1 : 0,
-    parnorm_read ? 1 : 0,
-    parnorm_create ? 1 : 0,
-    parnorm_update ? 1 : 0,
-    parnorm_delete ? 1 : 0,
-  ]
-);
-
+    // Insert default permissions
+    await promisePool.execute(
+      `INSERT INTO permissions (
+        user_id, parnorm, parametre_ciment, parametre_clients, traitement_donnees, historique,
+        parametre_ciment_read, parametre_ciment_create, parametre_ciment_update, parametre_ciment_delete,
+        parametre_entreprise_read, parametre_entreprise_create, parametre_entreprise_update, parametre_entreprise_delete,
+        parnorm_read, parnorm_create, parnorm_update, parnorm_delete
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        userId,
+        parnorm ? 1 : 0,
+        parametre_ciment ? 1 : 0,
+        parametre_clients ? 1 : 0,
+        traitement_donnees ? 1 : 0,
+        historique ? 1 : 0,
+        parametre_ciment_read ? 1 : 0,
+        parametre_ciment_create ? 1 : 0,
+        parametre_ciment_update ? 1 : 0,
+        parametre_ciment_delete ? 1 : 0,
+        parametre_entreprise_read ? 1 : 0,
+        parametre_entreprise_create ? 1 : 0,
+        parametre_entreprise_update ? 1 : 0,
+        parametre_entreprise_delete ? 1 : 0,
+        parnorm_read ? 1 : 0,
+        parnorm_create ? 1 : 0,
+        parnorm_update ? 1 : 0,
+        parnorm_delete ? 1 : 0
+      ]
+    );
 
     res.json({ success: true, message: "Utilisateur créé avec succès" });
   } catch (err) {
@@ -795,8 +804,6 @@ app.post("/api/utilisateurs", async (req, res) => {
 });
 
 
-
-// Modifier un utilisateur (sauf mot de passe)
 // --- UPDATE USER ---
 app.put("/api/utilisateurs/:id", async (req, res) => {
   const userId = req.params.id;
@@ -805,23 +812,23 @@ app.put("/api/utilisateurs/:id", async (req, res) => {
     email,
     mot_de_passe,
     role,
-    parnorm,
-    parametre_ciment,
-    parametre_clients,
-    traitement_donnees,
-    historique,
-    parametre_ciment_read,
-    parametre_ciment_create,
-    parametre_ciment_update,
-    parametre_ciment_delete,
-    parametre_entreprise_read,
-    parametre_entreprise_create,
-    parametre_entreprise_update,
-    parametre_entreprise_delete,
-     parnorm_read,
-    parnorm_create,
-    parnorm_update,
-    parnorm_delete,
+    parnorm = 0,
+    parametre_ciment = 0,
+    parametre_clients = 0,
+    traitement_donnees = 0,
+    historique = 0,
+    parametre_ciment_read = 0,
+    parametre_ciment_create = 0,
+    parametre_ciment_update = 0,
+    parametre_ciment_delete = 0,
+    parametre_entreprise_read = 0,
+    parametre_entreprise_create = 0,
+    parametre_entreprise_update = 0,
+    parametre_entreprise_delete = 0,
+    parnorm_read = 0,
+    parnorm_create = 0,
+    parnorm_update = 0,
+    parnorm_delete = 0
   } = req.body;
 
   try {
@@ -838,36 +845,34 @@ app.put("/api/utilisateurs/:id", async (req, res) => {
       );
     }
 
-    // Update permissions
     await promisePool.execute(
-  `UPDATE permissions SET 
-    parnorm=?, parametre_ciment=?, parametre_clients=?, traitement_donnees=?, historique=?,
-    parametre_ciment_read=?, parametre_ciment_create=?, parametre_ciment_update=?, parametre_ciment_delete=?,
-    parametre_entreprise_read=?, parametre_entreprise_create=?, parametre_entreprise_update=?, parametre_entreprise_delete=?,
-    parnorm_read=?, parnorm_create=?, parnorm_update=?, parnorm_delete=?
-  WHERE user_id=?`,
-  [
-    parnorm ? 1 : 0,
-    parametre_ciment ? 1 : 0,
-    parametre_clients ? 1 : 0,
-    traitement_donnees ? 1 : 0,
-    historique ? 1 : 0,
-    parametre_ciment_read ? 1 : 0,
-    parametre_ciment_create ? 1 : 0,
-    parametre_ciment_update ? 1 : 0,
-    parametre_ciment_delete ? 1 : 0,
-    parametre_entreprise_read ? 1 : 0,
-    parametre_entreprise_create ? 1 : 0,
-    parametre_entreprise_update ? 1 : 0,
-    parametre_entreprise_delete ? 1 : 0,
-    parnorm_read ? 1 : 0,
-    parnorm_create ? 1 : 0,
-    parnorm_update ? 1 : 0,
-    parnorm_delete ? 1 : 0,
-    userId,
-  ]
-);
-
+      `UPDATE permissions SET 
+        parnorm=?, parametre_ciment=?, parametre_clients=?, traitement_donnees=?, historique=?,
+        parametre_ciment_read=?, parametre_ciment_create=?, parametre_ciment_update=?, parametre_ciment_delete=?,
+        parametre_entreprise_read=?, parametre_entreprise_create=?, parametre_entreprise_update=?, parametre_entreprise_delete=?,
+        parnorm_read=?, parnorm_create=?, parnorm_update=?, parnorm_delete=?
+      WHERE user_id=?`,
+      [
+        parnorm ? 1 : 0,
+        parametre_ciment ? 1 : 0,
+        parametre_clients ? 1 : 0,
+        traitement_donnees ? 1 : 0,
+        historique ? 1 : 0,
+        parametre_ciment_read ? 1 : 0,
+        parametre_ciment_create ? 1 : 0,
+        parametre_ciment_update ? 1 : 0,
+        parametre_ciment_delete ? 1 : 0,
+        parametre_entreprise_read ? 1 : 0,
+        parametre_entreprise_create ? 1 : 0,
+        parametre_entreprise_update ? 1 : 0,
+        parametre_entreprise_delete ? 1 : 0,
+        parnorm_read ? 1 : 0,
+        parnorm_create ? 1 : 0,
+        parnorm_update ? 1 : 0,
+        parnorm_delete ? 1 : 0,
+        userId
+      ]
+    );
 
     res.json({ success: true, message: "Utilisateur mis à jour" });
   } catch (err) {
@@ -877,17 +882,17 @@ app.put("/api/utilisateurs/:id", async (req, res) => {
 });
 
 
-// Modifier mot de passe
+// --- UPDATE PASSWORD ---
 app.put("/api/utilisateurs/:id/password", async (req, res) => {
   const { id } = req.params;
   const { mot_de_passe } = req.body;
 
-  if (!mot_de_passe) return res.status(400).json({ error: "Mot de passe requis" });
+  if (!mot_de_passe)
+    return res.status(400).json({ error: "Mot de passe requis" });
 
   try {
     const hashedPassword = await bcrypt.hash(mot_de_passe, 10);
-    const sql = "UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?";
-    await promisePool.execute(sql, [hashedPassword, id]);
+    await promisePool.execute("UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?", [hashedPassword, id]);
     res.json({ message: "Mot de passe mis à jour" });
   } catch (err) {
     console.error("❌ Erreur update mot de passe:", err);
@@ -895,23 +900,25 @@ app.put("/api/utilisateurs/:id/password", async (req, res) => {
   }
 });
 
-// Supprimer un utilisateur
+
+// --- DELETE USER ---
 app.delete("/api/utilisateurs/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const sql = "DELETE FROM utilisateurs WHERE id = ?";
-    const [result] = await promisePool.execute(sql, [id]);
+    // Delete permissions first (foreign key safe)
+    await promisePool.execute("DELETE FROM permissions WHERE user_id = ?", [id]);
 
-    if (result.affectedRows === 0) {
+    const [result] = await promisePool.execute("DELETE FROM utilisateurs WHERE id = ?", [id]);
+    if (result.affectedRows === 0)
       return res.status(404).json({ error: "Utilisateur non trouvé" });
-    }
 
-    res.json({ message: "Utilisateur supprimé" });
+    res.json({ message: "Utilisateur supprimé avec succès" });
   } catch (err) {
     console.error("❌ Erreur suppression utilisateur:", err);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
+
 
 
 // Get all clients with types_ciment as array of objects
@@ -1456,78 +1463,93 @@ app.delete("/api/clients/:id", async (req, res) => {
 
 
 // --- Login --- //
-
 app.post('/api/login', async (req, res) => {
-  const { identifier, password } = req.body; 
-  // identifier can be email or username
+  
+  const identifiant = req.body.identifiant || req.body.identifier || req.body.email || req.body.username;
+  const mot_de_passe = req.body.mot_de_passe || req.body.password;
+
 
   try {
+    // ✅ 1. Check if user exists (by email OR username)
     const sql = `SELECT * FROM utilisateurs WHERE email = ? OR username = ? LIMIT 1`;
-    const [results] = await promisePool.execute(sql, [identifier, identifier]);
-    
+    const [results] = await promisePool.execute(sql, [identifiant, identifiant]);
+
     if (results.length === 0) {
       return res.status(401).json({ error: "Identifiant ou mot de passe incorrect" });
     }
 
     const user = results[0];
-    const match = await bcrypt.compare(password, user.mot_de_passe);
+
+    // ✅ 2. Compare password with bcrypt
+    const match = await bcrypt.compare(mot_de_passe, user.mot_de_passe);
     if (!match) {
       return res.status(401).json({ error: "Identifiant ou mot de passe incorrect" });
     }
 
+    // ✅ 3. Create JWT token
     const token = jwt.sign(
-      { id: user.id, username: user.username, email: user.email, role: user.role },
+      {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      },
       SECRET_KEY,
       { expiresIn: '2h' }
     );
 
-const [permRows] = await promisePool.execute(
-  `SELECT 
-       parnorm, parametre_ciment, parametre_clients, traitement_donnees, historique,
-       parametre_ciment_read, parametre_ciment_create, parametre_ciment_update, parametre_ciment_delete,
-       parametre_entreprise_read, parametre_entreprise_create, parametre_entreprise_update, parametre_entreprise_delete,
-       parnorm_read, parnorm_create, parnorm_update, parnorm_delete
-   FROM permissions
-   WHERE user_id = ?
-   LIMIT 1`,
-  [user.id]
-);
+    // ✅ 4. Retrieve user permissions
+    const [permRows] = await promisePool.execute(
+      `SELECT 
+         parnorm, parametre_ciment, parametre_clients, traitement_donnees, historique,
+         parametre_ciment_read, parametre_ciment_create, parametre_ciment_update, parametre_ciment_delete,
+         parametre_entreprise_read, parametre_entreprise_create, parametre_entreprise_update, parametre_entreprise_delete,
+         parnorm_read, parnorm_create, parnorm_update, parnorm_delete
+       FROM permissions
+       WHERE user_id = ?
+       LIMIT 1`,
+      [user.id]
+    );
 
+    const permissions = permRows[0] || {
+      parnorm: 0,
+      parametre_ciment: 0,
+      parametre_clients: 0,
+      traitement_donnees: 0,
+      historique: 0,
+      parametre_ciment_read: 0,
+      parametre_ciment_create: 0,
+      parametre_ciment_update: 0,
+      parametre_ciment_delete: 0,
+      parametre_entreprise_read: 0,
+      parametre_entreprise_create: 0,
+      parametre_entreprise_update: 0,
+      parametre_entreprise_delete: 0,
+      parnorm_read: 0,
+      parnorm_create: 0,
+      parnorm_update: 0,
+      parnorm_delete: 0
+    };
 
-
-const permissions = permRows[0] || {
-  parnorm: 0,
-  parametre_ciment: 0,
-  parametre_clients: 0,
-  traitement_donnees: 0,
-  historique: 0,
-  parametre_ciment_read: 0,
-  parametre_ciment_create: 0,
-  parametre_ciment_update: 0,
-  parametre_ciment_delete: 0,
-  parametre_entreprise_read: 0,
-  parametre_entreprise_create: 0,
-  parametre_entreprise_update: 0,
-  parametre_entreprise_delete: 0,
-  parnorm_read: 0,
-  parnorm_create: 0,
-  parnorm_update: 0,
-  parnorm_delete: 0
-};
-
-// return token + role + user + permissions
-res.json({
-  token,
-  role: user.role,
-  user: { id: user.id, username: user.username, email: user.email },
-  permissions
-});
+    // ✅ 5. Return token, role, user, and permissions
+    res.json({
+      message: "Connexion réussie",
+      token,
+      role: user.role,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      },
+      permissions
+    });
 
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ error: "Database error" });
+    res.status(500).json({ error: "Erreur serveur" });
   }
 });
+
 
 
 app.post("/api/client_types_ciment", (req, res) => {
@@ -2633,51 +2655,6 @@ app.delete("/api/types_ciment/:id", async (req, res) => {
   await promisePool.query("DELETE FROM types_ciment WHERE id = ?", [id]);
   res.json({ success: true });
 });
-
-
-
-// Add this route to your backend
-app.post('/api/generate-pdf', async (req, res) => {
-  try {
-    const { selectedClasses, reportData, options } = req.body;
-
-    // You'll need to install pdfkit or similar PDF library
-    const PDFDocument = require('pdfkit');
-    const doc = new PDFDocument();
-    
-    // Set response headers
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=rapport_conformite.pdf`);
-
-    // Pipe PDF to response
-    doc.pipe(res);
-
-    // Generate PDF content
-    selectedClasses.forEach((classe, index) => {
-      if (index > 0) {
-        doc.addPage();
-      }
-
-      // Add header
-      doc.fontSize(20).text('Rapport de Contrôle de Conformité', 50, 50);
-      doc.fontSize(12).text(`Classe: ${classe}`, 50, 80);
-      doc.fontSize(12).text(`Page ${index + 1} sur ${selectedClasses.length}`, 50, 95);
-
-      // Add your actual class data here
-      // Use reportData[classe] to access specific class information
-      
-      doc.moveDown(2);
-      doc.text(`Contenu pour la classe ${classe}...`, 50, 120);
-    });
-
-    doc.end();
-
-  } catch (error) {
-    console.error('PDF generation error:', error);
-    res.status(500).json({ error: 'Erreur lors de la génération du PDF' });
-  }
-});
-
 
 
 app.listen(PORT, () => {

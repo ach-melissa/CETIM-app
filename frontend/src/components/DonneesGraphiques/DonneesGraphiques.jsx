@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState, forwardRef, useImperativeHandle } 
 import PDFExportService from "../ControleConformite/PDFExportService";
 import "./DonneesGraphiques.css";
 import { useData } from "../../context/DataContext";
-import CentralExportService from "../../services/CentralExportService"; 
+
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
@@ -294,8 +294,7 @@ export default function DonneesGraphiques({
   produitInfo,
   produitDescription, 
   clients = [], 
-  produits = [] ,
-  phase,
+  produits = [] 
 }) {
   const { filteredTableData = [], filterPeriod = {} } = useData();
   const [chartType, setChartType] = useState("scatter");
@@ -494,91 +493,17 @@ const handleExportPDF = async () => {
       classes
     };
 
-    // ⭐ NOUVEAU: Demander à l'utilisateur avec message amélioré
-    const userChoice = window.confirm(
-      "📊 OPTIONS D'EXPORT - DONNÉES GRAPHIQUES\n\n" +
-      "Cliquez sur :\n" +
-      "• ✅ OK - Pour ajouter à l'export GLOBAL (toutes pages)\n" +
-      "• ❌ Annuler - Pour exporter INDIVIDUELLEMENT seulement\n\n" +
-      `📋 Statut actuel: ${CentralExportService.getStatusMessage()}`
-    );
-
-    if (userChoice) {
-      // Ajouter à l'export global
-      CentralExportService.addDonneesGraphiques(graphicalData, {
-        clientInfo: { 
-          nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client",
-          id: clientId
-        },
-        produitInfo: {
-          ...produitInfo,
-          famille: produitInfo?.famille?.nom || ""
-        },
-        periodStart: filterPeriod.start,
-        periodEnd: filterPeriod.end,
-        phase: phase || "situation_courante",
-        exportDate: new Date().toISOString(),
-        selectedParameter: selectedParameter,
-        selectedClass: selectedClass,
-        chartType: chartType,
-        parameterLabel: parameters.find(p => p.key === selectedParameter)?.label || selectedParameter,
-        totalSamples: filteredTableData.length
-      });
-      
-      // Message de confirmation amélioré
-      const status = CentralExportService.getExportStatus();
-      const statusDetails = Object.entries(status)
-        .map(([key, value]) => {
-          const pageName = key === 'echantillonsTable' ? 'Échantillons' :
-                         key === 'tableauConformite' ? 'Tableau Conformité' :
-                         key === 'controleDetail' ? 'Contrôle Détail' :
-                         key === 'donneesGraphiques' ? 'Données Graphiques' :
-                         key === 'donneesStatistiques' ? 'Données Statistiques' : key;
-          return `${value} ${pageName}`;
-        })
-        .join('\n');
-      
-      const paramLabel = parameters.find(p => p.key === selectedParameter)?.label || selectedParameter;
-      
-      alert(`✅ DONNÉES GRAPHIQUES AJOUTÉES À L'EXPORT GLOBAL !\n\n` +
-            `📈 Graphique: ${paramLabel}\n` +
-            `🎯 Classe: ${selectedClass || "Toutes"}\n\n` +
-            `📊 STATUT DES PAGES:\n${statusDetails}\n\n` +
-            `Utilisez le bouton "📤 Exporter Toutes les Pages" pour générer les PDFs complets.`);
-      
-      console.log("📤 Données graphiques ajoutées à l'export global:", {
-        client: clients.find(c => c.id == clientId)?.nom_raison_sociale,
-        produit: produitInfo?.nom,
-        parameter: paramLabel,
-        class: selectedClass,
-        chartType: chartType,
-        samples: filteredTableData.length
-      });
-
-    } else {
-      // ⭐ OPTION 2: Exporter seulement cette page
-      const pdfDoc = await PDFExportService.generateGraphicalReport(graphicalData);
-      
-      const paramName = parameters.find(p => p.key === selectedParameter)?.label || 'data';
-      const fileName = `graphique-${paramName.replace(/\s+/g, '-')}-${selectedClass || 'all'}-${new Date().toISOString().split('T')[0]}.pdf`;
-      pdfDoc.save(fileName);
-      
-      console.log("📄 PDF graphique individuel exporté:", fileName);
-      
-      alert(`✅ Graphique exporté individuellement!\n\nFichier: ${fileName}`);
-    }
-
+    // Generate PDF
+    const pdfDoc = await PDFExportService.generateGraphicalReport(graphicalData);
+    
+    // Save the PDF
+    const paramName = parameters.find(p => p.key === selectedParameter)?.label || 'data';
+    const fileName = `graphique-${paramName.replace(/\s+/g, '-')}-${selectedClass || 'all'}-${new Date().toISOString().split('T')[0]}.pdf`;
+    pdfDoc.save(fileName);
+    
   } catch (error) {
-    console.error('❌ Error generating PDF:', error);
-    
-    let errorMessage = "Erreur lors de la génération du PDF: " + error.message;
-    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-      errorMessage = "❌ Erreur de connexion. Vérifiez que le serveur est accessible.";
-    } else if (error.message.includes('html2canvas') || error.message.includes('chart')) {
-      errorMessage = "❌ Erreur lors de la capture du graphique. Vérifiez que le graphique est affiché.";
-    }
-    
-    alert(errorMessage);
+    console.error('Error generating PDF:', error);
+    alert('Erreur lors de la génération du PDF');
   }
 };
 
