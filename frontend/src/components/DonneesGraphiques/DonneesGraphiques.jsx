@@ -1,11 +1,8 @@
 // src/components/DonneesGraphiques/DonneesGraphiques.jsx
-import React, { useEffect, useMemo, useState, forwardRef, useImperativeHandle } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import PDFExportService from "../ControleConformite/PDFExportService";
 import "./DonneesGraphiques.css";
 import { useData } from "../../context/DataContext";
-
-import jsPDF from "jspdf";
-import "jspdf-autotable";
 
 import {
   ScatterChart,

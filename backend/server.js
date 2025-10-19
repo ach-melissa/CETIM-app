@@ -15,6 +15,7 @@ const multer = require('multer');
 const sharp = require('sharp'); 
 const path = require('path');
 const fs = require('fs');
+const storage = multer.memoryStorage();
 
 
 
@@ -30,7 +31,7 @@ app.use(express.json());
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 300 * 1024, // 👈 SEULEMENT 300KB max en entrée
+  fileSize: 10 * 1024 * 1024,// 👈 SEULEMENT 300KB max en entrée
   }
 });
 
@@ -64,6 +65,44 @@ promisePool.getConnection()
  
 // --- API pour les paramètres de norme --- //
 
+
+// ✅ Route pour enregistrer un PDF dans la base de données
+app.post("/api/save-pdf", upload.single("pdf"), async (req, res) => {
+  console.log("📩 Champs reçus:", req.body);
+  console.log(
+    "📎 Fichier reçu:",
+    req.file ? `${req.file.originalname} (${req.file.size} bytes)` : "❌ Aucun fichier reçu"
+  );
+
+  const { client_typecement_id, pdf_type, start_date, end_date } = req.body;
+  const pdfBuffer = req.file?.buffer;
+
+  if (!pdfBuffer) {
+    console.error("❌ Aucun fichier PDF reçu !");
+    return res.status(400).json({ error: "Aucun fichier PDF reçu." });
+  }
+
+  try {
+    const [result] = await promisePool.query(
+      `INSERT INTO pdf_exports (client_typecement_id, pdf_type, pdf_blob, start_date, end_date)
+       VALUES (?, ?, ?, ?, ?)`,
+      [client_typecement_id, pdf_type, pdfBuffer, start_date || null, end_date || null]
+    );
+
+    console.log("✅ Insertion réussie, ID:", result.insertId);
+    res.json({
+      success: true,
+      message: "✅ PDF enregistré avec succès !",
+      id: result.insertId,
+    });
+  } catch (error) {
+    console.error("❌ Erreur SQL complète:", error.sqlMessage || error.message);
+    console.error("🧠 SQL complet:", error.sql);
+    res.status(500).json({
+      error: "Erreur SQL: " + (error.sqlMessage || error.message),
+    });
+  }
+});
 
 
 
@@ -1111,27 +1150,29 @@ app.post("/api/clients", async (req, res) => {
 
 // Add new cement type
 app.post("/api/types_ciment", (req, res) => {
-  const { code, description } = req.body;
+  const { famille_id, code, description } = req.body;
 
-  if (!code || !description) {
-    return res.status(400).json({ message: "Code et description sont requis" });
+  if (!famille_id || !code || !description) {
+    return res.status(400).json({ message: "famille_id, code et description sont requis" });
   }
 
-  const sql = "INSERT INTO types_ciment (code, description) VALUES (?, ?)";
-  db.query(sql, [code, description], (err, result) => {
+  const sql = "INSERT INTO types_ciment (famille_id, code, description) VALUES (?, ?, ?)";
+  db.query(sql, [famille_id, code, description], (err, result) => {
     if (err) {
       console.error("❌ Erreur insertion type ciment:", err);
       return res.status(500).json({ message: "Erreur serveur" });
     }
 
-    res.json({ 
-      id: result.insertId, 
-      code, 
+    res.json({
+      id: result.insertId,
+      famille_id,
+      code,
       description,
-      message: "✅ Type de ciment ajouté avec succès" 
+      message: "✅ Type de ciment ajouté avec succès",
     });
   });
 });
+
 
 // Delete cement type
 app.delete("/api/types_ciment/:id", (req, res) => {
