@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import ClassSelector from './ClassSelector'; 
-import PDFExportService from './WordExportService';
+import WordExportService from "../ControleConformite/WordExportService";
 import './ControleConformite.css';
 import { useData } from "../../context/DataContext";
 
@@ -612,7 +612,10 @@ const ControleConformite = ({
   };
 
 
-const handleExportSelectedPDF = async () => {
+// Dans votre composant ControleConformite.jsx
+
+// Ajoutez cette fonction pour l'export Word
+const handleExportSelectedWord = async () => {
   if (selectedClasses.length === 0) {
     alert("Veuillez sélectionner au moins une classe à exporter.");
     return;
@@ -621,73 +624,92 @@ const handleExportSelectedPDF = async () => {
   try {
     setLoading(true);
     
-// In your handleExportSelectedPDF function, update the getClassData function:
-const getClassData = (classe) => {
-  const { classCompliance, statisticalCompliance } = calculateClassData(classe);
-  const { mesureParamsWithData, attributParamsWithData } = getParametersWithData(classe, classCompliance);
-  const conformityResult = calculateClassConformity(classCompliance, statisticalCompliance, conditionsStatistiques, classe);
-  
-  return {
-    classe,
-    classCompliance,
-    statisticalCompliance,
-    mesureParamsWithData,
-    attributParamsWithData,
-    conformityResult,
-    conditionsStatistiques,
-    hasDataForParameter,
-    allParameters,
-    deviationOnlyParams,
-    coverageRequirements, // ✅ ADD THIS
-    conformiteData,       // ✅ ADD THIS
-    dataToUse             // ✅ ADD THIS
-  };
-};
+    // Function to get class data
+    const getClassData = (classe) => {
+      const { classCompliance, statisticalCompliance } = calculateClassData(classe);
+      const { mesureParamsWithData, attributParamsWithData } = getParametersWithData(classe, classCompliance);
+      const conformityResult = calculateClassConformity(classCompliance, statisticalCompliance, conditionsStatistiques, classe);
+      
+      return {
+        classe,
+        classCompliance,
+        statisticalCompliance,
+        mesureParamsWithData,
+        attributParamsWithData,
+        conformityResult,
+        conditionsStatistiques,
+        hasDataForParameter,
+        allParameters,
+        deviationOnlyParams,
+        coverageRequirements,
+        conformiteData,
+        dataToUse
+      };
+    };
 
-// And update the helpers to include generateGeneralConclusion:
-const helpers = {
-  getDeviationParameters,
-  checkEquationSatisfaction, 
-  generateGeneralConclusion // ✅ ADD THIS
-};
+    // ✅ CORRECTION: Définir les helpers explicitement
+    const helpers = {
+      getDeviationParameters,
+      checkEquationSatisfaction, 
+      generateGeneralConclusion,
+      getLimitsByClass, // ✅ Ajoutez cette fonction si elle est utilisée
+      calculateStats, // ✅ Ajoutez si nécessaire
+      evaluateLimits, // ✅ Ajoutez si nécessaire
+      checkStatisticalCompliance // ✅ Ajoutez si nécessaire
+    };
 
-// And update the options to include phase and showAjout:
-const doc = await PDFExportService.generateClassReport(
-  selectedClasses,
-  getClassData,
-  helpers,
-  {
-    clientInfo: {
-      nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Non spécifié"
-    },
-    produitInfo: {
-      nom: produitInfo?.nom || "Non spécifié",
-      description: produitInfo?.description || "",
-      famille: finalFamilleName
-    },
-    period: {
-      start: filterPeriod.start,
-      end: filterPeriod.end
-    },
-    showAjout, // ✅ ADD THIS
-    ajoutDescription: getAjoutDescription(produitInfo?.type_ajout, ajoutsData), // ✅ ADD THIS
-    phase // ✅ ADD THIS
-  }
-);
+    // Options
+    const options = {
+      clientInfo: {
+        nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Non spécifié"
+      },
+      produitInfo: {
+        nom: produitInfo?.nom || "Non spécifié",
+        description: produitInfo?.description || "",
+        famille: finalFamilleName
+      },
+      period: {
+        start: filterPeriod.start,
+        end: filterPeriod.end
+      },
+      showAjout,
+      ajoutDescription: getAjoutDescription(produitInfo?.type_ajout, ajoutsData),
+      phase,
+      coverageRequirements
+    };
 
-    // ✅ STEP 4: Save the PDF
-    doc.save(`rapport_conformite_${new Date().toISOString().split('T')[0]}.pdf`);
+    console.log("🔄 Début de l'export Word...");
+    console.log("📋 Classes sélectionnées:", selectedClasses);
+    console.log("📊 Options:", options);
+    console.log("🔧 Helpers disponibles:", Object.keys(helpers));
+
+    // Generate Word document
+    const doc = await WordExportService.generateClassReport(
+      selectedClasses,
+      getClassData,
+      helpers, // ✅ Maintenant 'helpers' est défini
+      options
+    );
+
+    // Export to Word
+    const fileName = `rapport_conformite_${selectedClasses.join('_')}_${new Date().toISOString().split('T')[0]}.docx`;
+    console.log("💾 Export du fichier:", fileName);
     
-    alert(`PDF exporté avec succès pour ${selectedClasses.length} classe(s)!`);
+    await WordExportService.exportToWord(doc, fileName);
+    
+    console.log("✅ Export Word terminé avec succès!");
+    alert(`Document Word exporté avec succès pour ${selectedClasses.length} classe(s)!`);
     setShowClassSelector(false);
     
   } catch (error) {
-    console.error('Erreur lors de l\'export PDF:', error);
-    alert('Erreur lors de l\'export PDF: ' + error.message);
+    console.error('❌ Erreur lors de l\'export Word:', error);
+    alert('Erreur lors de l\'export Word: ' + error.message);
   } finally {
     setLoading(false);
   }
 };
+
+
 
 
 // Fonction pour sauvegarder la phase
@@ -2756,66 +2778,63 @@ Object.keys(statisticalCompliance).forEach(key => {
   return (
     <div className="cement-report-container">
 
-            {/* ✅ ADD CLASS SELECTOR MODAL */}
-      {showClassSelector && (
-        <div className="modal-overlay">
-          <div className="modal-content large-modal">
-            <div className="modal-header">
-              <h3>Sélection des Classes à Exporter</h3>
-              <button onClick={() => setShowClassSelector(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <ClassSelector 
-                classes={classes}
-                onSelectionChange={handleClassSelectionChange}
-              />
-            </div>
-            <div className="modal-footer">
-              <button onClick={() => setShowClassSelector(false)}>Annuler</button>
-              <button 
-                onClick={handleExportSelectedPDF}
-                disabled={selectedClasses.length === 0}
-                className="primary-btn"
-              >
-                Exporter {selectedClasses.length} Classe(s) en PDF
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+{/* ✅ ADD CLASS SELECTOR MODAL */}
+{showClassSelector && (
+  <div className="modal-overlay">
+    <div className="modal-content large-modal">
+      <div className="modal-header">
+        <h3>Sélection des Classes à Exporter</h3>
+        <button onClick={() => setShowClassSelector(false)}>×</button>
+      </div>
+      <div className="modal-body">
+        <ClassSelector 
+          classes={classes}
+          onSelectionChange={handleClassSelectionChange}
+        />
+      </div>
+      <div className="modal-footer">
+        <button onClick={() => setShowClassSelector(false)}>Annuler</button>
+        <button 
+          onClick={handleExportSelectedWord}  
+          disabled={selectedClasses.length === 0}
+          className="primary-btn"
+          style={{backgroundColor: '#2B579A'}}  
+        >
+          📝 Exporter {selectedClasses.length} Classe(s) en Word  
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
 
       {classes.map(classe => renderClassSection(classe))}
       
-      {/* ✅ UPDATE YOUR ACTIONS BAR */}
-      <div className="actions-bar">
-        <div className="file-actions">
-          {/* Replace your existing export button with this */}
-          <button 
-            className="action-btn export-btn" 
-            onClick={() => setShowClassSelector(true)}
-            disabled={!dataToUse.length}
-          >
-            📄 Exporter PDF Sélectif
-          </button>
-          <button className="action-btn print-btn" onClick={handlePrint} disabled={!dataToUse.length}>
-            Imprimer
-          </button>
-        </div>
-        
-        {/* Show selection info when classes are selected */}
-        {selectedClasses.length > 0 && (
-          <div className="selection-info">
-            {selectedClasses.length} classe(s) sélectionnée(s) pour l'export
-          </div>
-        )}
-        
-        <div className="data-actions">
-          <button className="action-btn save-btn" onClick={handleSave} disabled={!dataToUse.length}>
-            Sauvegarder
-          </button>
-        </div>
-      </div>
+<div className="actions-bar">
+  <div className="file-actions">
+    {/* Bouton principal pour ouvrir le sélecteur */}
+    <button 
+      className="action-btn export-btn" 
+      onClick={() => setShowClassSelector(true)}
+      disabled={!dataToUse.length}
+      style={{backgroundColor: '#2B579A'}}
+    >
+      📝 Exporter Rapport Word  {/* ✅ CHANGÉ ICI */}
+    </button>
+    
+    <button className="action-btn print-btn" onClick={handlePrint} disabled={!dataToUse.length}>
+      🖨️ Imprimer
+    </button>
+  </div>
+  
+  {/* Info de sélection */}
+  {selectedClasses.length > 0 && (
+    <div className="selection-info">
+      {selectedClasses.length} classe(s) sélectionnée(s) pour l'export Word  {/* ✅ CHANGÉ ICI */}
+    </div>
+  )}
+</div>
+
     </div>
   );
 };

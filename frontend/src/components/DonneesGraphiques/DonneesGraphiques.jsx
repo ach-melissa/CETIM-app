@@ -1,6 +1,6 @@
 // src/components/DonneesGraphiques/DonneesGraphiques.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import PDFExportService from "../ControleConformite/WordExportService";
+import WordExportService from "../ControleConformite/WordExportService";
 import "./DonneesGraphiques.css";
 import { useData } from "../../context/DataContext";
 
@@ -87,6 +87,8 @@ const calculateStats = (data, key) => {
   };
 };
 
+
+// Make sure evaluateLimits is available (it's already defined above, but ensure it's in scope)
 const evaluateLimits = (data, key, li, ls, lg) => {
   const safeParse = (val) => {
     if (val === null || val === undefined || val === "" || val === "-") return NaN;
@@ -342,6 +344,16 @@ export default function DonneesGraphiques({
     fetchLimits();
   }, []);
 
+
+useEffect(() => {
+  if (selectedParameter && selectedClass) {
+    handleExportWord(); // automatically capture new chart and generate Word
+  }
+}, [selectedParameter, selectedClass]);
+
+
+
+
   // Map parameter keys to match your JSON structure - SAME AS DonneesStatistiques
   const keyMapping = {
     rc2j: "resistance_2j",
@@ -473,9 +485,56 @@ export default function DonneesGraphiques({
   ];
 
 
-const handleExportPDF = async () => {
+// ✅ Function to export the Word report
+const handleExportWord = async () => {
   try {
-    // Prepare data for PDF export
+    console.log("Starting Word export process...");
+
+    // --- Capture the chart as an image ---
+    let chartImageData = null;
+    try {
+      const html2canvas = await import("html2canvas");
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      const chartContainer = document.querySelector(".recharts-wrapper");
+      if (chartContainer) {
+        const canvas = await html2canvas.default(chartContainer, {
+          scale: 3,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+        });
+        chartImageData = canvas.toDataURL("image/png", 1.0);
+        console.log("✅ Chart captured successfully.");
+      } else {
+        console.warn("⚠️ Chart container not found.");
+      }
+    } catch (err) {
+      console.error("Error capturing chart image:", err);
+    }
+
+    // --- Extract correct stats from derivedStats (browser computation) ---
+    const limInf = derivedStats?.limiteInferieure ?? currentLimits?.limite_inferieure ?? 0;
+    const limSup = derivedStats?.limiteSuperieure ?? currentLimits?.limite_superieure ?? 0;
+    const limGar = derivedStats?.limiteGarantie ?? currentLimits?.limite_garantie ?? 0;
+    const moyenne = derivedStats?.moyenne ?? 0;
+
+    const belowInf = derivedStats?.countBelowInf ?? 0;
+    const aboveSup = derivedStats?.countAboveSup ?? 0;
+    const belowGar = derivedStats?.countBelowGar ?? 0;
+
+    const pctInf = derivedStats?.pctBelowInf ?? "0.0";
+    const pctSup = derivedStats?.pctAboveSup ?? "0.0";
+    const pctGar = derivedStats?.pctBelowGar ?? "0.0";
+
+    // --- Build the formatted text exactly like browser ---
+    const formattedLimits = {
+      inf: `N ≤ ${limInf} : ${belowInf} (${pctInf}%)`,
+      sup: `N ≥ ${limSup} : ${aboveSup} (${pctSup}%)`,
+      gar: `N ≤ ${limGar} : ${belowGar} (${pctGar}%)`,
+      moy: `Moyenne : ${moyenne.toFixed(2)}`,
+    };
+
+    // --- Prepare data for export ---
     const graphicalData = {
       clientInfo: clients.find(c => c.id == clientId),
       produitInfo,
@@ -487,22 +546,26 @@ const handleExportPDF = async () => {
       parameters,
       currentLimits,
       derivedStats,
-      classes
+      formattedLimits, // ✅ include all formatted stats
+      chartImage: chartImageData,
     };
 
-    // Generate PDF
-    const pdfDoc = await PDFExportService.generateGraphicalReport(graphicalData);
-    
-    // Save the PDF
-    const paramName = parameters.find(p => p.key === selectedParameter)?.label || 'data';
-    const fileName = `graphique-${paramName.replace(/\s+/g, '-')}-${selectedClass || 'all'}-${new Date().toISOString().split('T')[0]}.pdf`;
-    pdfDoc.save(fileName);
-    
+    // --- Generate the Word document ---
+    const wordDoc = await WordExportService.generateGraphicalReport(graphicalData);
+
+    const paramName = parameters.find(p => p.key === selectedParameter)?.label || "data";
+    const fileName = `donnees-graphiques-${paramName.replace(/\s+/g, "-")}-${selectedClass || "all"}-${new Date().toISOString().split("T")[0]}.docx`;
+
+    await WordExportService.exportToWord(wordDoc, fileName);
+    console.log("✅ Word export completed successfully!");
   } catch (error) {
-    console.error('Error generating PDF:', error);
-    alert('Erreur lors de la génération du PDF');
+    console.error("❌ Error generating Word document:", error);
+    alert("Erreur lors de la génération du document Word: " + error.message);
   }
 };
+
+
+
 
 
   const currentLimits = useMemo(() => {
@@ -734,29 +797,16 @@ const handleExportPDF = async () => {
           </select>
         </div>
       </div>
-        <button 
-  onClick={handleExportPDF}
-  className="export-pdf-button"
-  style={{
-    padding: '8px 16px',
-    backgroundColor: '#20313fff',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    marginLeft: '10px'
-  }}
->
-  📊 Exporter PDF
+<button className="export-word-btn" onClick={handleExportWord}>
+  Exporter en Word
 </button>
-      <div className="dg-main-container">
-        <div className="dg-main">
-          <div className="dg-chart-card">
-            <h3>
-              {selectedParameter && selectedClass
-                ? `${parameters.find((p) => p.key === selectedParameter)?.label} | Classe ${selectedClass}`
-                : "Sélectionnez paramètre & classe"}
-            </h3>
+
+<div className="dg-chart-card" id="chart-container">
+  <h3>
+    {selectedParameter && selectedClass
+      ? `${parameters.find((p) => p.key === selectedParameter)?.label} | Classe ${selectedClass}`
+      : "Sélectionnez paramètre & classe"}
+  </h3>
             
             <ResponsiveContainer width="100%" height={500}>
               {chartType === "scatter" ? (
@@ -853,7 +903,6 @@ const handleExportPDF = async () => {
                 </LineChart>
               )}
             </ResponsiveContainer>
-          </div>
         </div>
 
         <aside className="dg-side-panel">
@@ -944,6 +993,5 @@ const handleExportPDF = async () => {
 
 
       </div>
-    </div>
   );
 }
