@@ -1,6 +1,6 @@
 // src/components/DonneesGraphiques/DonneesGraphiques.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import PDFExportService from "../ControleConformite/PDFExportService";
+import PDFExportService from "../ControleConformite/WordExportService";
 import "./DonneesGraphiques.css";
 import { useData } from "../../context/DataContext";
 

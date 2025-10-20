@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo,forwardRef, useImperativeHandle } from "react";
-import PDFExportService from "../ControleConformite/PDFExportService";
+import WordExportService from "../ControleConformite/WordExportService";
 import "./TableConformite.css";
 import { useData } from "../../context/DataContext";
-
-import jsPDF from "jspdf";
-import "jspdf-autotable";
-import uploadPDF from "../../services/uploadPDF";
+import { Packer } from "docx";
 
 const calculateStats = (data, key) => {
   const missingValues = [];
@@ -692,19 +689,12 @@ if (showTauxAjout) {
 
 const handleExport = async () => { 
   try {
-    // Prepare complete table data for PDF export
-const tableData = {
-  headers: ["Classe", ...parameters.map(param => {
-    // For Ajt, keep the full name with parentheses, shorten others
-    if (param.key === "ajt") {
-      return param.label; // Keep "Ajt(calcaire)" as is
-    }
-    // Shorten long parameter names for other parameters
-    const shortName = param.label.length > 20 ? param.label.substring(0, 17) + '...' : param.label;
-    return shortName;
-  })],
-  rows: []
-};
+    // Prepare complete table data for Word export
+    const tableData = {
+      headers: ["Classe", ...parameters.map(param => param.label)],
+      rows: []
+    };
+
     // Build rows for each class
     classes.forEach((classe) => {
       const classCompliance = {};
@@ -766,8 +756,8 @@ const tableData = {
       });
     });
 
-    // PDF options
-    const pdfOptions = {
+    // Word export options
+    const wordOptions = {
       clientInfo: { nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client" },
       produitInfo: {
         ...produitInfo,
@@ -777,17 +767,33 @@ const tableData = {
       periodEnd: filterPeriod.end
     };
 
-    // Generate TABLE PDF
-    const doc = await PDFExportService.generateTableReport(tableData, pdfOptions);
+    // Generate Word document
+    const doc = await WordExportService.generateTableReport(tableData, wordOptions);
 
-    // Save the PDF
+    // Convert to blob
+    const blob = await Packer.toBlob(doc);
+    
+    // Create file name
     const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
-    const fileName = `tableau_conformite_${clientName}_${filterPeriod.start}_${filterPeriod.end}.pdf`.replace(/\s+/g, '_');
-    doc.save(fileName);
+    const fileName = `tableau_conformite_${clientName}_${filterPeriod.start}_${filterPeriod.end}.docx`.replace(/\s+/g, '_');
+
+    // Create download link - this triggers the browser's save dialog
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    
+    // This will open the system's "Save As" dialog
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Clean up
+    setTimeout(() => URL.revokeObjectURL(url), 100);
 
   } catch (error) {
-    console.error("Error generating PDF:", error);
-    alert("Erreur lors de l'export PDF: " + error.message);
+    console.error("Error generating Word document:", error);
+    alert("Erreur lors de l'export Word: " + error.message);
   }
 };
 
@@ -957,8 +963,8 @@ const tableData = {
       <div className="actions-bar">
         <div className="file-actions">
 <button className="action-btn export-btn" onClick={handleExport} disabled={dataToUse.length === 0}>
-            <i className="fas fa-file-export"></i> Exporter PDF
-          </button>
+  <i className="fas fa-file-export"></i> Exporter Word
+</button>
           <button className="action-btn print-btn" onClick={handlePrint} disabled={dataToUse.length === 0}>
             <i className="fas fa-print"></i> Imprimer
           </button>

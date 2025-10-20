@@ -1,8 +1,9 @@
 // src/components/DonneesStatistiques/DonneesStatistiques.jsx
 import React, { useState, useEffect, useRef } from "react";
-import PDFExportService from "../ControleConformite/PDFExportService";
+import WordExportService from "../ControleConformite/WordExportService";
 import "./DonneesStatistiques.css";
 import { useData } from "../../context/DataContext";
+import { Packer } from "docx";
 
 // ============================================================
 // Utility functions
@@ -384,37 +385,48 @@ const DonneesStatistiques = ({
     { key: "std", label: "Écart type" },
   ];
 
-  const handleExportPDF = async () => {
-    try {
-      // Prepare data for PDF export
-      const pdfData = {
-        clientInfo: { nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client" },
-        produitInfo: {
-          ...produitInfo,
-          famille: finalFamilleName
-        },
-        period: filterPeriod,
-        globalStats: allStats,
-        parameters: parameters,
-        classes: classes,
-        dataToUse: dataToUse,
-        getLimitsByClass: getLimitsByClass, // Pass the function
-        evaluateLimits: evaluateLimits // Pass the function
-      };
+const handleExportWord = async () => {
+  try {
+    console.log("🔄 Starting Word export process...");
+    
+    // Prepare data for Word export
+    const exportData = {
+      clientInfo: { nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client" },
+      produitInfo: {
+        ...produitInfo,
+        famille: finalFamilleName
+      },
+      period: filterPeriod,
+      globalStats: allStats,
+      parameters: parameters,
+      classes: classes,
+      dataToUse: dataToUse,
+      getLimitsByClass: getLimitsByClass,
+      evaluateLimits: evaluateLimits
+    };
 
-      // Generate PDF
-      const doc = await PDFExportService.generateStatsReport(pdfData);
+    console.log("📊 Export data prepared:", exportData);
 
-      // Save the PDF
-      const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
-      const fileName = `donnees_statistiques_${clientName}_${filterPeriod.start}_${filterPeriod.end}.pdf`.replace(/\s+/g, '_');
-      doc.save(fileName);
+    // Generate Word document
+    console.log("📝 Generating Word document...");
+    const doc = await WordExportService.generateStatsReport(exportData);
+    console.log("✅ Word document generated");
 
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      alert("Erreur lors de l'export PDF: " + error.message);
-    }
-  };
+    // Export to Word using the service method
+    console.log("💾 Starting export to Word...");
+    const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
+    const fileName = `donnees_statistiques_${clientName}_${filterPeriod.start}_${filterPeriod.end}.docx`.replace(/\s+/g, '_');
+    
+    await WordExportService.exportToWord(doc, fileName);
+    
+    console.log("🎉 Word export completed successfully");
+
+  } catch (error) {
+    console.error("❌ Error generating Word document:", error);
+    console.error("Error details:", error.message, error.stack);
+    alert("Erreur lors de l'export Word: " + error.message);
+  }
+};
 
   const classes = ["32.5 L", "32.5 N", "32.5 R", "42.5 L", "42.5 N", "42.5 R", "52.5 L", "52.5 N", "52.5 R"];
 
@@ -512,22 +524,22 @@ const DonneesStatistiques = ({
           )}
           <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
         </div>
-        <button 
-          className="export-btn" 
-          onClick={handleExportPDF} 
-          disabled={dataToUse.length === 0}
-          style={{
-            padding: "10px 20px",
-            backgroundColor: "#007bff",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: dataToUse.length === 0 ? "not-allowed" : "pointer",
-            opacity: dataToUse.length === 0 ? 0.6 : 1
-          }}
-        >
-          📊 Exporter PDF
-        </button>
+<button 
+  className="export-btn" 
+  onClick={handleExportWord} 
+  disabled={dataToUse.length === 0}
+  style={{
+    padding: "10px 20px",
+    backgroundColor: "#007bff",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    cursor: dataToUse.length === 0 ? "not-allowed" : "pointer",
+    opacity: dataToUse.length === 0 ? 0.6 : 1
+  }}
+>
+  Exporter Word
+</button>
       </div>
 
       {/* Global stats */}

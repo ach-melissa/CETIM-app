@@ -5,7 +5,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { useData } from "../../context/DataContext";
-import PDFExportService from "../ControleConformite/PDFExportService";
+import PDFExportService from "../ControleConformite/WordExportService";
 
 const formatExcelDate = (excelDate) => {
   if (!excelDate || isNaN(excelDate)) return "";

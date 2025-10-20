@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import ClassSelector from './ClassSelector'; 
-import PDFExportService from './PDFExportService';
+import PDFExportService from './WordExportService';
 import './ControleConformite.css';
 import { useData } from "../../context/DataContext";
 
