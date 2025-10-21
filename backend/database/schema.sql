@@ -228,8 +228,19 @@ CREATE TABLE permissions (
  UNIQUE KEY uq_permissions_user (`user_id`), 
  CONSTRAINT permissions_ibfk_1 FOREIGN KEY (`user_id`) REFERENCES utilisateurs (`id`) ON DELETE CASCADE);
  
--------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+ CREATE TABLE pdf_exports (
+  id int(11) NOT NULL AUTO_INCREMENT,
+  client_types_ciment_id int(11) NOT NULL,
+  phase enum('situation_courante','nouveau_type_produit') NOT NULL,
+  folder_path varchar(255) NOT NULL,
+  description varchar(255) DEFAULT NULL,
+  start_date date DEFAULT NULL,
+  end_date date DEFAULT NULL,
+  export_date datetime DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY fk_client_types_ciment (`client_types_ciment_id`),
+  CONSTRAINT fk_client_types_ciment FOREIGN KEY (`client_types_ciment_id`) REFERENCES client_types_ciment (`id`) ON DELETE CASCADE
+) ;
 
 
 --
