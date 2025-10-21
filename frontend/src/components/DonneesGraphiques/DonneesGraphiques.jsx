@@ -512,32 +512,70 @@ const handleExportWord = async () => {
       console.error("Error capturing chart image:", err);
     }
 
-    // --- Extract correct stats from derivedStats (browser computation) ---
-    const limInf = derivedStats?.limiteInferieure ?? currentLimits?.limite_inferieure ?? 0;
-    const limSup = derivedStats?.limiteSuperieure ?? currentLimits?.limite_superieure ?? 0;
-    const limGar = derivedStats?.limiteGarantie ?? currentLimits?.limite_garantie ?? 0;
-    const moyenne = derivedStats?.moyenne ?? 0;
+    // ✅ CORRECTION: Utiliser les mêmes calculs que dans l'affichage du navigateur
+    // Extraire les valeurs EXACTEMENT comme dans le composant
+    const limInf = currentLimits?.li ?? null;
+    const limSup = currentLimits?.ls ?? null;
+    const limGar = currentLimits?.lg ?? null;
+    
+    // Utiliser les valeurs déjà calculées dans derivedStats qui sont affichées à l'écran
+    const belowInf = derivedStats?.belowLI !== "-" ? derivedStats.belowLI : 0;
+    const aboveSup = derivedStats?.aboveLS !== "-" ? derivedStats.aboveLS : 0;
+    const belowGar = derivedStats?.belowLG !== "-" ? derivedStats.belowLG : 0;
+    
+    const pctInf = derivedStats?.percentLI !== "-" ? derivedStats.percentLI : "0.0";
+    const pctSup = derivedStats?.percentLS !== "-" ? derivedStats.percentLS : "0.0";
+    const pctGar = derivedStats?.percentLG !== "-" ? derivedStats.percentLG : "0.0";
+    
+    const moyenne = derivedStats?.mean !== "-" ? derivedStats.mean : "0.00";
 
-    const belowInf = derivedStats?.countBelowInf ?? 0;
-    const aboveSup = derivedStats?.countAboveSup ?? 0;
-    const belowGar = derivedStats?.countBelowGar ?? 0;
-
-    const pctInf = derivedStats?.pctBelowInf ?? "0.0";
-    const pctSup = derivedStats?.pctAboveSup ?? "0.0";
-    const pctGar = derivedStats?.pctBelowGar ?? "0.0";
+    console.log("🔍 DEBUG - Valeurs pour l'export:");
+    console.log("LimInf:", limInf, "BelowInf:", belowInf, "PctInf:", pctInf);
+    console.log("LimSup:", limSup, "AboveSup:", aboveSup, "PctSup:", pctSup);
+    console.log("LimGar:", limGar, "BelowGar:", belowGar, "PctGar:", pctGar);
+    console.log("Moyenne:", moyenne);
 
     // --- Build the formatted text exactly like browser ---
     const formattedLimits = {
-      inf: `N ≤ ${limInf} : ${belowInf} (${pctInf}%)`,
-      sup: `N ≥ ${limSup} : ${aboveSup} (${pctSup}%)`,
-      gar: `N ≤ ${limGar} : ${belowGar} (${pctGar}%)`,
-      moy: `Moyenne : ${moyenne.toFixed(2)}`,
+      inf: limInf !== null ? `N ≤ ${limInf} : ${belowInf} (${pctInf}%)` : "Limite inférieure non définie",
+      sup: limSup !== null ? `N ≥ ${limSup} : ${aboveSup} (${pctSup}%)` : "Limite supérieure non définie",
+      gar: limGar !== null ? `N ≤ ${limGar} : ${belowGar} (${pctGar}%)` : "Limite garantie non définie",
+      moy: `Moyenne : ${moyenne}`,
     };
 
+    // ✅ AJOUTEZ LE PARAMETER MAPPING ICI
+    const parameterMapping = {
+      "rc2j": "Résistance courante 2 jrs",
+      "rc7j": "Résistance courante 7 jrs", 
+      "rc28j": "Résistance courante 28 jrs",
+      "prise": "Temp debut de prise",
+      "stabilite": "Stabilité",
+      "so3": "Teneur en sulfate",
+      "chlorure": "Chlorure",
+      "hydratation": "Chaleur d'Hydratation",
+      "pfeu": "Perte au Feu",
+      "r_insoluble": "Résidu Insoluble",
+      "c3a": "C3A",
+      "pouzzolanicite": "Pouzzolanicité",
+      "ajt": "Ajout"
+    };
+
+    // ✅ CORRECTION: Récupérer correctement les informations du client
+    const selectedClient = clients.find(c => c.id == clientId);
+    
     // --- Prepare data for export ---
     const graphicalData = {
-      clientInfo: clients.find(c => c.id == clientId),
-      produitInfo,
+      // ✅ CORRECTION: Passer les informations client correctement
+      clientInfo: {
+        nom: selectedClient?.nom_raison_sociale || "Client non spécifié",
+        id: selectedClient?.id
+      },
+      // ✅ CORRECTION: Passer les informations produit correctement
+      produitInfo: {
+        nom: produitInfo?.nom || "Produit non spécifié",
+        description: produitInfo?.description || "",
+        famille: produitInfo?.famille?.nom || ""
+      },
       period: filterPeriod,
       dataToUse: filteredTableData,
       selectedParameter,
@@ -548,7 +586,17 @@ const handleExportWord = async () => {
       derivedStats,
       formattedLimits, // ✅ include all formatted stats
       chartImage: chartImageData,
+      parameterMapping, // ✅ AJOUT IMPORTANT ICI
+      // ✅ AJOUT: Classes disponibles
+      classes: classes
     };
+
+    console.log("📋 Données préparées pour l'export:", {
+      client: graphicalData.clientInfo.nom,
+      produit: graphicalData.produitInfo.nom,
+      paramètre: selectedParameter,
+      classe: selectedClass
+    });
 
     // --- Generate the Word document ---
     const wordDoc = await WordExportService.generateGraphicalReport(graphicalData);
