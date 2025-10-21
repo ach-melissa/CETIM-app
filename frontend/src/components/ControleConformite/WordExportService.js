@@ -1,5 +1,5 @@
 // frontend/src/components/ControleConformite/WordExportService.js
-import { Document, Packer, Paragraph, Table, TableCell, TableRow, WidthType, HeadingLevel, TextRun, AlignmentType, PageBreak, ImageRun } from 'docx';
+import { Document, Packer, BorderStyle  , Paragraph, Table, TableCell, TableRow, WidthType, HeadingLevel, TextRun, AlignmentType, PageBreak, ImageRun , TabStopType } from 'docx';
 
 class WordExportService {
 
@@ -1069,7 +1069,11 @@ static addTableLegend() {
   }
   
 // ============================================================
-// DONNEES GRAPHIQUES EXPORT - VERSION FINALE AVEC IMAGE + STATS
+// DONNEES GRAPHIQUES EXPORT - VERSION CORRIGÉE
+// ============================================================
+
+// ============================================================
+// DONNEES GRAPHIQUES EXPORT - VERSION COMPLÈTE CORRIGÉE
 // ============================================================
 
 static async generateGraphicalReport(graphicalData = {}) {
@@ -1078,45 +1082,173 @@ static async generateGraphicalReport(graphicalData = {}) {
     selectedClass = "42.5 N",
     classes = ["32.5 L", "32.5 N", "32.5 R", "42.5 L", "42.5 N", "42.5 R", "52.5 L", "52.5 N", "52.5 R"],
     derivedStats = {},
-    chartType = "scatter", // "scatter" or "gausse"
-    selectedParameter = "Résistance courante à 28 jours", // ✅ now dynamic
+    chartType = "scatter",
+    selectedParameter = "rc28j",
+    parameterMapping = {},
+    formattedLimits = {},
+    clientInfo = {},
+    produitInfo = {},
+    period = {}
   } = graphicalData;
 
-  // --- Header ---
-// --- Dynamic Header ---
-const header = new Paragraph({
-  children: [
-    new TextRun({
-      text: `${selectedParameter} / ${selectedClass}`, // ✅ combine both dynamically
-      bold: true,
-      size: 32,
-    }),
-  ],
-  spacing: { after: 400 },
-  alignment: AlignmentType.CENTER,
-});
+  // ✅ CORRECTION: Déplacer la fonction getClientName AVANT son utilisation
+  const getClientName = () => {
+    // Si clientInfo est un string
+    if (typeof clientInfo === 'string') {
+      return clientInfo;
+    }
+    // Si clientInfo est un objet avec propriété 'nom'
+    if (clientInfo && typeof clientInfo === 'object' && clientInfo.nom) {
+      return clientInfo.nom;
+    }
+    // Si clientInfo est un objet avec propriété 'nom_raison_sociale'
+    if (clientInfo && typeof clientInfo === 'object' && clientInfo.nom_raison_sociale) {
+      return clientInfo.nom_raison_sociale;
+    }
+    // Fallback
+    return "Client non spécifié";
+  };
 
+  const clientName = getClientName(); // ✅ Maintenant initialisée AVANT utilisation
+
+  // ✅ FONCTION POUR OBTENIR LA DESCRIPTION DU PARAMÈTRE
+  const getParameterDescription = (paramKey) => {
+    // Mapping des clés vers les descriptions
+    const defaultParameterDescriptions = {
+      "rc2j": "Résistance courante 2 jrs",
+      "rc7j": "Résistance courante 7 jrs", 
+      "rc28j": "Résistance courante 28 jrs",
+      "prise": "Temp debut de prise",
+      "stabilite": "Stabilité",
+      "so3": "Teneur en sulfate",
+      "chlorure": "Chlorure",
+      "hydratation": "Chaleur d'Hydratation",
+      "pfeu": "Perte au Feu",
+      "r_insoluble": "Résidu Insoluble",
+      "c3a": "C3A",
+      "pouzzolanicite": "Pouzzolanicité",
+      "ajt": "Ajout"
+    };
+
+    // Utiliser le mapping fourni ou le mapping par défaut
+    const mapping = parameterMapping || defaultParameterDescriptions;
+    
+    // Si c'est déjà une description, la retourner telle quelle
+    if (Object.values(mapping).includes(paramKey)) {
+      return paramKey;
+    }
+    
+    // Sinon, chercher la description correspondante à la clé
+    return mapping[paramKey] || paramKey; // Fallback à la clé si non trouvé
+  };
+
+  // ✅ OBTENIR LA DESCRIPTION DU PARAMÈTRE SÉLECTIONNÉ
+  const parameterDescription = getParameterDescription(selectedParameter);
+
+  // --- Header principal ---
+  const mainHeader = new Paragraph({
+    children: [
+      new TextRun({
+        text: clientName, // ✅ MAINTENANT clientName est correctement initialisé
+        bold: true,
+        size: 28,
+      }),
+    ],
+    spacing: { after: 100 }
+  });
+
+  // --- Informations produit ---
+  const productParagraphs = [];
+  if (produitInfo) {
+    productParagraphs.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `${produitInfo.nom || ''} (${produitInfo.description || ''})`,
+            size: 24,
+          }),
+        ],
+        spacing: { after: 50 }
+      })
+    );
+  }
+
+  // --- Période ---
+  const periodStart = period?.start || "";
+  const periodEnd = period?.end || "";
+  const periodParagraph = new Paragraph({
+    children: [
+      new TextRun({
+        text: `Période: ${periodStart} à ${periodEnd}`,
+        size: 24,
+      }),
+    ],
+    spacing: { after: 200 }
+  });
+
+  // --- Header du graphique ---
+  const chartHeader = new Paragraph({
+    children: [
+      new TextRun({
+        text: `${parameterDescription} / ${selectedClass}`,
+        bold: true,
+        size: 32,
+      }),
+    ],
+    spacing: { after: 400 },
+    alignment: AlignmentType.CENTER,
+  });
 
   // --- Graph image ---
   const graphParagraphs = [];
   if (chartImage) {
-    const imageBytes = WordExportService.dataURLToUint8Array(chartImage);
-    if (imageBytes) {
+    try {
+      const imageBytes = this.dataURLToUint8Array(chartImage);
+      if (imageBytes) {
+        graphParagraphs.push(
+          new Paragraph({
+            children: [
+              new ImageRun({
+                data: imageBytes,
+                transformation: { width: 600, height: 400 },
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 400 }
+          })
+        );
+      }
+    } catch (error) {
+      console.error("❌ Erreur lors du traitement de l'image:", error);
       graphParagraphs.push(
         new Paragraph({
           children: [
-            new ImageRun({
-              data: imageBytes,
-              transformation: { width: 600, height: 320 },
-            }),
+            new TextRun({
+              text: "❌ Impossible de charger l'image du graphique",
+              color: "FF0000",
+              italics: true
+            })
           ],
-          alignment: AlignmentType.CENTER,
+          alignment: AlignmentType.CENTER
         })
       );
     }
+  } else {
+    graphParagraphs.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "⚠️ Aucun graphique disponible",
+            color: "FFA500",
+            italics: true
+          })
+        ],
+        alignment: AlignmentType.CENTER
+      })
+    );
   }
 
-  // --- Statistiques Title ---
+  // --- Titre Statistiques ---
   const statsTitle = new Paragraph({
     children: [
       new TextRun({
@@ -1129,7 +1261,7 @@ const header = new Paragraph({
     spacing: { before: 400, after: 200 },
   });
 
-  // --- Classe section ---
+  // --- Section Classe ---
   const classParagraph = new Paragraph({
     children: [
       new TextRun({ text: "Classe : ", bold: true }),
@@ -1142,51 +1274,86 @@ const header = new Paragraph({
         });
       }),
     ],
+    spacing: { after: 100 }
   });
 
-  // --- Limits with colored labels ---
-// --- Limits Section ---
-const limitsParagraphs = [
-  new Paragraph({
-    children: [new TextRun({ text: "Moyenne", bold: true, color: "242424" })],
-  }),
-  new Paragraph({
-    children: [new TextRun({ text: graphicalData.formattedLimits.moy })],
-  }),
-  new Paragraph({
-    children: [new TextRun({ text: "Limite inférieure", bold: true, color: "0070C0" })],
-  }),
-  new Paragraph({
-    children: [new TextRun({ text: graphicalData.formattedLimits.inf })],
-  }),
-  new Paragraph({
-    children: [new TextRun({ text: "Limite supérieure", bold: true, color: "00B050" })],
-  }),
-  new Paragraph({
-    children: [new TextRun({ text: graphicalData.formattedLimits.sup })],
-  }),
-  new Paragraph({
-    children: [new TextRun({ text: "Limite garantie", bold: true, color: "FF0000" })],
-  }),
-  new Paragraph({
-    children: [new TextRun({ text: graphicalData.formattedLimits.gar })],
-  }),
-];
+  // ✅ CORRECTION: Utiliser formattedLimits pour l'affichage exact
+  const limitsParagraphs = [];
 
+  // Moyenne
+  if (formattedLimits.moy) {
+    limitsParagraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Moyenne", bold: true, color: "242424" })],
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: formattedLimits.moy })],
+        spacing: { after: 50 }
+      })
+    );
+  }
 
+  // Limite inférieure
+  if (formattedLimits.inf && formattedLimits.inf !== "Limite inférieure non définie") {
+    limitsParagraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Limite inférieure", bold: true, color: "0070C0" })],
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: formattedLimits.inf })],
+        spacing: { after: 50 }
+      })
+    );
+  } else {
+    limitsParagraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Limite inférieure : Non définie", color: "666666", italics: true })],
+        spacing: { after: 50 }
+      })
+    );
+  }
 
+  // Limite supérieure
+  if (formattedLimits.sup && formattedLimits.sup !== "Limite supérieure non définie") {
+    limitsParagraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Limite supérieure", bold: true, color: "00B050" })],
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: formattedLimits.sup })],
+        spacing: { after: 50 }
+      })
+    );
+  } else {
+    limitsParagraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Limite supérieure : Non définie", color: "666666", italics: true })],
+        spacing: { after: 50 }
+      })
+    );
+  }
 
+  // Limite garantie
+  if (formattedLimits.gar && formattedLimits.gar !== "Limite garantie non définie") {
+    limitsParagraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Limite garantie", bold: true, color: "FF0000" })],
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: formattedLimits.gar })],
+        spacing: { after: 50 }
+      })
+    );
+  } else {
+    limitsParagraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Limite garantie : Non définie", color: "666666", italics: true })],
+        spacing: { after: 50 }
+      })
+    );
+  }
 
-
-  // --- Moyenne ---
-  const moyenneParagraph = new Paragraph({
-    children: [
-      new TextRun({ text: "Moyenne : ", bold: true }),
-      new TextRun({ text: ` ${derivedStats.mean ?? ''}` }),
-    ],
-  });
-
-  // --- Graph type section ---
+  // --- Section Type de graphique ---
   const graphTypeParagraph = new Paragraph({
     children: [
       new TextRun({ text: "Type de graphique : ", bold: true }),
@@ -1202,62 +1369,115 @@ const limitsParagraphs = [
         bold: chartType === "gausse",
       }),
     ],
+    spacing: { before: 100, after: 200 }
   });
 
-  // --- Document Assembly (without footer) ---
+  // --- Informations supplémentaires ---
+  const additionalInfo = new Paragraph({
+    children: [
+      new TextRun({ 
+        text: `Paramètre analysé: ${parameterDescription}`,
+        size: 20,
+        color: "444444"
+      })
+    ],
+    spacing: { before: 100, after: 50 }
+  });
+
+  const classInfo = new Paragraph({
+    children: [
+      new TextRun({ 
+        text: `Classe sélectionnée: ${selectedClass}`,
+        size: 20,
+        color: "444444"
+      })
+    ],
+    spacing: { after: 100 }
+  });
+
+  // --- Footer avec date de génération ---
+  const footer = new Paragraph({
+    children: [
+      new TextRun({
+        text: `Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`,
+        size: 16,
+        color: "888888",
+        italics: true
+      })
+    ],
+    spacing: { before: 200 },
+    alignment: AlignmentType.RIGHT
+  });
+
+  // --- Assemblage du document ---
   const doc = new Document({
     sections: [
       {
         properties: {},
         children: [
-          header,
+          // En-tête
+          mainHeader,
+          ...productParagraphs,
+          periodParagraph,
+          
+          // Graphique
+          chartHeader,
           ...graphParagraphs,
+          
+          // Statistiques
           statsTitle,
           classParagraph,
           ...limitsParagraphs,
-          moyenneParagraph,
           graphTypeParagraph,
+          
+          // Informations supplémentaires
+          additionalInfo,
+          classInfo,
+          
+          // Footer
+          footer
         ],
       },
     ],
   });
 
+  console.log("✅ Document graphique généré avec succès");
+  console.log("📊 Données utilisées:", {
+    parameter: parameterDescription,
+    classe: selectedClass,
+    limites: formattedLimits,
+    typeGraphique: chartType
+  });
+
   return doc;
 }
-
-// --- Helper Function ---
-static dataURLToUint8Array(dataURL) {
-  if (!dataURL) return null;
-  const matches = dataURL.match(/^data:(.+);base64,(.*)$/);
-  if (!matches) return null;
-  const b64 = matches[2];
-  const binaryString = atob(b64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
-
-
-
-// ============================================================
 // Helper: Convert dataURL → Uint8Array
-// ============================================================
 
 static dataURLToUint8Array(dataURL) {
   if (!dataURL) return null;
-  const matches = dataURL.match(/^data:(.+);base64,(.*)$/);
-  if (!matches) return null;
-  const b64 = matches[2];
-  const binaryString = atob(b64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
+  
+  try {
+    const matches = dataURL.match(/^data:(.+);base64,(.*)$/);
+    if (!matches) {
+      console.error("❌ Format dataURL invalide");
+      return null;
+    }
+    
+    const b64 = matches[2];
+    const binaryString = atob(b64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    console.log(`✅ Image convertie: ${bytes.length} bytes`);
+    return bytes;
+  } catch (error) {
+    console.error("❌ Erreur conversion dataURL:", error);
+    return null;
   }
-  return bytes;
 }
 
 
@@ -1265,49 +1485,52 @@ static dataURLToUint8Array(dataURL) {
 
 
 // ============================================================
-// RAPPORT CONFORMITE EXPORT
+// RAPPORT CONFORMITE EXPORT - TABLES POUR TOUTES LES SECTIONS
+// ============================================================
+// ============================================================
+// RAPPORT CONFORMITE EXPORT - FONCTION MANQUANTE
 // ============================================================
 
 static async generateClassReport(selectedClasses, getClassData, helpers, options = {}) {
-  const sections = [];
-
-  // ===== HEADER SECTION =====
-  sections.push(...WordExportService.addConformityHeaderToWord(options));
-  
-
-  {/*
-  // ===== COVERAGE ANALYSIS SECTION =====
-  if (options.coverageRequirements) {
-    sections.push(...WordExportService.addCoverageAnalysisToWord(options.coverageRequirements, options.phase));
-  }
-*/}
-
-
-  // ===== CLASS SECTIONS =====
-  selectedClasses.forEach((classe, index) => {
-    const classData = getClassData(classe);
-    sections.push(...WordExportService.addClassSectionToWord(classe, classData, helpers, options));
+  try {
+    console.log("🔄 Début de génération du rapport Word...");
     
-    // Add page break between classes except for the last one
-    if (index < selectedClasses.length - 1) {
-      sections.push(new PageBreak());
-    }
-  });
+    const sections = [];
 
-  const doc = new Document({
-    sections: [{
-      properties: {},
-      children: sections
-    }]
-  });
+    // ===== HEADER SECTION =====
+    sections.push(...this.addConformityHeaderToWord(options));
 
-  return doc;
+    // ===== CLASS SECTIONS =====
+    selectedClasses.forEach((classe, index) => {
+      const classData = getClassData(classe);
+      sections.push(...this.addClassSectionToWord(classe, classData, helpers, options));
+      
+      // Add page break between classes except for the last one
+      if (index < selectedClasses.length - 1) {
+        sections.push(new PageBreak());
+      }
+    });
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: sections
+      }]
+    });
+
+    console.log("✅ Rapport Word généré avec succès");
+    return doc;
+    
+  } catch (error) {
+    console.error("❌ Erreur dans generateClassReport:", error);
+    throw error;
+  }
 }
 
 static addConformityHeaderToWord(options) {
   const paragraphs = [];
 
-  // Client name - format comme navigateur
+  // Client name
   paragraphs.push(
     new Paragraph({
       children: [
@@ -1320,7 +1543,7 @@ static addConformityHeaderToWord(options) {
     })
   );
 
-  // Main title - format comme navigateur
+  // Main title
   paragraphs.push(
     new Paragraph({
       children: [
@@ -1334,7 +1557,7 @@ static addConformityHeaderToWord(options) {
     })
   );
 
-  // Product info - format exact comme navigateur
+  // Product info
   if (options.produitInfo) {
     paragraphs.push(
       new Paragraph({
@@ -1347,10 +1570,9 @@ static addConformityHeaderToWord(options) {
         spacing: { after: 100 }
       })
     );
-    
   }
 
-  // Period - format exact comme navigateur
+  // Period
   const periodStart = options.period?.start || "";
   const periodEnd = options.period?.end || "";
   paragraphs.push(
@@ -1363,123 +1585,6 @@ static addConformityHeaderToWord(options) {
       spacing: { after: 200 }
     })
   );
-
-  return paragraphs;
-}
-
-static addCoverageAnalysisToWord(coverageRequirements, phase) {
-  const paragraphs = [];
-
-  paragraphs.push(
-    new Paragraph({
-      children: [
-        new TextRun({ 
-          text: "Vérification de la Couverture des Données", 
-          bold: true, 
-          size: 24 
-        })
-      ],
-      spacing: { after: 100 }
-    })
-  );
-
-  // Coverage status
-  const statusText = coverageRequirements.coverageStatus === "adequate" ? 
-    "✅ Couverture adéquate" : 
-    coverageRequirements.coverageStatus === "insufficient" ? 
-    "❌ Couverture insuffisante" : 
-    "📊 En cours d'analyse";
-
-  paragraphs.push(
-    new Paragraph({
-      children: [
-        new TextRun({ 
-          text: `Statut: ${statusText}`, 
-          bold: true,
-          color: coverageRequirements.coverageStatus === "adequate" ? "008000" : 
-                coverageRequirements.coverageStatus === "insufficient" ? "FF0000" : "000000"
-        })
-      ],
-      spacing: { after: 50 }
-    })
-  );
-
-  // Phase info
-  paragraphs.push(
-    new Paragraph({
-      children: [
-        new TextRun({ 
-          text: `Phase: ${phase === 'nouveau_type_produit' ? 'Nouveau Type Produit' : 'Situation Courante'}`, 
-          size: 20 
-        })
-      ],
-      spacing: { after: 100 }
-    })
-  );
-
-  // Coverage details if insufficient
-  if (coverageRequirements.coverageStatus === "insufficient" && coverageRequirements.coverageResults) {
-    paragraphs.push(
-      new Paragraph({
-        children: [
-          new TextRun({ 
-            text: "Périodes avec données insuffisantes:", 
-            bold: true, 
-            size: 20 
-          })
-        ],
-        spacing: { after: 50 }
-      })
-    );
-
-    Object.keys(coverageRequirements.coverageResults).forEach(paramKey => {
-      const result = coverageRequirements.coverageResults[paramKey];
-      if (result.status) return;
-
-      paragraphs.push(
-        new Paragraph({
-          children: [
-            new TextRun({ 
-              text: `${paramKey} - ${result.requirement}`, 
-              bold: true 
-            })
-          ],
-          spacing: { after: 20 }
-        })
-      );
-
-      result.missingWindows.slice(0, 3).forEach((window, idx) => {
-        paragraphs.push(
-          new Paragraph({
-            children: [
-              new TextRun({ 
-                text: `  • ${window.start} à ${window.end}: ${window.found}/${window.required} résultats`, 
-                size: 18 
-              })
-            ],
-            spacing: { after: 10 }
-          })
-        );
-      });
-
-      if (result.missingWindows.length > 3) {
-        paragraphs.push(
-          new Paragraph({
-            children: [
-              new TextRun({ 
-                text: `  ... et ${result.missingWindows.length - 3} autres périodes`, 
-                size: 18,
-                italics: true
-              })
-            ],
-            spacing: { after: 20 }
-          })
-        );
-      }
-    });
-  }
-
-  paragraphs.push(new Paragraph({ spacing: { after: 200 } }));
 
   return paragraphs;
 }
@@ -1503,19 +1608,21 @@ static addClassSectionToWord(classe, classData, helpers, options) {
   );
 
   // Deviations sections
-  paragraphs.push(...WordExportService.addDeviationsToWord(classe, classData, helpers, options));
+  paragraphs.push(...this.addDeviationsToWord(classe, classData, helpers, options));
   
   // Mesures section
-  paragraphs.push(...WordExportService.addMesuresToWord(classData));
+  paragraphs.push(...this.addMesuresToWord(classData, helpers));
   
   // Attributs section  
-  paragraphs.push(...WordExportService.addAttributsToWord(classData, helpers));
+  paragraphs.push(...this.addAttributsToWord(classData, helpers));
   
-  // ✅ CORRECTION: Passez helpers à addConclusionToWord
-  paragraphs.push(...WordExportService.addConclusionToWord(classData, options, helpers));
+  // Conclusion
+  paragraphs.push(...this.addConclusionToWord(classData, options, helpers));
 
   return paragraphs;
 }
+
+
 
 static addDeviationsToWord(classe, classData, helpers, options) {
   const paragraphs = [];
@@ -1547,10 +1654,12 @@ static addDeviationsToWord(classe, classData, helpers, options) {
         })
       );
 
-      // ✅ FORMAT ALIGNÉ - Calculer la largeur maximale
+      // ✅ TABLE POUR DÉVIATIONS
+      const tableRows = [];
+
+      // Collecter tous les paramètres
       const allItems = [];
       
-      // Collecter tous les paramètres
       deviationParams.forEach(paramKey => {
         if (!classData.hasDataForParameter(paramKey)) return;
 
@@ -1640,28 +1749,52 @@ static addDeviationsToWord(classe, classData, helpers, options) {
         }
       }
 
-      // ✅ AFFICHAGE ALIGNÉ - Même espacement pour toutes les lignes
+      // ✅ CRÉER LA TABLE POUR DÉVIATIONS
       allItems.forEach(item => {
-        paragraphs.push(
-          new Paragraph({
+        tableRows.push(
+          new TableRow({
             children: [
-              new TextRun({ 
-                text: item.label.padEnd(35, ' '), // ✅ Même largeur pour tous les labels
-                bold: true
+              // Colonne 1: Label
+              new TableCell({
+                children: [new Paragraph({ 
+                  children: [new TextRun({ text: item.label, bold: true })] 
+                })],
+                width: { size: 5000, type: WidthType.DXA }
               }),
-              new TextRun({
-                text: item.displayText.padEnd(25, ' '), // ✅ Même largeur pour displayText
-                size: 20
+              // Colonne 2: Display Text
+              new TableCell({
+                children: [new Paragraph({ 
+                  children: [new TextRun({ text: item.displayText, size: 20 })] 
+                })],
+                width: { size: 4000, type: WidthType.DXA }
               }),
-              new TextRun({
-                text: item.deviationText,
-                size: 20
+              // Colonne 3: Deviation Text
+              new TableCell({
+                children: [new Paragraph({ 
+                  children: [new TextRun({ text: item.deviationText, size: 20 })] 
+                })],
+                width: { size: 4000, type: WidthType.DXA }
               })
-            ],
-            spacing: { after: 10 }
+            ]
           })
         );
       });
+
+      // Ajouter la table au document
+      paragraphs.push(
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders: {
+            top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+            bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+            left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+            right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+            insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+            insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }
+          },
+          rows: tableRows
+        })
+      );
 
       paragraphs.push(new Paragraph({ spacing: { after: 100 } }));
     }
@@ -1670,7 +1803,7 @@ static addDeviationsToWord(classe, classData, helpers, options) {
   return paragraphs;
 }
 
-static addMesuresToWord(classData) {
+static addMesuresToWord(classData, helpers) {
   const paragraphs = [];
 
   if (classData.mesureParamsWithData && classData.mesureParamsWithData.length > 0) {
@@ -1687,71 +1820,180 @@ static addMesuresToWord(classData) {
       })
     );
 
-    // ✅ COLLECTER TOUS LES ÉLÉMENTS POUR ALIGNEMENT
-    const allItems = [];
+    // ✅ TABLE POUR MESURES
+    const tableRows = [];
+
+    // Fonction pour déterminer le type de limites
+    const getParameterLimitType = (paramKey) => {
+      const lsOnlyParams = ["so3", "chlorure", "stabilite", "pfeu", "r_insoluble", "c3a", "pouzzolanicite", "hydratation"];
+      const liOnlyParams = ["prise"];
+      const liAndLsParams = ["rc2j", "rc7j", "rc28j"];
+
+      if (lsOnlyParams.includes(paramKey)) return "LS_ONLY";
+      if (liOnlyParams.includes(paramKey)) return "LI_ONLY";
+      if (liAndLsParams.includes(paramKey)) return "LI_AND_LS";
+      return "LS_ONLY";
+    };
 
     classData.mesureParamsWithData.forEach(param => {
       const liCompliance = classData.statisticalCompliance[`${param.key}_li`];
       const lsCompliance = classData.statisticalCompliance[`${param.key}_ls`];
+      const limitType = getParameterLimitType(param.key);
 
-      // Handle special case for prise (only LI)
-      if (param.key === "prise" && liCompliance) {
-        allItems.push({
-          label: `${param.label} LI`,
-          equation: liCompliance.displayEquation || liCompliance.equation,
-          status: liCompliance.noLimit ? "Pas de limite définie" :
-                 liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
-                 "Données insuffisantes" : 
-                 (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
-        });
-      } else {
-        // Normal parameters (LI and LS)
+      // ✅ AFFICHAGE DIFFÉRENCIÉ selon le type de limites
+      if (limitType === "LS_ONLY") {
+        // Paramètres avec seulement LS (Chlorure, SO3, etc.)
+        if (lsCompliance) {
+          tableRows.push(
+            new TableRow({
+              children: [
+                new TableCell({
+                  children: [new Paragraph({ 
+                    children: [new TextRun({ text: `${param.label} LS`, bold: true })] 
+                  })],
+                  width: { size: 5000, type: WidthType.DXA }
+                }),
+                new TableCell({
+                  children: [new Paragraph({ 
+                    children: [new TextRun({ text: lsCompliance.displayEquation || lsCompliance.equation, size: 20 })] 
+                  })],
+                  width: { size: 5000, type: WidthType.DXA }
+                }),
+                new TableCell({
+                  children: [new Paragraph({ 
+                    children: [new TextRun({ 
+                      text: lsCompliance.noLimit ? "Pas de limite définie" :
+                           lsCompliance.equation.includes("insuffisantes") || lsCompliance.equation.includes("non disponible") ? 
+                           "Données insuffisantes" : 
+                           (lsCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"),
+                      size: 20 
+                    })] 
+                  })],
+                  width: { size: 4000, type: WidthType.DXA }
+                })
+              ]
+            })
+          );
+        }
+      } else if (limitType === "LI_ONLY") {
+        // Paramètres avec seulement LI (prise)
         if (liCompliance) {
-          allItems.push({
-            label: `${param.label} LI`,
-            equation: liCompliance.displayEquation || liCompliance.equation,
-            status: liCompliance.noLimit ? "Pas de limite définie" :
-                   liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
-                   "Données insuffisantes" : 
-                   (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
-          });
+          tableRows.push(
+            new TableRow({
+              children: [
+                new TableCell({
+                  children: [new Paragraph({ 
+                    children: [new TextRun({ text: `${param.label} LI`, bold: true })] 
+                  })],
+                  width: { size: 5000, type: WidthType.DXA }
+                }),
+                new TableCell({
+                  children: [new Paragraph({ 
+                    children: [new TextRun({ text: liCompliance.displayEquation || liCompliance.equation, size: 20 })] 
+                  })],
+                  width: { size: 5000, type: WidthType.DXA }
+                }),
+                new TableCell({
+                  children: [new Paragraph({ 
+                    children: [new TextRun({ 
+                      text: liCompliance.noLimit ? "Pas de limite définie" :
+                           liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
+                           "Données insuffisantes" : 
+                           (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"),
+                      size: 20 
+                    })] 
+                  })],
+                  width: { size: 4000, type: WidthType.DXA }
+                })
+              ]
+            })
+          );
+        }
+      } else {
+        // Paramètres avec LI et LS (résistances)
+        if (liCompliance) {
+          tableRows.push(
+            new TableRow({
+              children: [
+                new TableCell({
+                  children: [new Paragraph({ 
+                    children: [new TextRun({ text: `${param.label} LI`, bold: true })] 
+                  })],
+                  width: { size: 5000, type: WidthType.DXA }
+                }),
+                new TableCell({
+                  children: [new Paragraph({ 
+                    children: [new TextRun({ text: liCompliance.displayEquation || liCompliance.equation, size: 20 })] 
+                  })],
+                  width: { size: 5000, type: WidthType.DXA }
+                }),
+                new TableCell({
+                  children: [new Paragraph({ 
+                    children: [new TextRun({ 
+                      text: liCompliance.noLimit ? "Pas de limite définie" :
+                           liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
+                           "Données insuffisantes" : 
+                           (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"),
+                      size: 20 
+                    })] 
+                  })],
+                  width: { size: 4000, type: WidthType.DXA }
+                })
+              ]
+            })
+          );
         }
 
         if (lsCompliance) {
-          allItems.push({
-            label: `${param.label} LS`,
-            equation: lsCompliance.displayEquation || lsCompliance.equation,
-            status: lsCompliance.noLimit ? "Pas de limite définie" :
-                   lsCompliance.equation.includes("insuffisantes") || lsCompliance.equation.includes("non disponible") ? 
-                   "Données insuffisantes" : 
-                   (lsCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
-          });
+          tableRows.push(
+            new TableRow({
+              children: [
+                new TableCell({
+                  children: [new Paragraph({ 
+                    children: [new TextRun({ text: `${param.label} LS`, bold: true })] 
+                  })],
+                  width: { size: 5000, type: WidthType.DXA }
+                }),
+                new TableCell({
+                  children: [new Paragraph({ 
+                    children: [new TextRun({ text: lsCompliance.displayEquation || lsCompliance.equation, size: 20 })] 
+                  })],
+                  width: { size: 5000, type: WidthType.DXA }
+                }),
+                new TableCell({
+                  children: [new Paragraph({ 
+                    children: [new TextRun({ 
+                      text: lsCompliance.noLimit ? "Pas de limite définie" :
+                           lsCompliance.equation.includes("insuffisantes") || lsCompliance.equation.includes("non disponible") ? 
+                           "Données insuffisantes" : 
+                           (lsCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite"),
+                      size: 20 
+                    })] 
+                  })],
+                  width: { size: 4000, type: WidthType.DXA }
+                })
+              ]
+            })
+          );
         }
       }
     });
 
-    // ✅ AFFICHAGE ALIGNÉ
-    allItems.forEach(item => {
-      paragraphs.push(
-        new Paragraph({
-          children: [
-            new TextRun({ 
-              text: item.label.padEnd(35, ' '), // ✅ Même largeur
-              bold: true
-            }),
-            new TextRun({
-              text: item.equation.padEnd(45, ' '), // ✅ Même largeur
-              size: 20
-            }),
-            new TextRun({
-              text: item.status,
-              size: 20
-            })
-          ],
-          spacing: { after: 10 }
-        })
-      );
-    });
+    // Ajouter la table au document
+    paragraphs.push(
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }
+        },
+        rows: tableRows
+      })
+    );
 
     paragraphs.push(new Paragraph({ spacing: { after: 100 } }));
   }
@@ -1776,8 +2018,8 @@ static addAttributsToWord(classData, helpers) {
       })
     );
 
-    // ✅ COLLECTER TOUS LES ÉLÉMENTS POUR ALIGNEMENT
-    const allItems = [];
+    // ✅ TABLE POUR ATTRIBUTS
+    const tableRows = [];
 
     classData.attributParamsWithData.forEach(param => {
       const attributeResult = helpers.checkEquationSatisfaction(
@@ -1786,40 +2028,55 @@ static addAttributsToWord(classData, helpers) {
         classData.conditionsStatistiques
       );
 
-      allItems.push({
-        label: param.label,
-        equation: attributeResult.displayText,
-        status: attributeResult.noLimits ? "Pas de limites définies" :
-               attributeResult.equation.includes("insuffisantes") || 
-               attributeResult.equation.includes("manquantes") || 
-               attributeResult.equation.includes("non chargées") ? 
-               "Données insuffisantes" : 
-               (attributeResult.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
-      });
-    });
-
-    // ✅ AFFICHAGE ALIGNÉ
-    allItems.forEach(item => {
-      paragraphs.push(
-        new Paragraph({
+      tableRows.push(
+        new TableRow({
           children: [
-            new TextRun({ 
-              text: item.label.padEnd(35, ' '), // ✅ Même largeur
-              bold: true
+            new TableCell({
+              children: [new Paragraph({ 
+                children: [new TextRun({ text: param.label, bold: true })] 
+              })],
+              width: { size: 5000, type: WidthType.DXA }
             }),
-            new TextRun({
-              text: item.equation.padEnd(25, ' '), // ✅ Même largeur
-              size: 20
+            new TableCell({
+              children: [new Paragraph({ 
+                children: [new TextRun({ text: attributeResult.displayText, size: 20 })] 
+              })],
+              width: { size: 4000, type: WidthType.DXA }
             }),
-            new TextRun({
-              text: item.status,
-              size: 20
+            new TableCell({
+              children: [new Paragraph({ 
+                children: [new TextRun({ 
+                  text: attributeResult.noLimits ? "Pas de limites définies" :
+                       attributeResult.equation.includes("insuffisantes") || 
+                       attributeResult.equation.includes("manquantes") || 
+                       attributeResult.equation.includes("non chargées") ? 
+                       "Données insuffisantes" : 
+                       (attributeResult.satisfied ? "Équation satisfaite" : "Équation non satisfaite"),
+                  size: 20 
+                })] 
+              })],
+              width: { size: 4000, type: WidthType.DXA }
             })
-          ],
-          spacing: { after: 10 }
+          ]
         })
       );
     });
+
+    // Ajouter la table au document
+    paragraphs.push(
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }
+        },
+        rows: tableRows
+      })
+    );
 
     paragraphs.push(new Paragraph({ spacing: { after: 100 } }));
   }
@@ -1870,7 +2127,6 @@ static addConclusionToWord(classData, options, helpers) {
           new TextRun({ 
             text: conclusion,
             bold: true
-            // ✅ COULEUR SUPPRIMÉE
           })
         ],
         spacing: { after: 20 }
@@ -1879,7 +2135,7 @@ static addConclusionToWord(classData, options, helpers) {
   });
 
   // Final conformity box
-  const conformityColor = "000000"; // ✅ COULEUR NOIRE UNIFORME
+  const conformityColor = "000000";
   const conformityText = classData.conformityResult?.isClassConforme ? "CONFORME" : "NON CONFORME";
 
   paragraphs.push(
@@ -1889,7 +2145,6 @@ static addConclusionToWord(classData, options, helpers) {
           text: `CONFORMITÉ: ${conformityText}`, 
           bold: true,
           size: 24
-          // ✅ COULEUR SUPPRIMÉE
         })
       ],
       spacing: { after: 50 },
@@ -1901,15 +2156,13 @@ static addConclusionToWord(classData, options, helpers) {
         right: { style: "single", size: 6, color: conformityColor }
       },
       shading: {
-        fill: "FFFFFF" // ✅ FOND BLANC UNIFORME
+        fill: "FFFFFF"
       }
     })
   );
 
   return paragraphs;
 }
-
-
   // MAIN EXPORT FUNCTION (EXISTANT - NE PAS MODIFIER)
   // ============================================================
 

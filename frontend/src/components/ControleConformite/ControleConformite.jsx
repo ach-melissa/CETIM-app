@@ -1453,9 +1453,10 @@ if (!phase) {
 
 // ✅ NOUVELLE FONCTION: Vérifier la couverture temporelle pour un paramètre spécifique
 // ✅ FONCTION: Vérifier si un paramètre a au moins un résultat dans chaque période de 7 jours
+// ✅ AMÉLIOREZ cette fonction pour vérifier ≥1 résultat/semaine
 const checkParameterTemporalCoverage = (data, paramKey, periodDays = 7) => {
   if (!data || data.length === 0) {
-    return { hasAdequateCoverage: false, coverageGaps: [] };
+    return { hasAdequateCoverage: false, coverageGaps: [], periodsWithData: 0, totalPeriods: 0 };
   }
 
   // Trier les données par date
@@ -1468,23 +1469,35 @@ const checkParameterTemporalCoverage = (data, paramKey, periodDays = 7) => {
     .sort((a, b) => a.parsedDate - b.parsedDate);
 
   if (sorted.length === 0) {
-    return { hasAdequateCoverage: false, coverageGaps: [] };
+    return { hasAdequateCoverage: false, coverageGaps: [], periodsWithData: 0, totalPeriods: 0 };
   }
 
-  const startDate = sorted[0].parsedDate;
-  const endDate = sorted[sorted.length - 1].parsedDate;
+  const startDate = new Date(sorted[0].parsedDate);
+  const endDate = new Date(sorted[sorted.length - 1].parsedDate);
 
-  let currentStart = new Date(startDate);
+  // ✅ CORRECTION: Normaliser les heures pour éviter les problèmes de comparaison
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
+
   const coverageGaps = [];
+  let periodsWithData = 0;
+  let totalPeriods = 0;
 
-  // Vérifier chaque période de 7 jours
+  console.log(`📅 Analyse couverture ${paramKey}: ${startDate.toLocaleDateString()} → ${endDate.toLocaleDateString()}`);
+
+  // ✅ CORRECTION: Calcul correct des périodes de 7 jours
+  let currentStart = new Date(startDate);
+  
   while (currentStart <= endDate) {
     const currentEnd = new Date(currentStart);
-    currentEnd.setDate(currentEnd.getDate() + (periodDays - 1));
+    currentEnd.setDate(currentEnd.getDate() + (periodDays - 1)); // ✅ Jour début + 6 jours = 7 jours total
+    currentEnd.setHours(23, 59, 59, 999);
+    
+    totalPeriods++;
 
-    // ✅ VÉRIFIER SEULEMENT CE PARAMÈTRE SPÉCIFIQUE
-    const hasResult = sorted.some(row => {
-      const d = row.parsedDate;
+    // ✅ CORRECTION: Compter les résultats dans cette période
+    const periodResults = sorted.filter(row => {
+      const d = new Date(row.parsedDate);
       const hasValue = row[paramKey] !== null && 
                       row[paramKey] !== undefined && 
                       row[paramKey] !== "" &&
@@ -1492,24 +1505,67 @@ const checkParameterTemporalCoverage = (data, paramKey, periodDays = 7) => {
       return d >= currentStart && d <= currentEnd && hasValue;
     });
 
-    if (!hasResult) {
+    const hasAtLeastOneResult = periodResults.length >= 1;
+    
+    console.log(`   Période ${totalPeriods}: ${currentStart.toLocaleDateString()} → ${currentEnd.toLocaleDateString()}: ${periodResults.length} résultat(s)`);
+
+    if (hasAtLeastOneResult) {
+      periodsWithData++;
+    } else {
       coverageGaps.push({
         start: new Date(currentStart),
         end: new Date(currentEnd),
-        period: `${formatDateForDisplay(currentStart)} au ${formatDateForDisplay(currentEnd)}`
+        period: `${formatDateForDisplay(currentStart)} au ${formatDateForDisplay(currentEnd)}`,
+        resultsCount: periodResults.length
       });
     }
 
+    // ✅ CORRECTION: Passer à la période suivante (début + 7 jours)
     currentStart.setDate(currentStart.getDate() + periodDays);
+    currentStart.setHours(0, 0, 0, 0);
   }
 
   const hasAdequateCoverage = coverageGaps.length === 0;
   
-  console.log(`📊 Couverture ${paramKey}: ${hasAdequateCoverage ? '✅ ADÉQUATE' : '❌ INSUFFISANTE'} (${coverageGaps.length} gaps)`);
+  console.log(`📊 Couverture ${paramKey}: ${hasAdequateCoverage ? '✅ ADÉQUATE' : '❌ INSUFFISANTE'} (${periodsWithData}/${totalPeriods} périodes)`);
 
-  return { hasAdequateCoverage, coverageGaps };
+  if (!hasAdequateCoverage) {
+    console.log(`   ❌ Périodes sans données:`, coverageGaps.map(gap => gap.period));
+  }
+
+  return { 
+    hasAdequateCoverage, 
+    coverageGaps, 
+    periodsWithData, 
+    totalPeriods,
+    coveragePercentage: totalPeriods > 0 ? (periodsWithData / totalPeriods) * 100 : 0
+  };
 };
 
+// ✅ FONCTION pour déterminer le type de limites par paramètre
+const getParameterLimitType = (paramKey) => {
+  // Paramètres avec seulement Limite Supérieure (LS)
+  const lsOnlyParams = [
+    "so3", "chlorure", "stabilite", "pfeu", "r_insoluble", 
+    "c3a", "pouzzolanicite", "hydratation"
+  ];
+  
+  // Paramètres avec seulement Limite Inférieure (LI)
+  const liOnlyParams = ["prise"];
+  
+  // Paramètres avec Limite Inférieure et Supérieure (LI et LS)
+  const liAndLsParams = ["rc2j", "rc7j", "rc28j"];
+
+  if (lsOnlyParams.includes(paramKey)) {
+    return "LS_ONLY";
+  } else if (liOnlyParams.includes(paramKey)) {
+    return "LI_ONLY";
+  } else if (liAndLsParams.includes(paramKey)) {
+    return "LI_AND_LS";
+  } else {
+    return "LS_ONLY"; // Par défaut
+  }
+};
 
 const checkDataCoverageRequirements = (data, productionPhase, paramKeys, conformiteData) => {
   if (!data || data.length === 0 || !productionPhase || !conformiteData) {
@@ -2138,104 +2194,57 @@ const renderClassSection = useCallback((classe) => {
     });
     console.log('   All statistical compliance keys:', Object.keys(statisticalCompliance).filter(k => k.includes('prise')));
 
-    // ✅ LOGIQUE DE CLASSIFICATION CORRECTE
-    const mesureParamsWithData = [];
-    const attributParamsWithData = [];
+// ✅ CORRECTION: Classification basée sur la couverture temporelle (1 résultat/semaine)
+const mesureParamsWithData = [];
+const attributParamsWithData = [];
 
-    // 1. Les résistances (rc2j, rc7j, rc28j) vont TOUJOURS en "Mesures"
-    alwaysMesureParams.forEach(param => {
-      if (hasDataForParameter(param.key)) {
-        mesureParamsWithData.push(param);
-        console.log(`✅ ${param.label} → Contrôle par Mesures (résistance)`);
-      }
-    });
+// 1. Les résistances (rc2j, rc7j, rc28j) vont TOUJOURS en "Mesures"
+alwaysMesureParams.forEach(param => {
+  if (hasDataForParameter(param.key)) {
+    mesureParamsWithData.push(param);
+    console.log(`✅ ${param.label} → Contrôle par Mesures (résistance)`);
+  }
+});
 
-    // 2. Les attributs (stabilité, pouzzolanicité) vont TOUJOURS en "Attributs"
-    alwaysAttributParams.forEach(param => {
-      if (hasDataForParameter(param.key)) {
-        if (!mesureParamsWithData.some(p => p.key === param.key)) {
-          attributParamsWithData.push(param);
-          console.log(`📋 ${param.label} → Contrôle par Attributs (attribut toujours)`);
-        }
-      }
-    });
+// 2. Les attributs (stabilité, pouzzolanicité) vont TOUJOURS en "Attributs"
+alwaysAttributParams.forEach(param => {
+  if (hasDataForParameter(param.key)) {
+    if (!mesureParamsWithData.some(p => p.key === param.key)) {
+      attributParamsWithData.push(param);
+      console.log(`📋 ${param.label} → Contrôle par Attributs (attribut toujours)`);
+    }
+  }
+});
 
-    // ✅ DEBUG: Afficher tous les mappings
-    console.log(`=== DEBUG MAPPING POUR ${classe} ===`);
-    allTimeDependentParams.forEach(param => {
-      const mapping = keyMapping[param.key];
-      console.log(`📋 ${param.label} (${param.key}) → ${mapping} (JSON: ${param.jsonKey})`);
-    });
+// 3. Les paramètres time-dependent : Mesures si ≥1 résultat/semaine, sinon Attributs
+allTimeDependentParams.forEach(param => {
+  if (!hasDataForParameter(param.key)) {
+    console.log(`❌ ${param.label} ignoré - pas de données`);
+    return;
+  }
+  
+  // Vérifier la couverture temporelle (au moins 1 résultat par semaine)
+  const coverage = checkParameterTemporalCoverage(dataToUse, param.key, 7);
+  const hasWeeklyCoverage = coverage.hasAdequateCoverage;
+  
+  console.log(`📊 ${param.label}: ${hasWeeklyCoverage ? '≥1 résultat/semaine' : '<1 résultat/semaine'}`);
+  
+  if (hasWeeklyCoverage) {
+    // ✅ Couverture adéquate → MESURES
+    if (!mesureParamsWithData.some(p => p.key === param.key)) {
+      mesureParamsWithData.push(param);
+      console.log(`✅ ${param.label} → Contrôle par Mesures (≥1 résultat/semaine)`);
+    }
+  } else {
+    // ❌ Couverture insuffisante → ATTRIBUTS
+    if (!mesureParamsWithData.some(p => p.key === param.key) && 
+        !attributParamsWithData.some(p => p.key === param.key)) {
+      attributParamsWithData.push(param);
+      console.log(`❌ ${param.label} → Contrôle par Attributs (<1 résultat/semaine)`);
+    }
+  }
+});
 
-    // ✅ DEBUG: Vérifier spécifiquement les paramètres avec les vrais JSON keys
-    console.log("=== DEBUG REAL JSON KEYS ===");
-    const importantParams = allTimeDependentParams.filter(p => 
-      ["rc2j", "rc7j", "rc28j", "prise", "so3", "chlorure", "hydratation", "stabilite"].includes(p.key)
-    );
-    importantParams.forEach(param => {
-      const hasData = hasDataForParameter(param.key);
-      const jsonKey = keyMapping[param.key];
-      console.log(`🔍 ${param.label} (${param.key}): hasData=${hasData}, jsonKey=${jsonKey}`);
-    });
-
-    // 3. Les paramètres time-dependent peuvent aller dans Mesures OU Attributs selon la couverture
-    allTimeDependentParams.forEach(param => {
-      if (!hasDataForParameter(param.key)) {
-        console.log(`❌ ${param.label} ignoré - pas de données`);
-        return;
-      }
-      
-      // ✅ CORRECTION: Utiliser le BON JSON key depuis le mapping
-      const jsonKey = keyMapping[param.key]; // ⭐ IMPORTANT: Utiliser keyMapping
-      
-      console.log(`🔍 Traitement ${param.label} (${param.key} → ${jsonKey})`);
-
-      // ✅ CORRECTION: Liste CORRECTE avec les VRAIS noms JSON de votre base
-      const timeDependentMesureParams = [
-        "resistance_2j",      // ✅ Vrai JSON key pour rc2j
-        "resistance_7j",      // ✅ Vrai JSON key pour rc7j  
-        "resistance_28j",     // ✅ Vrai JSON key pour rc28j
-        "temps_debut_prise",  // ✅ Vrai JSON key pour prise
-        "pert_au_feu",        // ✅ Vrai JSON key
-        "residu_insoluble",   // ✅ Vrai JSON key
-        "SO3",                // ✅ Vrai JSON key pour so3
-        "teneur_chlour",      // ✅ Vrai JSON key pour chlorure
-        "C3A",                // ✅ Vrai JSON key
-        "chaleur_hydratation" // ✅ Vrai JSON key pour hydratation
-      ];
-      
-      console.log(`   Est dans timeDependentMesureParams: ${timeDependentMesureParams.includes(jsonKey)}`);
-      
-      // Si c'est un paramètre qui peut aller en Mesures
-      if (timeDependentMesureParams.includes(jsonKey)) {
-        // Vérifier la couverture temporelle
-        const coverage = checkParameterTemporalCoverage(dataToUse, param.key, 7);
-        console.log(`   Couverture pour ${param.key}: ${coverage.hasAdequateCoverage ? '✅ ADÉQUATE' : '❌ INSUFFISANTE'}`);
-        console.log(`   Périodes avec données: ${coverage.periodsWithData}`);
-        console.log(`   Périodes manquantes: ${coverage.coverageGaps.length}`);
-        
-        if (coverage.hasAdequateCoverage) {
-          // ✅ Couverture complète → MESURES
-          if (!mesureParamsWithData.some(p => p.key === param.key)) {
-            mesureParamsWithData.push(param);
-            console.log(`✅ ${param.label} → Contrôle par Mesures (couverture complète)`);
-          }
-        } else {
-          // ❌ Couverture incomplète → ATTRIBUTS
-          if (!mesureParamsWithData.some(p => p.key === param.key)) {
-            attributParamsWithData.push(param);
-            console.log(`❌ ${param.label} → Contrôle par Attributs (manque dans ${coverage.coverageGaps.length} périodes)`);
-          }
-        }
-      } else {
-        // Paramètres qui ne sont pas dans la liste → ATTRIBUTS par défaut
-        if (!mesureParamsWithData.some(p => p.key === param.key) && 
-            !attributParamsWithData.some(p => p.key === param.key)) {
-          attributParamsWithData.push(param);
-          console.log(`📋 ${param.label} → Contrôle par Attributs (par défaut - pas dans timeDependentMesureParams)`);
-        }
-      }
-    });
 
     // ✅ SÉCURITÉ: Vérifier que les paramètres importants sont bien classifiés
     const importantChecks = [
@@ -2501,76 +2510,86 @@ Object.keys(statisticalCompliance).forEach(key => {
                   )}
 
                   {/* ✅ Afficher les paramètres de prise et autres paramètres de mesure seulement s'ils ont des données */}
-                  {mesureParamsWithData
-                    .filter(param => !["rc2j", "rc7j", "rc28j"].includes(param.key))
-                    .map(param => {
-                      const liCompliance = statisticalCompliance[`${param.key}_li`];
-                      const lsCompliance = statisticalCompliance[`${param.key}_ls`];
+{mesureParamsWithData
+  .filter(param => !["rc2j", "rc7j", "rc28j"].includes(param.key))
+  .map(param => {
+    const liCompliance = statisticalCompliance[`${param.key}_li`];
+    const lsCompliance = statisticalCompliance[`${param.key}_ls`];
+    const limitType = getParameterLimitType(param.key);
 
-                      return (
-                        <div key={param.key}>
-                          {/* ✅ CORRECTION SPÉCIALE: Pour "temps_debut_prise", afficher seulement LI */}
-                          {param.key === "prise" ? (
-                            // ✅ AFFICHAGE SPÉCIAL pour temps_debut_prise: SEULEMENT LI
-                            liCompliance && (
-                              <div className="parameter-item">
-                                <span>{param.label} LI</span>
-                                <span>{liCompliance.displayEquation || liCompliance.equation}</span>
-                                <span>
-                                  {liCompliance.noLimit ? "Pas de limite définie" :
-                                   liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
-                                    "Données insuffisantes" : 
-                                    (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
-                                  }
-                                </span>
-                              </div>
-                            )
-                          ) : (
-                            // ✅ AFFICHAGE NORMAL pour tous les autres paramètres
-                            <>
-                              {/* Afficher LI même si pas de limite */}
-                              {liCompliance && (
-                                <div className="parameter-item">
-                                  <span>{param.label} LI</span>
-                                  <span>{liCompliance.displayEquation || liCompliance.equation}</span>
-                                  <span>
-                                    {liCompliance.noLimit ? "Pas de limite définie" :
-                                     liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
-                                      "Données insuffisantes" : 
-                                      (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
-                                    }
-                                  </span>
-                                </div>
-                              )}
-                              
-                              {/* Afficher LS même si pas de limite */}
-                              {lsCompliance && (
-                                <div className="parameter-item">
-                                  <span>{param.label} LS</span>
-                                  <span>{lsCompliance.displayEquation || lsCompliance.equation}</span>
-                                  <span>
-                                    {lsCompliance.noLimit ? "Pas de limite définie" :
-                                     lsCompliance.equation.includes("insuffisantes") || lsCompliance.equation.includes("non disponible") ? 
-                                      "Données insuffisantes" : 
-                                      (lsCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
-                                    }
-                                  </span>
-                                </div>
-                              )}
-                            </>
-                          )}
-                          
-                          {/* ✅ CORRECTION: Afficher un message seulement si vraiment aucune compliance n'est calculée */}
-                          {!liCompliance && !lsCompliance && hasDataForParameter(param.key) && (
-                            <div className="parameter-item">
-                              <span>{param.label}</span>
-                              <span>Pas de limites définies pour cette classe</span>
-                              <span>Non applicable</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+    return (
+      <div key={param.key}>
+        {/* ✅ AFFICHAGE DIFFÉRENCIÉ selon le type de limites */}
+        {limitType === "LS_ONLY" && lsCompliance && (
+          <div className="parameter-item">
+            <span>{param.label} LS</span>
+            <span>{lsCompliance.displayEquation || lsCompliance.equation}</span>
+            <span>
+              {lsCompliance.noLimit ? "Pas de limite définie" :
+               lsCompliance.equation.includes("insuffisantes") || lsCompliance.equation.includes("non disponible") ? 
+                "Données insuffisantes" : 
+                (lsCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
+              }
+            </span>
+          </div>
+        )}
+
+        {limitType === "LI_ONLY" && liCompliance && (
+          <div className="parameter-item">
+            <span>{param.label} LI</span>
+            <span>{liCompliance.displayEquation || liCompliance.equation}</span>
+            <span>
+              {liCompliance.noLimit ? "Pas de limite définie" :
+               liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
+                "Données insuffisantes" : 
+                (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
+              }
+            </span>
+          </div>
+        )}
+
+        {limitType === "LI_AND_LS" && (
+          <>
+            {liCompliance && (
+              <div className="parameter-item">
+                <span>{param.label} LI</span>
+                <span>{liCompliance.displayEquation || liCompliance.equation}</span>
+                <span>
+                  {liCompliance.noLimit ? "Pas de limite définie" :
+                   liCompliance.equation.includes("insuffisantes") || liCompliance.equation.includes("non disponible") ? 
+                    "Données insuffisantes" : 
+                    (liCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
+                  }
+                </span>
+              </div>
+            )}
+            {lsCompliance && (
+              <div className="parameter-item">
+                <span>{param.label} LS</span>
+                <span>{lsCompliance.displayEquation || lsCompliance.equation}</span>
+                <span>
+                  {lsCompliance.noLimit ? "Pas de limite définie" :
+                   lsCompliance.equation.includes("insuffisantes") || lsCompliance.equation.includes("non disponible") ? 
+                    "Données insuffisantes" : 
+                    (lsCompliance.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
+                  }
+                </span>
+              </div>
+            )}
+          </>
+        )}
+        
+        {/* Message si aucune compliance n'est calculée */}
+        {!liCompliance && !lsCompliance && hasDataForParameter(param.key) && (
+          <div className="parameter-item">
+            <span>{param.label}</span>
+            <span>Pas de limites définies pour cette classe</span>
+            <span>Non applicable</span>
+          </div>
+        )}
+      </div>
+    );
+  })}
                 </div>
               </div>
             </div>
@@ -2582,31 +2601,27 @@ Object.keys(statisticalCompliance).forEach(key => {
               <div className="section-box">
                 <h4>Contrôle par Attributs propriétés physiques & chimiques</h4>
                 <div className="parameter-list">
-                  {attributParamsWithData.map(param => {
-                    const attributeResult = checkEquationSatisfaction(
-                      classCompliance[param.key]?.values || [],
-                      classCompliance[param.key]?.limits || {},
-                      conditionsStatistiques
-                    );
-                    
-                    return (
-                      <div key={param.key} className="parameter-item">
-                        <span>{param.label}</span>
-                        <span>
-                          {attributeResult.displayText}
-                        </span>
-                        <span>
-                          {attributeResult.noLimits ? "Pas de limites définies" :
-                           attributeResult.equation.includes("insuffisantes") || 
-                           attributeResult.equation.includes("manquantes") || 
-                           attributeResult.equation.includes("non chargées") ? 
-                            "Données insuffisantes" : 
-                            (attributeResult.satisfied ? "Équation satisfaite" : "Équation non satisfaite")
-                          }
-                        </span>
-                      </div>
-                    );
-                  })}
+
+
+{attributParamsWithData.map(param => {
+  const attributeResult = checkEquationSatisfaction(
+    classCompliance[param.key]?.values || [],
+    classCompliance[param.key]?.limits || {},
+    conditionsStatistiques
+  );
+  
+  return (
+    <div key={param.key} className="parameter-item">
+      <span>{param.label}</span> {/* ✅ Juste le nom, pas de (limite supérieure/inférieure) */}
+      <span>{attributeResult.displayText}</span>
+      <span>
+        {attributeResult.noLimits ? "Pas de limites définies" :
+         attributeResult.satisfied ? "Équation satisfaite" : "Équation non satisfaite"
+        }
+      </span>
+    </div>
+  );
+})}
                 </div>
               </div>
             </div>
