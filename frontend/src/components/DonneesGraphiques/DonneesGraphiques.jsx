@@ -484,6 +484,32 @@ useEffect(() => {
     "52.5 L", "52.5 N", "52.5 R"
   ];
 
+// ✅ Save the exported Word in the database (like Echantillons)
+const saveWordExportToDB = async (base64File, fileName) => {
+  try {
+    const response = await fetch("http://localhost:5000/api/save-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_types_ciment_id: clientTypeCimentId,
+        phase: "graphique", // 🔹 identify it as DonneesGraphiques export
+        pdf_type: "donnees_graphiques",
+        fileName,
+        base64File,
+        start_date: filterPeriod.start,
+        end_date: filterPeriod.end,
+      }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Erreur sauvegarde fichier");
+
+    alert("✅ Export Word enregistré dans l'historique !");
+  } catch (error) {
+    console.error("❌ Erreur sauvegarde Word:", error);
+    alert("❌ Erreur lors de l’enregistrement dans la base: " + error.message);
+  }
+};
 
 // ✅ Function to export the Word report
 const handleExportWord = async () => {
@@ -556,8 +582,14 @@ const handleExportWord = async () => {
     const paramName = parameters.find(p => p.key === selectedParameter)?.label || "data";
     const fileName = `donnees-graphiques-${paramName.replace(/\s+/g, "-")}-${selectedClass || "all"}-${new Date().toISOString().split("T")[0]}.docx`;
 
-    await WordExportService.exportToWord(wordDoc, fileName);
-    console.log("✅ Word export completed successfully!");
+    // ✅ Export to Word and get Base64 file
+const base64File = await WordExportService.exportToWord(wordDoc, fileName);
+
+// ✅ Save to backend for history tracking
+await saveWordExportToDB(base64File, fileName);
+
+console.log("✅ Word export completed and saved in DB!");
+
   } catch (error) {
     console.error("❌ Error generating Word document:", error);
     alert("Erreur lors de la génération du document Word: " + error.message);

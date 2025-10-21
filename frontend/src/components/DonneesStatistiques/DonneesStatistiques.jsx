@@ -160,7 +160,8 @@ const DonneesStatistiques = ({
   produitDescription, 
   clients = [], 
   produits = [] ,
-  ajoutsData = {}
+  ajoutsData = {},
+  phase,
 }) => {
   const { filteredTableData, filterPeriod } = useData();
   const [mockDetails, setMockDetails] = useState({});
@@ -388,14 +389,11 @@ const DonneesStatistiques = ({
 const handleExportWord = async () => {
   try {
     console.log("🔄 Starting Word export process...");
-    
-    // Prepare data for Word export
+
+    // 1️⃣ Prepare data for Word export
     const exportData = {
       clientInfo: { nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client" },
-      produitInfo: {
-        ...produitInfo,
-        famille: finalFamilleName
-      },
+      produitInfo: { ...produitInfo, famille: produitInfo?.famille?.nom || "" },
       period: filterPeriod,
       globalStats: allStats,
       parameters: parameters,
@@ -405,28 +403,44 @@ const handleExportWord = async () => {
       evaluateLimits: evaluateLimits
     };
 
-    console.log("📊 Export data prepared:", exportData);
-
-    // Generate Word document
-    console.log("📝 Generating Word document...");
+    // 2️⃣ Generate the Word document
     const doc = await WordExportService.generateStatsReport(exportData);
-    console.log("✅ Word document generated");
 
-    // Export to Word using the service method
-    console.log("💾 Starting export to Word...");
-    const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
-    const fileName = `donnees_statistiques_${clientName}_${filterPeriod.start}_${filterPeriod.end}.docx`.replace(/\s+/g, '_');
-    
-    await WordExportService.exportToWord(doc, fileName);
-    
-    console.log("🎉 Word export completed successfully");
+    // 3️⃣ Convert Word doc to Base64
+    const base64File = await Packer.toBase64String(doc);
 
+    // 4️⃣ Build file name
+    const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale?.replace(/\s+/g, "_") || "client";
+    const fileName = `donnees_statistiques_${clientName}_${filterPeriod.start}_${filterPeriod.end}.docx`;
+
+    // 5️⃣ Send file to backend for saving + DB logging
+    console.log("📤 Sending file to backend...");
+    const response = await fetch("http://localhost:5000/api/save-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_types_ciment_id: clientTypeCimentId,
+        phase,
+        pdf_type: "donneesstatistique",
+        fileName,
+        base64File,
+        start_date: filterPeriod.start,
+        end_date: filterPeriod.end,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) throw new Error(result.error || "Erreur lors de la sauvegarde PDF");
+
+    console.log("✅ PDF enregistré côté serveur:", result);
+    alert("✅ Export enregistré avec succès dans l’historique !");
   } catch (error) {
-    console.error("❌ Error generating Word document:", error);
-    console.error("Error details:", error.message, error.stack);
-    alert("Erreur lors de l'export Word: " + error.message);
+    console.error("❌ Error generating/exporting document:", error);
+    alert("Erreur lors de l'export : " + error.message);
   }
 };
+
 
   const classes = ["32.5 L", "32.5 N", "32.5 R", "42.5 L", "42.5 N", "42.5 R", "52.5 L", "52.5 N", "52.5 R"];
 

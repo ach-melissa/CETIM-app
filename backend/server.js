@@ -21,8 +21,8 @@ const storage = multer.memoryStorage();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 
 // Configuration de multer (mémoire pour traitement)
@@ -67,43 +67,180 @@ promisePool.getConnection()
 
 
 // ✅ Route pour enregistrer un PDF dans la base de données
-app.post("/api/save-pdf", upload.single("pdf"), async (req, res) => {
-  console.log("📩 Champs reçus:", req.body);
-  console.log(
-    "📎 Fichier reçu:",
-    req.file ? `${req.file.originalname} (${req.file.size} bytes)` : "❌ Aucun fichier reçu"
-  );
-
-  const { client_typecement_id, pdf_type, start_date, end_date } = req.body;
-  const pdfBuffer = req.file?.buffer;
-
-  if (!pdfBuffer) {
-    console.error("❌ Aucun fichier PDF reçu !");
-    return res.status(400).json({ error: "Aucun fichier PDF reçu." });
-  }
-
+app.post("/api/save-pdf", async (req, res) => {
   try {
-    const [result] = await promisePool.query(
-      `INSERT INTO pdf_exports (client_typecement_id, pdf_type, pdf_blob, start_date, end_date)
-       VALUES (?, ?, ?, ?, ?)`,
-      [client_typecement_id, pdf_type, pdfBuffer, start_date || null, end_date || null]
+    const {
+      client_types_ciment_id,
+      phase,
+      pdf_type,
+      fileName,
+      base64File,
+      start_date,
+      end_date,
+    } = req.body;
+
+    if (!client_types_ciment_id || !pdf_type || !fileName || !base64File) {
+      return res.status(400).json({ error: "Champs manquants dans la requête." });
+    }
+
+    // 🔍 Fetch client & ciment info
+    const [rows] = await promisePool.query(
+      `SELECT c.id AS client_id, 
+              c.nom_raison_sociale AS client_nom, 
+              t.code AS ciment_code 
+       FROM client_types_ciment ctc
+       JOIN clients c ON c.id = ctc.client_id
+       JOIN types_ciment t ON t.id = ctc.typecement_id
+       WHERE ctc.id = ?`,
+      [client_types_ciment_id]
     );
 
-    console.log("✅ Insertion réussie, ID:", result.insertId);
+    if (!rows.length) {
+      return res.status(404).json({ error: "Client/ciment introuvable." });
+    }
+
+    const { client_id, client_nom, ciment_code } = rows[0];
+
+    // 🧩 Safe file/folder names
+    const safeClientName = client_nom.replace(/[^\w\s-]/g, "").replace(/\s+/g, "_");
+    const safeCimentCode = ciment_code.replace(/[^\w\s-]/g, "").replace(/\s+/g, "_");
+    const safeStart = start_date ? start_date.replace(/[^0-9-]/g, "") : "noStart";
+    const safeEnd = end_date ? end_date.replace(/[^0-9-]/g, "") : "noEnd";
+
+    // 📁 Folder: exports/CIM_SPA_CEMII_2025-10-01_2025-10-15/
+    const exportRoot = path.join(
+      __dirname,
+      "exports",
+      `${safeClientName}_${safeCimentCode}_${safeStart}_${safeEnd}`
+    );
+
+    fs.mkdirSync(exportRoot, { recursive: true });
+
+    // 🔄 Convert Base64 → Buffer and save
+    const fileBuffer = Buffer.from(base64File, "base64");
+    const filePath = path.join(exportRoot, fileName);
+    fs.writeFileSync(filePath, fileBuffer);
+
+    console.log("✅ PDF sauvegardé:", filePath);
+
+    // 🗄️ Save record in DB
+    const [result] = await promisePool.query(
+      `INSERT INTO pdf_exports (
+        client_types_ciment_id,
+        phase,
+        folder_path,
+        description,
+        start_date,
+        end_date
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        client_types_ciment_id,
+        phase || "situation_courante",
+        filePath,
+        pdf_type,
+        start_date || null,
+        end_date || null,
+      ]
+    );
+
     res.json({
       success: true,
       message: "✅ PDF enregistré avec succès !",
       id: result.insertId,
+      path: filePath,
     });
+
   } catch (error) {
-    console.error("❌ Erreur SQL complète:", error.sqlMessage || error.message);
-    console.error("🧠 SQL complet:", error.sql);
-    res.status(500).json({
-      error: "Erreur SQL: " + (error.sqlMessage || error.message),
-    });
+    console.error("❌ Erreur lors de la sauvegarde du PDF:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 
+// ✅ Route pour afficher ou télécharger un DOCX
+app.get("/api/pdf-exports/view/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await promisePool.query(
+      "SELECT folder_path FROM pdf_exports WHERE id = ?",
+      [id]
+    );
+
+    if (rows.length === 0)
+      return res.status(404).json({ error: "Fichier introuvable" });
+
+    const { folder_path } = rows[0];
+    if (!fs.existsSync(folder_path))
+      return res.status(404).json({ error: "Fichier non trouvé sur le serveur" });
+
+    // 🧠 Extract original filename from path
+    const originalName = path.basename(folder_path);
+
+    // 👇 Send it with the correct headers
+    res.setHeader("Content-Disposition", `attachment; filename="${originalName}"`);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
+
+    const fileStream = fs.createReadStream(folder_path);
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error("❌ Erreur lors du téléchargement du fichier:", error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+
+// ✅ Route to get grouped exports (by client, ciment, and date range)
+app.get("/api/pdf-exports", async (req, res) => {
+  try {
+    const [rows] = await promisePool.query(`
+      SELECT 
+        pe.id,
+        pe.client_types_ciment_id,
+        c.nom_raison_sociale AS client_nom,
+        t.code AS ciment_code,
+        pe.start_date,
+        pe.end_date,
+        pe.phase,
+        pe.description,
+        pe.folder_path,
+        pe.export_date
+      FROM pdf_exports pe
+      JOIN client_types_ciment ctc ON pe.client_types_ciment_id = ctc.id
+      JOIN clients c ON c.id = ctc.client_id
+      JOIN types_ciment t ON t.id = ctc.typecement_id
+      ORDER BY c.nom_raison_sociale, t.code, pe.start_date DESC, pe.export_date DESC
+    `);
+
+    // 🧠 Group the rows by (client, ciment, start, end)
+    const grouped = {};
+    rows.forEach(row => {
+      const key = `${row.client_nom}_${row.ciment_code}_${row.start_date}_${row.end_date}`;
+      if (!grouped[key]) {
+        grouped[key] = {
+          client_nom: row.client_nom,
+          ciment_code: row.ciment_code,
+          start_date: row.start_date,
+          end_date: row.end_date,
+          exports: []
+        };
+      }
+      grouped[key].exports.push({
+        id: row.id,
+        phase: row.phase,
+        description: row.description,
+        folder_path: row.folder_path,
+        export_date: row.export_date
+      });
+    });
+
+    res.json(Object.values(grouped));
+  } catch (error) {
+    console.error("❌ Error fetching grouped pdf exports:", error);
+    res.status(500).json({ error: "Erreur lors de la récupération des exports" });
+  }
+});
 
 
 // Chemin vers le fichier parnorm.json

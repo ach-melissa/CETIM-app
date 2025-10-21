@@ -1914,22 +1914,37 @@ static addConclusionToWord(classData, options, helpers) {
   // ============================================================
 
   static async exportToWord(doc, fileName = "export.docx") {
-    try {
-      const blob = await Packer.toBlob(doc);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      return true;
-    } catch (error) {
-      console.error('Error exporting to Word:', error);
-      throw error;
-    }
+  try {
+    // 1️⃣ Create Blob from Word document
+    const blob = await Packer.toBlob(doc);
+
+    // 2️⃣ Convert Blob → ArrayBuffer → Base64
+    const arrayBuffer = await blob.arrayBuffer();
+    const base64File = btoa(
+      new Uint8Array(arrayBuffer).reduce(
+        (data, byte) => data + String.fromCharCode(byte),
+        ""
+      )
+    );
+
+    // 3️⃣ Trigger download in browser
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    // 4️⃣ Return Base64 so ControleConformite.jsx can save it
+    return base64File;
+  } catch (error) {
+    console.error("❌ Error exporting to Word:", error);
+    throw error;
   }
+}
+
 }
 
 export default WordExportService;
