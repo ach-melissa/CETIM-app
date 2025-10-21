@@ -278,3 +278,283 @@
     background: transparent !important;
   }
 }
+/* Add these styles to your existing EchantillonsTable.css */
+
+/* Echantillons Wrapper */
+.echantillons-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: #f8fafc;
+  min-height: 100vh;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.echantillons-wrapper h2 {
+  color: #1e293b;
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  border-bottom: 2px solid #3b82f6;
+  padding-bottom: 0.5rem;
+}
+
+/* Info Section */
+.echantillons-info {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.echantillons-info p {
+  margin: 0.5rem 0;
+  color: #64748b;
+  font-size: 1rem;
+}
+
+.echantillons-info strong {
+  color: #374151;
+  font-weight: 600;
+}
+
+/* Actions Section */
+.actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.actions button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  min-width: 140px;
+}
+
+.actions button:first-child {
+  background: #10b981;
+  color: white;
+}
+
+.actions button:first-child:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+.actions button:last-child {
+  background: #8b5cf6;
+  color: white;
+}
+
+.actions button:last-child:hover {
+  background: #7c3aed;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(139, 92, 246, 0.3);
+}
+
+/* Table Container */
+.table-container {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Table Styles */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1200px;
+  font-size: 0.875rem;
+}
+
+.table th {
+  background: #f8fafc;
+  color: #374151;
+  font-weight: 600;
+  padding: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: center;
+  color: #4b5563;
+}
+
+.table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.table tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.table tbody tr:nth-child(even):hover {
+  background: #f1f5f9;
+}
+
+/* No Data Row */
+.table tbody tr:last-child td {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 2rem;
+  background: #f9fafb;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .echantillons-wrapper {
+    padding: 1rem;
+  }
+  
+  .echantillons-wrapper h2 {
+    font-size: 1.5rem;
+    text-align: center;
+  }
+  
+  .echantillons-info {
+    padding: 1rem;
+  }
+  
+  .actions {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+  
+  .actions button {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .table-container {
+    margin: 0 -1rem;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .echantillons-wrapper {
+    padding: 0.5rem;
+  }
+  
+  .echantillons-info p {
+    font-size: 0.9rem;
+  }
+  
+  .actions button {
+    min-width: auto;
+    padding: 0.875rem 1rem;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .echantillons-wrapper {
+    background: white;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .actions {
+    display: none !important;
+  }
+  
+  .echantillons-info {
+    box-shadow: none;
+    border: 1px solid #000;
+    margin-bottom: 1rem;
+  }
+  
+  .table-container {
+    box-shadow: none;
+    border: 1px solid #000;
+    overflow-x: visible;
+  }
+  
+  .table {
+    min-width: auto;
+  }
+  
+  .table th {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+  }
+}
+
+/* Loading State */
+.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.loading::after {
+  content: " Chargement...";
+  font-style: italic;
+  color: #6b7280;
+}
+
+/* Empty State Enhancement */
+.table tbody tr:last-child td[colspan] {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  font-size: 1rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+/* Focus Styles for Accessibility */
+.actions button:focus,
+.table:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .echantillons-info {
+    border: 2px solid #000;
+  }
+  
+  .actions {
+    border: 2px solid #000;
+  }
+  
+  .table-container {
+    border: 2px solid #000;
+  }
+  
+  .table th {
+    background: #000;
+    color: #fff;
+  }
+  
+  .table td {
+    border-bottom: 2px solid #000;
+  }
+}

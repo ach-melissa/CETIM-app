@@ -695,10 +695,15 @@ const handleExportSelectedWord = async () => {
     const fileName = `rapport_conformite_${selectedClasses.join('_')}_${new Date().toISOString().split('T')[0]}.docx`;
     console.log("💾 Export du fichier:", fileName);
     
-    await WordExportService.exportToWord(doc, fileName);
-    
-    console.log("✅ Export Word terminé avec succès!");
-    alert(`Document Word exporté avec succès pour ${selectedClasses.length} classe(s)!`);
+// ✅ Export file locally
+const base64File = await WordExportService.exportToWord(doc, fileName);
+
+// ✅ Save in database (like Echantillons)
+await saveWordExportToDB(base64File, fileName);
+
+console.log("✅ Export Word terminé et enregistré !");
+alert(`Document Word exporté et enregistré pour ${selectedClasses.length} classe(s)!`);
+
     setShowClassSelector(false);
     
   } catch (error) {
@@ -709,7 +714,33 @@ const handleExportSelectedWord = async () => {
   }
 };
 
+// ✅ Save exported Word file to backend (like echantillons)
+const saveWordExportToDB = async (base64File, fileName) => {
+  try {
+    const response = await fetch("http://localhost:5000/api/save-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_types_ciment_id: clientTypeCimentId,
+        phase,
+        pdf_type: "controle_conformite",
+        fileName,
+        base64File,
+        start_date: filterPeriod.start,
+        end_date: filterPeriod.end,
+      }),
+    });
 
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Erreur sauvegarde fichier");
+
+    console.log("✅ Contrôle Conformité enregistré:", result);
+    alert("✅ Export Word enregistré dans l’historique !");
+  } catch (error) {
+    console.error("❌ Erreur sauvegarde Word:", error);
+    alert("❌ Erreur lors de l’enregistrement dans la base: " + error.message);
+  }
+};
 
 
 // Fonction pour sauvegarder la phase

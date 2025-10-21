@@ -687,42 +687,34 @@ if (showTauxAjout) {
   };
 
 
-const handleExport = async () => { 
+const handleExport = async () => {
   try {
-    // Prepare complete table data for Word export
     const tableData = {
       headers: ["Classe", ...parameters.map(param => param.label)],
       rows: []
     };
 
-    // Build rows for each class
     classes.forEach((classe) => {
       const classCompliance = {};
       const statisticalCompliance = {};
-      
-      // Calculate compliance data for this class
+
       parameters.forEach(param => {
         const limits = getLimitsByClass(classe, param.key);
         const values = dataToUse.map(r => {
-          if (param.key === "ajt") {
-            return parseFloat(r.ajout_percent);
-          }
+          if (param.key === "ajt") return parseFloat(r.ajout_percent);
           return parseFloat(r[param.key]);
         }).filter(v => !isNaN(v));
         const stats = evaluateLimits(dataToUse, param.key, limits.li, limits.ls, limits.lg);
-        
         classCompliance[param.key] = { limits, stats, values };
       });
 
       const isClassConforme = calculateClassConformity(classCompliance, statisticalCompliance, conditionsStatistiques);
 
-      // Class name row
       tableData.rows.push({
         type: 'class-header',
-        data: [`${classe} ${isClassConforme ? "Conforme" : "Non Conforme"}`, ...parameters.map(() => "")]
+        data: [`${classe} ${isClassConforme ? "Conforme" : "Non Conforme"}`, ...parameters.map(() => "")],
       });
 
-      // % Déviation row
       const deviationRow = ["% Déviation"];
       parameters.forEach(param => {
         const compliance = classCompliance[param.key];
@@ -731,7 +723,6 @@ const handleExport = async () => {
       });
       tableData.rows.push({ type: 'deviation', data: deviationRow });
 
-      // % Défaut row
       const defaultRow = ["% Défaut"];
       parameters.forEach(param => {
         const compliance = classCompliance[param.key];
@@ -740,7 +731,6 @@ const handleExport = async () => {
       });
       tableData.rows.push({ type: 'default', data: defaultRow });
 
-      // Contrôle Statistique row
       const controlRow = ["Contrôle Statistique"];
       parameters.forEach(param => {
         const compliance = classCompliance[param.key];
@@ -749,53 +739,72 @@ const handleExport = async () => {
       });
       tableData.rows.push({ type: 'control', data: controlRow });
 
-      // Add empty row for spacing
-      tableData.rows.push({
-        type: 'spacer',
-        data: Array(parameters.length + 1).fill("")
-      });
+      tableData.rows.push({ type: 'spacer', data: Array(parameters.length + 1).fill("") });
     });
 
-    // Word export options
-    const wordOptions = {
-      clientInfo: { nom: clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client" },
-      produitInfo: {
-        ...produitInfo,
-        famille: finalFamilleName
-      },
-      periodStart: filterPeriod.start,
-      periodEnd: filterPeriod.end
-    };
+    // Prepare metadata
+    const client = clients.find(c => c.id == clientId);
+    const clientName = client?.nom_raison_sociale || "client";
+    const startDate = filterPeriod.start;
+    const endDate = filterPeriod.end;
+
+    const fileName = `table_conformite_${clientName}_${startDate}_${endDate}.docx`.replace(/\s+/g, "_");
 
     // Generate Word document
-    const doc = await WordExportService.generateTableReport(tableData, wordOptions);
+    const doc = await WordExportService.generateTableReport(tableData, {
+      clientInfo: { nom: clientName },
+      produitInfo: { ...produitInfo, famille: finalFamilleName },
+      periodStart: startDate,
+      periodEnd: endDate,
+    });
 
-    // Convert to blob
     const blob = await Packer.toBlob(doc);
-    
-    // Create file name
-    const clientName = clients.find(c => c.id == clientId)?.nom_raison_sociale || "client";
-    const fileName = `tableau_conformite_${clientName}_${filterPeriod.start}_${filterPeriod.end}.docx`.replace(/\s+/g, '_');
 
-    // Create download link - this triggers the browser's save dialog
+    // ✅ Save on backend
+    const base64File = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    const payload = {
+      client_types_ciment_id: clientTypeCimentId,
+      phase: "situation_courante",
+      pdf_type: "table_conformite",
+      fileName,
+      base64File,
+      start_date: startDate,
+      end_date: endDate,
+    };
+
+    const response = await fetch("http://localhost:5000/api/save-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Erreur backend");
+
+    console.log("✅ Enregistrement backend réussi:", result);
+
+    // Optional: also download locally
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
     link.download = fileName;
-    
-    // This will open the system's "Save As" dialog
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
-    // Clean up
     setTimeout(() => URL.revokeObjectURL(url), 100);
 
   } catch (error) {
-    console.error("Error generating Word document:", error);
-    alert("Erreur lors de l'export Word: " + error.message);
+    console.error("❌ Erreur export/sauvegarde:", error);
+    alert("Erreur lors de l'export/sauvegarde: " + error.message);
   }
 };
+ 
 
  
 

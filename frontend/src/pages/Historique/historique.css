@@ -1,57 +1,187 @@
 .historique-container {
-  padding: 20px;
-  max-width: 1000px;
+  padding: 30px;
+  max-width: 1200px;
+  margin: 0 auto;
   margin-left: 250px;
+  font-family: "Poppins", sans-serif;
+  color: #333;
 }
 
-h1 {
+.historique-title {
+  font-size: 26px;
   text-align: center;
-  margin-bottom: 20px;
-  color: #2c3e50;
+  color: #004aad;
+  margin-bottom: 25px;
+  font-weight: 600;
 }
 
-.search-bar {
-  width: 100%;
-  padding: 10px;
+/* ===== Search Section ===== */
+.search-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 20px;
-  border-radius: 8px;
+  background-color: #f8faff;
+  border: 1px solid #e1e8ff;
+  padding: 15px 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.search-section label {
+  font-weight: 500;
+  color: #004aad;
+}
+
+.search-section select,
+.search-section input[type="text"],
+.search-section input[type="date"] {
+  padding: 8px 12px;
   border: 1px solid #ccc;
-  font-size: 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: 0.2s ease;
 }
 
-.history-table {
+.search-section select:focus,
+.search-section input[type="text"]:focus,
+.search-section input[type="date"]:focus {
+  border-color: #004aad;
+  box-shadow: 0 0 4px rgba(0, 74, 173, 0.2);
+}
+
+.date-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-btn {
+  background-color: #004aad;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.search-btn:hover {
+  background-color: #003a91;
+}
+
+/* ===== Table ===== */
+.historique-table {
   width: 100%;
   border-collapse: collapse;
-  background: white;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  overflow: hidden;
+  background-color: #fff;
 }
 
-.history-table th,
-.history-table td {
-  padding: 10px;
-  text-align: center;
-  border-bottom: 1px solid #ddd;
-  width: 400px;
+.historique-table th,
+.historique-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+  vertical-align: middle;
 }
 
-.history-table th {
+.historique-table th {
   background-color: #f4f6f9;
-  font-weight: bold;
-  color: #34495e;
+  color: #222;
+  font-weight: 600;
+  font-size: 15px;
+  border-bottom: 2px solid #ddd;
 }
 
-.conforme {
-  color: rgb(0, 53, 128);
-  font-weight: bold;
-  background-color: #e3f1ff;
+.historique-table tbody tr:hover {
+  background-color: #f9fbff;
 }
 
-.non-conforme {
-    background-color: #ededed;
-  color: rgb(0, 0, 0);
-  font-weight: bold;
+.no-data {
+  text-align: center;
+  padding: 30px;
+  color: #777;
 }
 
-.history-table tr:hover {
-  background-color: #f9f9f9;
+/* ===== Dates ===== */
+.date {
+  background-color: #e9f0ff;
+  color: #004aad;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+/* ===== File Buttons ===== */
+.file-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f8faff;
+  border: 1px solid #e1e8ff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  transition: background 0.2s ease;
+}
+
+.file-item:hover {
+  background-color: #edf3ff;
+}
+
+.file-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.download-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s ease;
+}
+
+.download-btn:hover {
+  background-color: #1e8d39;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .search-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .date-filters {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .historique-table th,
+  .historique-table td {
+    font-size: 13px;
+    padding: 10px;
+  }
+
+  .file-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
 }

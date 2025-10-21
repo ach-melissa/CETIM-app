@@ -214,7 +214,7 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1200px;
+  min-width: 1400px;
   font-size: 0.875rem;
 }
 
@@ -320,5 +320,282 @@
   .table input {
     border: none !important;
     background: transparent !important;
+  }
+}
+/* Add these styles to your existing DonneesClients.css */
+
+/* Action Buttons Top */
+.action-buttons-top {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.action-buttons-top button {
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.action-buttons-top button:first-child {
+  background: #3b82f6;
+  color: white;
+}
+
+.action-buttons-top button:first-child:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.action-buttons-top button:nth-child(2) {
+  background: #ef4444;
+  color: white;
+}
+
+.action-buttons-top button:nth-child(2):hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.action-buttons-top button:nth-child(4) {
+  background: #10b981;
+  color: white;
+}
+
+.action-buttons-top button:nth-child(4):hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.action-buttons-top button:nth-child(5) {
+  background: #8b5cf6;
+  color: white;
+}
+
+.action-buttons-top button:nth-child(5):hover {
+  background: #7c3aed;
+  transform: translateY(-1px);
+}
+
+.action-buttons-top button:nth-child(6) {
+  background: #f59e0b;
+  color: white;
+}
+
+.action-buttons-top button:nth-child(6):hover {
+  background: #d97706;
+  transform: translateY(-1px);
+}
+
+.action-buttons-top button:nth-child(7) {
+  background: #6b7280;
+  color: white;
+}
+
+.action-buttons-top button:nth-child(7):hover {
+  background: #4b5563;
+  transform: translateY(-1px);
+}
+
+/* Edit Mode Buttons */
+.action-buttons-top button:last-child,
+.action-buttons-top button:nth-last-child(2) {
+  background: #6b7280;
+  color: white;
+}
+
+.action-buttons-top button:last-child:hover,
+.action-buttons-top button:nth-last-child(2):hover {
+  background: #4b5563;
+  transform: translateY(-1px);
+}
+
+/* Date Filter Button */
+.donnees-clients-container > div > div:has(button:contains("Commencer traitement")) {
+  margin-bottom: 1rem;
+}
+
+.donnees-clients-container > div > div > button {
+  padding: 0.75rem 1.5rem;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 200px;
+}
+
+.donnees-clients-container > div > div > button:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+/* Status Indicators */
+.donnees-clients-container > div > div:has(> strong:contains("Filtre actif")) {
+  background: #e6f7ff;
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 10px;
+  border-left: 4px solid #3b82f6;
+}
+
+.donnees-clients-container > div > div:has(> strong:contains("Mode édition")) {
+  background: #f0f9ff;
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 10px;
+  border-left: 4px solid #8b5cf6;
+}
+
+/* Title Section */
+.donnees-clients-container > div:first-child {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.donnees-clients-container > div:first-child h2 {
+  text-align: left;
+  border-bottom: none;
+  margin-bottom: 1rem;
+  color: #1e293b;
+  font-size: 1.5rem;
+}
+
+.donnees-clients-container > div:first-child h3 {
+  color: #374151;
+  margin: 0.5rem 0;
+  font-size: 1.2rem;
+}
+
+.donnees-clients-container > div:first-child p {
+  margin: 0.25rem 0;
+  color: #64748b;
+}
+
+.donnees-clients-container > div:first-child strong {
+  color: #374151;
+}
+
+/* Form Container */
+.form-container {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin: 1.5rem 0;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.form-container h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #1e293b;
+  font-size: 1.2rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+
+.form-container label {
+  display: block;
+  margin-bottom: 1rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.form-container select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  margin-top: 0.25rem;
+  background: white;
+}
+
+.form-container select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.form-container button {
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  margin-right: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.form-container button:first-of-type {
+  background: #10b981;
+  color: white;
+}
+
+.form-container button:first-of-type:hover {
+  background: #059669;
+}
+
+.form-container button:last-of-type {
+  background: #6b7280;
+  color: white;
+}
+
+.form-container button:last-of-type:hover {
+  background: #4b5563;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .action-buttons-top {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .action-buttons-top button {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .donnees-clients-container > div > div > button {
+    max-width: 100%;
+  }
+  
+  .form-container button {
+    width: 100%;
+    margin-bottom: 0.5rem;
+    margin-right: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .donnees-clients-container {
+    padding: 1rem;
+  }
+  
+  .action-buttons-top,
+  .donnees-clients-container > div:first-child,
+  .form-container {
+    padding: 1rem;
   }
 }
