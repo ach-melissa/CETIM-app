@@ -805,35 +805,41 @@ const DonneesClients = forwardRef(
           </div>
         )}
 
-        {/* Title Section - Moved above buttons */}
-        <div style={{ marginBottom: "1rem" }}>
-          <h2>Données à traiter</h2>
-          <strong>Client :</strong>{" "}
-              <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
-          
-          {produitInfo && (
-            <>
-              <h3>{produitInfo.description}</h3>
-              <p><strong>Type: {produitInfo.nom}</strong></p>
-            </>
-          )}
-          
-          {/* Display filter status */}
-          {(start || end) && (
-            <div style={{ backgroundColor: "#e6f7ff", padding: "10px", borderRadius: "5px", marginTop: "10px" }}>
-              <strong>Filtre actif:</strong> Période du {start || "..."} au {end || "..."} 
-              <span style={{fontSize: '0.9em', color: '#666', marginLeft: '10px'}}>
-                (appliqué pour l'export et le traitement uniquement)
-              </span>
-            </div>
-          )}
-          
-          {isEditing && rowsToEdit.length > 0 && (
-            <div style={{ backgroundColor: "#e6f7ff", padding: "10px", borderRadius: "5px", marginTop: "10px" }}>
-              <strong>Mode édition :</strong> Vous modifiez {rowsToEdit.length} échantillon(s)
-            </div>
-          )}
-        </div>
+{/* Title Section - Moved above buttons */}
+<div style={{ marginBottom: "1rem" }}>
+  <h2>Données à traiter</h2>
+  
+  {/* ✅ CORRECTION: N'afficher le client que si clientId est défini */}
+  {clientId && (
+    <p>
+      <strong>Client :</strong>{" "}
+      <strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Client non trouvé"}</strong>
+    </p>
+  )}
+  
+  {produitInfo && (
+    <>
+      <h3>{produitInfo.description}</h3>
+      <p><strong>Type: {produitInfo.nom}</strong></p>
+    </>
+  )}
+  
+  {/* Display filter status */}
+  {(start || end) && (
+    <div style={{ backgroundColor: "#e6f7ff", padding: "10px", borderRadius: "5px", marginTop: "10px" }}>
+      <strong>Filtre actif:</strong> Période du {start || "..."} au {end || "..."} 
+      <span style={{fontSize: '0.9em', color: '#666', marginLeft: '10px'}}>
+        (appliqué pour l'export et le traitement uniquement)
+      </span>
+    </div>
+  )}
+  
+  {isEditing && rowsToEdit.length > 0 && (
+    <div style={{ backgroundColor: "#e6f7ff", padding: "10px", borderRadius: "5px", marginTop: "10px" }}>
+      <strong>Mode édition :</strong> Vous modifiez {rowsToEdit.length} échantillon(s)
+    </div>
+  )}
+</div>
 
         {/* Action Buttons - Below the title */}
         <div className="action-buttons-top">
