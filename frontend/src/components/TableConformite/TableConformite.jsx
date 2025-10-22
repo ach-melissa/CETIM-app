@@ -771,7 +771,7 @@ const handleExport = async () => {
     const payload = {
       client_types_ciment_id: clientTypeCimentId,
       phase: "situation_courante",
-      pdf_type: "table_conformite",
+      pdf_type: "Table Conformité",
       fileName,
       base64File,
       start_date: startDate,

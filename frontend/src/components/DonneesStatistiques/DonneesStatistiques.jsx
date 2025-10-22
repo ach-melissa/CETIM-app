@@ -421,7 +421,7 @@ const handleExportWord = async () => {
       body: JSON.stringify({
         client_types_ciment_id: clientTypeCimentId,
         phase,
-        pdf_type: "donneesstatistique",
+        pdf_type: "Données Statistique",
         fileName,
         base64File,
         start_date: filterPeriod.start,

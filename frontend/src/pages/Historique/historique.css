@@ -10,7 +10,7 @@
 .historique-title {
   font-size: 26px;
   text-align: center;
-  color: #004aad;
+  color: #1e3a8a;
   margin-bottom: 25px;
   font-weight: 600;
 }
@@ -22,34 +22,34 @@
   align-items: center;
   gap: 12px;
   margin-bottom: 20px;
-  background-color: #f8faff;
-  border: 1px solid #e1e8ff;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
   padding: 15px 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
 }
 
 .search-section label {
   font-weight: 500;
-  color: #004aad;
+  color: #374151;
 }
 
 .search-section select,
 .search-section input[type="text"],
 .search-section input[type="date"] {
   padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
   font-size: 14px;
   outline: none;
   transition: 0.2s ease;
+  background: white;
 }
 
 .search-section select:focus,
 .search-section input[type="text"]:focus,
 .search-section input[type="date"]:focus {
-  border-color: #004aad;
-  box-shadow: 0 0 4px rgba(0, 74, 173, 0.2);
+  border-color: #1e3a8a;
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
 }
 
 .date-filters {
@@ -59,10 +59,10 @@
 }
 
 .search-btn {
-  background-color: #004aad;
+  background-color: #1e3a8a;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 8px 16px;
   cursor: pointer;
   font-weight: 500;
@@ -70,98 +70,206 @@
 }
 
 .search-btn:hover {
-  background-color: #003a91;
+  background-color: #1e40af;
 }
 
-/* ===== Table ===== */
-.historique-table {
-  width: 100%;
-  border-collapse: collapse;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-  border-radius: 10px;
+/* ===== Groups Container ===== */
+.groups-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ===== Group Card ===== */
+.group-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
   overflow: hidden;
-  background-color: #fff;
+  transition: all 0.2s ease;
 }
 
-.historique-table th,
-.historique-table td {
-  padding: 14px 18px;
-  border-bottom: 1px solid #eee;
-  text-align: left;
-  vertical-align: middle;
+.group-card:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
-.historique-table th {
-  background-color: #f4f6f9;
-  color: #222;
+/* ===== Group Header ===== */
+.group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.group-header:hover {
+  background: #f1f5f9;
+}
+
+.group-info {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.client-name {
+  font-size: 18px;
   font-weight: 600;
-  font-size: 15px;
-  border-bottom: 2px solid #ddd;
+  color: #1e3a8a;
 }
 
-.historique-table tbody tr:hover {
-  background-color: #f9fbff;
+.ciment-type {
+  background: #374151;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.no-data {
-  text-align: center;
-  padding: 30px;
-  color: #777;
+.period {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.group-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.file-count {
+  background: #dc2626;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.expand-icon {
+  transition: transform 0.3s ease;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
 }
 
 /* ===== Dates ===== */
 .date {
-  background-color: #e9f0ff;
-  color: #004aad;
+  background-color: #f1f5f9;
+  color: #374151;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: 4px;
   font-size: 13px;
-}
-
-/* ===== File Buttons ===== */
-.file-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.file-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: #f8faff;
-  border: 1px solid #e1e8ff;
-  border-radius: 8px;
-  padding: 8px 12px;
-  transition: background 0.2s ease;
-}
-
-.file-item:hover {
-  background-color: #edf3ff;
-}
-
-.file-name {
   font-weight: 500;
-  color: #333;
 }
 
+/* ===== Exports List ===== */
+.exports-list {
+  background: #fafafa;
+  border-top: 1px solid #e2e8f0;
+  padding: 0;
+}
+
+.exports-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.exports-table th {
+  background: #f8fafc;
+  padding: 16px 20px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  font-size: 14px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.exports-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.export-item:hover {
+  background: #f8fafc;
+}
+
+/* ===== Export Date ===== */
+.export-date {
+  background-color: #f1f5f9;
+  color: #374151;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* ===== File Description ===== */
+.file-description {
+  font-weight: 500;
+  color: #374151;
+  max-width: 300px;
+  word-wrap: break-word;
+}
+
+/* ===== Phase Badge ===== */
+.phase-badge {
+  background: #f1f5f9;
+  color: #374151;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #e2e8f0;
+}
+
+/* ===== Download Button ===== */
 .download-btn {
-  background-color: #28a745;
+  background-color: #1e3a8a;
   color: white;
   border: none;
   border-radius: 6px;
-  padding: 6px 12px;
+  padding: 8px 16px;
   cursor: pointer;
   font-size: 13px;
-  transition: background 0.2s ease;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .download-btn:hover {
-  background-color: #1e8d39;
+  background-color: #1e40af;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ===== No Data ===== */
+.no-data {
+  text-align: center;
+  padding: 40px;
+  color: #6b7280;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  font-size: 16px;
 }
 
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
+  .historique-container {
+    margin-left: 0;
+    padding: 15px;
+  }
+
   .search-section {
     flex-direction: column;
     align-items: stretch;
@@ -173,15 +281,34 @@
     gap: 8px;
   }
 
-  .historique-table th,
-  .historique-table td {
-    font-size: 13px;
-    padding: 10px;
-  }
-
-  .file-item {
+  .group-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 6px;
+    gap: 12px;
+  }
+
+  .group-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .group-actions {
+    align-self: stretch;
+    justify-content: space-between;
+  }
+
+  .exports-table {
+    font-size: 13px;
+  }
+
+  .exports-table th,
+  .exports-table td {
+    padding: 12px 8px;
+  }
+
+  .download-btn {
+    padding: 6px 12px;
+    font-size: 12px;
   }
 }

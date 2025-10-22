@@ -196,7 +196,7 @@ const exportToWord = async () => {
         body: JSON.stringify({
           client_types_ciment_id: clientTypeCimentId, // ✅ use correct ID
           phase,
-          pdf_type: "echantillons",
+          pdf_type: "Echantillons",
           fileName,
           base64File,
           start_date: startDate,

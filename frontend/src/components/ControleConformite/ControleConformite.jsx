@@ -723,7 +723,7 @@ const saveWordExportToDB = async (base64File, fileName) => {
       body: JSON.stringify({
         client_types_ciment_id: clientTypeCimentId,
         phase,
-        pdf_type: "controle_conformite",
+        pdf_type: "Controle Conformité",
         fileName,
         base64File,
         start_date: filterPeriod.start,

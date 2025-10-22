@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react"; 
 import "./Historique.css";
 import Header from "../../components/Header/Header";
 
@@ -9,6 +9,7 @@ const Historique = () => {
   const [searchClient, setSearchClient] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [expandedGroups, setExpandedGroups] = useState({});
 
   // 🧩 Fetch data from backend
   useEffect(() => {
@@ -25,7 +26,7 @@ const Historique = () => {
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
-    return date.toLocaleDateString("fr-CA"); // YYYY-MM-DD
+    return date.toLocaleDateString("fr-FR"); // DD/MM/YYYY
   };
 
   // 🔍 Filter by client (instant typing)
@@ -61,10 +62,23 @@ const Historique = () => {
     window.open(`http://localhost:5000/api/pdf-exports/view/${id}`, "_blank");
   };
 
+  // ➕ Toggle group expansion
+  const toggleGroup = (groupKey) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [groupKey]: !prev[groupKey]
+    }));
+  };
+
+  // 🗃️ Generate unique key for each group
+  const getGroupKey = (group) => {
+    return `${group.client_nom}_${group.ciment_code}_${group.start_date}_${group.end_date}`;
+  };
+
   return (
     <div className="historique-container">
         <Header />
-      <h2 className="historique-title">📜 Historique des Exports</h2>
+      <h2 className="historique-title">Historique des Exports</h2>
 
       {/* 🔍 Search section */}
       <div className="search-section">
@@ -78,6 +92,7 @@ const Historique = () => {
               setStartDate("");
               setEndDate("");
               setFilteredGroups(groups);
+              setExpandedGroups({});
             }}
           >
             <option value="client">Par Client</option>
@@ -117,50 +132,88 @@ const Historique = () => {
         )}
       </div>
 
-      {/* 📋 Table */}
-      <table className="historique-table">
-        <thead>
-          <tr>
-            <th>Client</th>
-            <th>Type de Ciment</th>
-            <th>Période</th>
-            <th>Fichiers Exportés</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredGroups.length === 0 ? (
-            <tr>
-              <td colSpan="4" className="no-data">
-                Aucun export trouvé
-              </td>
-            </tr>
-          ) : (
-            filteredGroups.map((group, i) => (
-              <tr key={i}>
-                <td>{group.client_nom}</td>
-                <td>{group.ciment_code}</td>
-                <td>
-                  <span className="date">{formatDate(group.start_date)}</span> →{" "}
-                  <span className="date">{formatDate(group.end_date)}</span>
-                </td>
-                <td className="file-buttons">
-                  {group.exports.map((exp) => (
-                    <div key={exp.id} className="file-item">
-                      <span className="file-name">{exp.description}</span>
-                      <button
-                        className="download-btn"
-                        onClick={() => handleDownload(exp.id)}
-                      >
-                        ⬇️ Télécharger
-                      </button>
+      {/* 📋 Groups List */}
+      <div className="groups-container">
+        {filteredGroups.length === 0 ? (
+          <div className="no-data">
+            Aucun export trouvé
+          </div>
+        ) : (
+          filteredGroups.map((group, index) => {
+            const groupKey = getGroupKey(group);
+            const isExpanded = expandedGroups[groupKey];
+            
+            return (
+              <div key={groupKey} className="group-card">
+                {/* Group Header */}
+                <div 
+                  className="group-header"
+                  onClick={() => toggleGroup(groupKey)}
+                >
+                  <div className="group-info">
+                    <div className="client-name">{group.client_nom}</div>
+                    <div className="ciment-type">{group.ciment_code}</div>
+                    <div className="period">
+                      Période Traitées: <span className="date">{formatDate(group.start_date)}</span> → <span className="date">{formatDate(group.end_date)}</span>
                     </div>
-                  ))}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+                  </div>
+                  <div className="group-actions">
+                    <span className="file-count">
+                      {group.exports.length} fichier{group.exports.length > 1 ? 's' : ''}
+                    </span>
+                    <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>
+                      ▼
+                    </span>
+                  </div>
+                </div>
+
+                {/* Exports List (collapsible) */}
+                {isExpanded && (
+                  <div className="exports-list">
+                    <table className="exports-table">
+                      <thead>
+                        <tr>
+                          <th>Date d'Export</th>
+                          <th>Description</th>
+                          <th>Phase</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.exports.map((exp) => (
+                          <tr key={exp.id} className="export-item">
+                            <td>
+                              <span className="export-date">
+                                {formatDate(exp.export_date)}
+                              </span>
+                            </td>
+                            <td className="file-description">
+                              {exp.description}
+                            </td>
+                            <td>
+                              <span className="phase-badge">
+                                {exp.phase || 'N/A'}
+                              </span>
+                            </td>
+                            <td>
+                              <button
+                                className="download-btn"
+                                onClick={() => handleDownload(exp.id)}
+                              >
+                                ⬇ Télécharger
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 };
