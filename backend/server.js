@@ -391,34 +391,6 @@ app.post("/api/parameters/:categoryId", async (req, res) => {
   }
 });
 
-// Route pour mettre à jour les valeurs d'un paramètre
-app.put("/api/parameters/:paramId/values", async (req, res) => {
-  try {
-    const { paramId } = req.params;
-    const { values } = req.body;
-    
-    if (!values) {
-      return res.status(400).json({ error: "Les valeurs sont requises" });
-    }
-
-    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
-    const parnorm = JSON.parse(data);
-    
-    // Mettre à jour les valeurs du paramètre
-    parnorm[paramId] = values;
-    
-    // Sauvegarder le fichier
-    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
-    
-    res.json({ 
-      success: true, 
-      message: "Valeurs mises à jour avec succès"
-    });
-  } catch (err) {
-    console.error("❌ Erreur mise à jour valeurs:", err);
-    res.status(500).json({ error: "Erreur lors de la mise à jour des valeurs" });
-  }
-});
 
 // --- Routes supplémentaires pour la gestion complète --- //
 
@@ -490,6 +462,158 @@ app.put("/api/categories/:categoryId", async (req, res) => {
   } catch (err) {
     console.error("❌ Erreur modification catégorie:", err);
     res.status(500).json({ error: "Erreur lors de la modification de la catégorie" });
+  }
+});
+
+app.delete("/api/parameters/:paramId/values", async (req, res) => {
+  try {
+    const { paramId } = req.params;
+    const { famille_code, type_code, classe } = req.body;
+    
+    if (!famille_code || !type_code || !classe) {
+      return res.status(400).json({ error: "Données incomplètes" });
+    }
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    console.log("🔍 Keys in parnorm:", Object.keys(parnorm));
+
+    // Vérifier que la structure existe
+    if (!parnorm[paramId] || !parnorm[paramId][famille_code] || !parnorm[paramId][famille_code][type_code]) {
+      return res.status(404).json({ error: "Valeur non trouvée" });
+    }
+    
+    // Supprimer la classe
+    const classes = parnorm[paramId][famille_code][type_code];
+    const classeIndex = classes.findIndex(c => c.classe === classe);
+    
+    if (classeIndex === -1) {
+      return res.status(404).json({ error: "Classe non trouvée" });
+    }
+    
+    classes.splice(classeIndex, 1);
+    
+    // Nettoyer les structures vides
+    if (classes.length === 0) {
+      delete parnorm[paramId][famille_code][type_code];
+    }
+    if (Object.keys(parnorm[paramId][famille_code]).length === 0) {
+      delete parnorm[paramId][famille_code];
+    }
+    if (Object.keys(parnorm[paramId]).length === 0) {
+      delete parnorm[paramId];
+    }
+    
+    // Sauvegarder le fichier
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    
+    res.json({ 
+      success: true, 
+      message: "Valeur supprimée avec succès"
+    });
+  } catch (err) {
+    console.error("❌ Erreur suppression valeur:", err);
+    res.status(500).json({ error: "Erreur lors de la suppression de la valeur" });
+  }
+});
+// Gestion des valeurs de paramètres (ajout, modification, suppression)
+app.post("/api/parameters/:paramId/values", async (req, res) => {
+  try {
+    const { paramId } = req.params;
+    const { famille_code, type_code, classe_data } = req.body;
+    
+    if (!famille_code || !type_code || !classe_data) {
+      return res.status(400).json({ error: "Données incomplètes" });
+    }
+
+    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
+    const parnorm = JSON.parse(data);
+    
+    // Initialiser la structure si elle n'existe pas
+    if (!parnorm[paramId]) {
+      parnorm[paramId] = {};
+    }
+    
+    if (!parnorm[paramId][famille_code]) {
+      parnorm[paramId][famille_code] = {};
+    }
+    
+    if (!parnorm[paramId][famille_code][type_code]) {
+      parnorm[paramId][famille_code][type_code] = [];
+    }
+    
+    // Ajouter la nouvelle classe
+    parnorm[paramId][famille_code][type_code].push(classe_data);
+    
+    // Sauvegarder le fichier
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+    
+    res.json({ 
+      success: true, 
+      message: "Valeur ajoutée avec succès"
+    });
+  } catch (err) {
+    console.error("❌ Erreur ajout valeur:", err);
+    res.status(500).json({ error: "Erreur lors de l'ajout de la valeur" });
+  }
+});
+
+// Modifier une valeur existante
+// ✅ Corrigé : Modifier une valeur existante
+app.put("/api/parameters/:paramId/values", async (req, res) => {
+  try {
+    const { paramId } = req.params;
+    const { famille_code, type_code, old_classe, new_classe_data } = req.body;
+
+    if (!famille_code || !type_code || !old_classe || !new_classe_data) {
+      return res.status(400).json({ error: "Données incomplètes" });
+    }
+
+    // Lire le fichier
+    const data = await fs.promises.readFile(PAR_NORM_PATH, "utf8");
+    const parnorm = JSON.parse(data);
+
+    // 🧠 Trouver la clé réelle du paramètre (normalisée)
+    const normalizedParamId = paramId.trim().toLowerCase().replace(/\s+/g, "_");
+    const realParamKey = Object.keys(parnorm).find(
+      (key) => key.trim().toLowerCase().replace(/\s+/g, "_") === normalizedParamId
+    );
+
+    if (!realParamKey) {
+      console.log("❌ Paramètre introuvable:", paramId);
+      return res.status(404).json({ error: "Paramètre non trouvé" });
+    }
+
+    // Vérifier la hiérarchie famille → type
+    const familles = parnorm[realParamKey];
+    if (!familles[famille_code] || !familles[famille_code][type_code]) {
+      return res.status(404).json({ error: "Famille ou type non trouvé" });
+    }
+
+    // Trouver la classe à modifier
+    const classes = familles[famille_code][type_code];
+    const classeIndex = classes.findIndex((c) => c.classe === old_classe);
+
+    if (classeIndex === -1) {
+      return res.status(404).json({ error: "Classe non trouvée" });
+    }
+
+    // ✅ Fusionner au lieu d’écraser
+    classes[classeIndex] = {
+      ...classes[classeIndex],
+      ...new_classe_data,
+    };
+
+    // Sauvegarder
+    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
+
+    res.json({
+      success: true,
+      message: "✅ Valeur modifiée avec succès",
+    });
+  } catch (err) {
+    console.error("❌ Erreur modification valeur:", err);
+    res.status(500).json({ error: "Erreur lors de la modification de la valeur" });
   }
 });
 
@@ -574,140 +698,10 @@ app.put("/api/parameters/:categoryId/:paramId", async (req, res) => {
   }
 });
 
-// Gestion des valeurs de paramètres (ajout, modification, suppression)
-app.post("/api/parameters/:paramId/values", async (req, res) => {
-  try {
-    const { paramId } = req.params;
-    const { famille_code, type_code, classe_data } = req.body;
-    
-    if (!famille_code || !type_code || !classe_data) {
-      return res.status(400).json({ error: "Données incomplètes" });
-    }
 
-    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
-    const parnorm = JSON.parse(data);
-    
-    // Initialiser la structure si elle n'existe pas
-    if (!parnorm[paramId]) {
-      parnorm[paramId] = {};
-    }
-    
-    if (!parnorm[paramId][famille_code]) {
-      parnorm[paramId][famille_code] = {};
-    }
-    
-    if (!parnorm[paramId][famille_code][type_code]) {
-      parnorm[paramId][famille_code][type_code] = [];
-    }
-    
-    // Ajouter la nouvelle classe
-    parnorm[paramId][famille_code][type_code].push(classe_data);
-    
-    // Sauvegarder le fichier
-    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
-    
-    res.json({ 
-      success: true, 
-      message: "Valeur ajoutée avec succès"
-    });
-  } catch (err) {
-    console.error("❌ Erreur ajout valeur:", err);
-    res.status(500).json({ error: "Erreur lors de l'ajout de la valeur" });
-  }
-});
 
-// Modifier une valeur existante
-app.put("/api/parameters/:paramId/values", async (req, res) => {
-  try {
-    const { paramId } = req.params;
-    const { famille_code, type_code, old_classe, new_classe_data } = req.body;
-    
-    if (!famille_code || !type_code || !old_classe || !new_classe_data) {
-      return res.status(400).json({ error: "Données incomplètes" });
-    }
 
-    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
-    const parnorm = JSON.parse(data);
-    
-    // Vérifier que la structure existe
-    if (!parnorm[paramId] || !parnorm[paramId][famille_code] || !parnorm[paramId][famille_code][type_code]) {
-      return res.status(404).json({ error: "Valeur non trouvée" });
-    }
-    
-    // Trouver et modifier la classe
-    const classes = parnorm[paramId][famille_code][type_code];
-    const classeIndex = classes.findIndex(c => c.classe === old_classe);
-    
-    if (classeIndex === -1) {
-      return res.status(404).json({ error: "Classe non trouvée" });
-    }
-    
-    classes[classeIndex] = new_classe_data;
-    
-    // Sauvegarder le fichier
-    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
-    
-    res.json({ 
-      success: true, 
-      message: "Valeur modifiée avec succès"
-    });
-  } catch (err) {
-    console.error("❌ Erreur modification valeur:", err);
-    res.status(500).json({ error: "Erreur lors de la modification de la valeur" });
-  }
-});
 
-// Supprimer une valeur
-app.delete("/api/parameters/:paramId/values", async (req, res) => {
-  try {
-    const { paramId } = req.params;
-    const { famille_code, type_code, classe } = req.body;
-    
-    if (!famille_code || !type_code || !classe) {
-      return res.status(400).json({ error: "Données incomplètes" });
-    }
-
-    const data = await fs.promises.readFile(PAR_NORM_PATH, 'utf8');
-    const parnorm = JSON.parse(data);
-    
-    // Vérifier que la structure existe
-    if (!parnorm[paramId] || !parnorm[paramId][famille_code] || !parnorm[paramId][famille_code][type_code]) {
-      return res.status(404).json({ error: "Valeur non trouvée" });
-    }
-    
-    // Supprimer la classe
-    const classes = parnorm[paramId][famille_code][type_code];
-    const classeIndex = classes.findIndex(c => c.classe === classe);
-    
-    if (classeIndex === -1) {
-      return res.status(404).json({ error: "Classe non trouvée" });
-    }
-    
-    classes.splice(classeIndex, 1);
-    
-    // Nettoyer les structures vides
-    if (classes.length === 0) {
-      delete parnorm[paramId][famille_code][type_code];
-    }
-    if (Object.keys(parnorm[paramId][famille_code]).length === 0) {
-      delete parnorm[paramId][famille_code];
-    }
-    if (Object.keys(parnorm[paramId]).length === 0) {
-      delete parnorm[paramId];
-    }
-    
-    // Sauvegarder le fichier
-    await fs.promises.writeFile(PAR_NORM_PATH, JSON.stringify(parnorm, null, 2));
-    
-    res.json({ 
-      success: true, 
-      message: "Valeur supprimée avec succès"
-    });
-  } catch (err) {
-    console.error("❌ Erreur suppression valeur:", err);
-    res.status(500).json({ error: "Erreur lors de la suppression de la valeur" });
-  }
-});
 // --- CRUD for Ajouts ---
 
 // GET tous les ajouts

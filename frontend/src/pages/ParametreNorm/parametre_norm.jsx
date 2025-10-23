@@ -477,10 +477,34 @@ const extractExistingTypesAndFamilles = (parnormData) => {
   };
 
   // Modifier une valeur existante
-  const handleEditValue = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await fetch(`http://localhost:5000/api/parameters/${selectedParameter}/values`, {
+  // Modifier une valeur existante
+const handleEditValue = async (e) => {
+  e.preventDefault();
+  try {
+    if (!editingValue) {
+      console.error("handleEditValue appelé sans donnée");
+      setError("Aucune valeur à modifier");
+      return;
+    }
+
+    const normalizedParamId = selectedParameter.trim().toLowerCase().replace(/\s+/g, "_");
+
+    console.log("🧠 Editing value:", {
+      normalizedParamId,
+      famille_code: editingValue.famille_code,
+      type_code: editingValue.type_code,
+      old_classe: editingValue.old_classe,
+      new_data: {
+        classe: editingValue.classe,
+        limit_inf: editingValue.limit_inf,
+        limit_max: editingValue.limit_max,
+        garantie: editingValue.garantie,
+      },
+    });
+
+    const response = await fetch(
+      `http://localhost:5000/api/parameters/${normalizedParamId}/values`,
+      {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -493,63 +517,90 @@ const extractExistingTypesAndFamilles = (parnormData) => {
             classe: editingValue.classe,
             limit_inf: editingValue.limit_inf || null,
             limit_max: editingValue.limit_max || null,
-            garantie: editingValue.garantie || null
-          }
+            garantie: editingValue.garantie || null,
+          },
         }),
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        // Recharger les données
-        const parnormResponse = await fetch("http://localhost:5000/api/parnorm");
-        const parnormData = await parnormResponse.json();
-        setParNormData(parnormData);
-        
-        setEditingValue(null);
-      } else {
-        setError(result.error);
       }
-    } catch (error) {
-      console.error("Erreur modification valeur:", error);
-      setError("Erreur lors de la modification de la valeur");
+    );
+
+    const result = await response.json();
+
+    if (result.success) {
+      console.log("✅ Valeur modifiée avec succès !");
+      // Recharger les données
+      const parnormResponse = await fetch("http://localhost:5000/api/parnorm");
+      const parnormData = await parnormResponse.json();
+      setParNormData(parnormData);
+      setEditingValue(null);
+    } else {
+      console.error("❌ Erreur modification:", result.error);
+      setError(result.error || "Erreur lors de la modification de la valeur");
     }
-  };
+  } catch (error) {
+    console.error("Erreur modification valeur:", error);
+    setError("Erreur lors de la modification de la valeur");
+  }
+};
+
 
   // Supprimer une valeur
-  const handleDeleteValue = async (detail) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette valeur ?")) {
-      return;
-    }
+ const handleDeleteValue = async (detail) => {
+  // 1️⃣ Confirm the action
+  if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette valeur ?")) {
+    return;
+  }
 
-    try {
-      const response = await fetch(`http://localhost:5000/api/parameters/${selectedParameter}/values`, {
+  // 2️⃣ Guard check: ensure we have a valid detail object
+  if (!detail) {
+    console.error("handleDeleteValue called without detail");
+    setError("Donnée invalide pour suppression");
+    return;
+  }
+
+  try {
+    // 3️⃣ Normalize parameter name to match backend key
+    const normalizedParamId = selectedParameter?.trim(); // keep underscores exactly as is
+
+    console.log("🧠 Deleting value:", {
+      normalizedParamId,
+      famille_code: detail.famille_code,
+      type_code: detail.type_code,
+      classe: detail.classe,
+    });
+
+    // 4️⃣ Send DELETE request
+    const response = await fetch(
+      `http://localhost:5000/api/parameters/${normalizedParamId}/values`,
+      {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           famille_code: detail.famille_code,
           type_code: detail.type_code,
-          classe: detail.classe
+          classe: detail.classe,
         }),
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        // Recharger les données
-        const parnormResponse = await fetch("http://localhost:5000/api/parnorm");
-        const parnormData = await parnormResponse.json();
-        setParNormData(parnormData);
-      } else {
-        setError(result.error);
       }
-    } catch (error) {
-      console.error("Erreur suppression valeur:", error);
-      setError("Erreur lors de la suppression de la valeur");
+    );
+
+    // 5️⃣ Parse response
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      console.log("✅ Valeur supprimée avec succès");
+      // Reload data after delete
+      const parnormResponse = await fetch("http://localhost:5000/api/parnorm");
+      const parnormData = await parnormResponse.json();
+      setParNormData(parnormData);
+    } else {
+      console.warn("❌ Erreur suppression:", result.error);
+      setError(result.error || "Erreur inconnue lors de la suppression");
     }
-  };
+  } catch (error) {
+    console.error("❌ Erreur suppression valeur:", error);
+    setError("Erreur lors de la suppression de la valeur");
+  }
+};
+
 
   // Fonction de recherche améliorée
   const getFilteredParameterDetails = () => {
@@ -1103,79 +1154,99 @@ const extractExistingTypesAndFamilles = (parnormData) => {
         )}
 
         {/* Formulaire de modification de valeur */}
-        {editingValue && (
-          <div className="modal-overlay">
-            <div className="modal">
-              <h3>Modifier la valeur</h3>
-              <form onSubmit={handleEditValue}>
-                <div className="form-group">
-                  <label>Famille:</label>
-                  <input
-                    type="text"
-                    value={editingValue.famille_code}
-                    onChange={(e) => setEditingValue({...editingValue, famille_code: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Type:</label>
-                  <input
-                    type="text"
-                    value={editingValue.type_code}
-                    onChange={(e) => setEditingValue({...editingValue, type_code: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Classe:</label>
-                  <input
-                    type="text"
-                    value={editingValue.classe}
-                    onChange={(e) => setEditingValue({...editingValue, classe: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Limit Inf:</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={editingValue.limit_inf}
-                    onChange={(e) => setEditingValue({...editingValue, limit_inf: e.target.value})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Limit Max:</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={editingValue.limit_max}
-                    onChange={(e) => setEditingValue({...editingValue, limit_max: e.target.value})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Garantie:</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={editingValue.garantie}
-                    onChange={(e) => setEditingValue({...editingValue, garantie: e.target.value})}
-                  />
-                </div>
-                <div className="form-actions">
-                  <button type="submit" className="btn-primary">Modifier</button>
-                  <button 
-                    type="button" 
-                    className="btn-cancel"
-                    onClick={() => setEditingValue(null)}
-                  >
-                    Annuler
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+       {/* Formulaire de modification de valeur */}
+{editingValue && (
+  <div className="modal-overlay">
+    <div className="modal">
+      <h3>Modifier la valeur</h3>
+      <form onSubmit={handleEditValue}>
+        <div className="form-group">
+          <label>Famille:</label>
+          <input
+            type="text"
+            value={editingValue?.famille_code ?? ""}
+            onChange={(e) =>
+              setEditingValue({ ...editingValue, famille_code: e.target.value })
+            }
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Type:</label>
+          <input
+            type="text"
+            value={editingValue?.type_code ?? ""}
+            onChange={(e) =>
+              setEditingValue({ ...editingValue, type_code: e.target.value })
+            }
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Classe:</label>
+          <input
+            type="text"
+            value={editingValue?.classe ?? ""}
+            onChange={(e) =>
+              setEditingValue({ ...editingValue, classe: e.target.value })
+            }
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Limit Inf:</label>
+          <input
+            type="number"
+            step="0.1"
+            value={editingValue?.limit_inf ?? ""}
+            onChange={(e) =>
+              setEditingValue({ ...editingValue, limit_inf: e.target.value })
+            }
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Limit Max:</label>
+          <input
+            type="number"
+            step="0.1"
+            value={editingValue?.limit_max ?? ""}
+            onChange={(e) =>
+              setEditingValue({ ...editingValue, limit_max: e.target.value })
+            }
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Garantie:</label>
+          <input
+            type="number"
+            step="0.1"
+            value={editingValue?.garantie ?? ""}
+            onChange={(e) =>
+              setEditingValue({ ...editingValue, garantie: e.target.value })
+            }
+          />
+        </div>
+
+        <div className="form-actions">
+          <button type="submit" className="btn-primary">Modifier</button>
+          <button
+            type="button"
+            className="btn-cancel"
+            onClick={() => setEditingValue(null)}
+          >
+            Annuler
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
 
         {/* Formulaire d'ajout d'ajout */}
         {showAddAjout && (
@@ -1562,7 +1633,7 @@ const extractExistingTypesAndFamilles = (parnormData) => {
                                   <td>
                                     <div className="dropdown-menu-container">
                                       <button 
-                                        className="three-dots-btn"
+                                        className="three-dots-btn1"
                                         onClick={() => setAjoutRowMenuOpen(ajoutRowMenuOpen === i ? null : i)}
                                       >
                                         ⋮
@@ -1570,7 +1641,7 @@ const extractExistingTypesAndFamilles = (parnormData) => {
                                       {ajoutRowMenuOpen === i && (
                                         <div className="dropdown-menu">
                                        {can("parnorm_update") && (   <button 
-                                            className="dropdown-item"
+                                            className="dropdown-item1"
                                             onClick={() => {
                                               setEditingCementRow({
                                                 ...row,
@@ -1583,7 +1654,7 @@ const extractExistingTypesAndFamilles = (parnormData) => {
                                           </button>
                                           )}
                                        {can("parnorm_delete") && (   <button 
-                                            className="dropdown-item delete"
+                                            className="dropdown-item delete1"
                                             onClick={() => {
                                               handleDeleteCementRow(row.cement);
                                               setAjoutRowMenuOpen(null);
@@ -1613,18 +1684,24 @@ const extractExistingTypesAndFamilles = (parnormData) => {
                                 <option value="">-- Choisir Ciment --</option>
                                 {cementOptions.map(c => <option key={c} value={c}>{c}</option>)}
                               </select>
-                              <input 
-                                type="number" 
-                                placeholder="Limit Inf"
-                                value={newCementRow.limitInf}
-                                onChange={(e) => setNewCementRow({ ...newCementRow, limitInf: e.target.value })}
-                              />
-                              <input 
-                                type="number" 
-                                placeholder="Limit Sup"
-                                value={newCementRow.limitSup}
-                                onChange={(e) => setNewCementRow({ ...newCementRow, limitSup: e.target.value })}
-                              />
+                             <input 
+  type="number" 
+  placeholder="Limit Inf"
+  value={newCementRow.limitInf ?? ""}   // 👈 fixes warning
+  onChange={(e) => 
+    setNewCementRow({ ...newCementRow, limitInf: e.target.value || null })
+  }
+/>
+
+<input 
+  type="number" 
+  placeholder="Limit Sup"
+  value={newCementRow.limitSup ?? ""}   // 👈 fixes warning
+  onChange={(e) => 
+    setNewCementRow({ ...newCementRow, limitSup: e.target.value || null })
+  }
+/>
+
                                {can("parnorm_create") && (
                               <button onClick={handleAddCementRow} className="btn-primary">
                                 Ajouter

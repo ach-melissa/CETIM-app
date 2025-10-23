@@ -527,9 +527,10 @@ const handleExportWord = async () => {
     <div className="stats-section">
       {/* Add export button */}
       <div style={{ marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
-          <h2>Données Statistiques</h2>
+        <div className="echantillons-info">
+           <h2>Données Statistiques</h2>
+            <p><strong>{clients.find(c => c.id == clientId)?.nom_raison_sociale || "Aucun client"}</strong></p>
+        
           {produitInfo && (
             <>
               <p><strong> {produitInfo.nom} ( {produitInfo.description} )</strong></p>
@@ -538,6 +539,7 @@ const handleExportWord = async () => {
           )}
           <p>Période: {filterPeriod.start} à {filterPeriod.end}</p>
         </div>
+      </div>
 <button 
   className="export-btn" 
   onClick={handleExportWord} 
@@ -554,8 +556,6 @@ const handleExportWord = async () => {
 >
   Exporter Word
 </button>
-      </div>
-
       {/* Global stats */}
       <table className="stats-table">
         <thead>

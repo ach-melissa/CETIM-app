@@ -208,6 +208,17 @@ const exportToWord = async () => {
       if (!response.ok) throw new Error(result.error || "Erreur sauvegarde fichier");
 
       alert("✅ Export Word enregistré dans l'historique !");
+      // ✅ Also trigger a local download
+const downloadBlob = new Blob([htmlContent], { type: "application/msword" });
+const downloadUrl = URL.createObjectURL(downloadBlob);
+const a = document.createElement("a");
+a.href = downloadUrl;
+a.download = fileName;
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+URL.revokeObjectURL(downloadUrl);
+
     };
   } catch (error) {
     console.error("Erreur export Word:", error);

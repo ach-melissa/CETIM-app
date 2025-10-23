@@ -880,7 +880,91 @@ console.log("✅ Word export completed and saved in DB!");
 <button className="export-word-btn" onClick={handleExportWord}>
   Exporter en Word
 </button>
+   <aside className="dg-side-panel">
+          <div className="dg-stats-card">
+            <h3>Statistiques</h3>
+            
+            {/* Section Classe dans la carte de statistiques */}
+            <div className="dg-classes-section">
+              <h3>Classe</h3>
+              <div className="dg-class-list">
+                {classes.map((c) => (
+                  <label
+                    key={c}
+                    className={`dg-class ${selectedClass === c ? "active" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="dg-class"
+                      value={c}
+                      checked={selectedClass === c}
+                      onChange={() => setSelectedClass(c)}
+                    />
+                    <span className="dg-class-text">{c}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
 
+            <div className="dg-divider" />
+            
+            {/* Statistiques des limites */}
+            <div className="dg-stat-row">
+              <div className="limit-name li">Limit inferieur</div>
+              <div>
+                <span>N ≤ {currentLimits.li ?? "-"} : </span>
+                <strong>{derivedStats.belowLI} {derivedStats.percentLI !== "-" ? `(${derivedStats.percentLI}%)` : "(-%)"}</strong>
+              </div>
+            </div>
+
+            <div className="dg-stat-row">
+              <div className="limit-name ls">Limit superieur</div>
+              <div>
+                <span>N ≥ {currentLimits.ls ?? "-"} : </span>
+                <strong>{derivedStats.aboveLS} {derivedStats.percentLS !== "-" ? `(${derivedStats.percentLS}%)` : "(-%)"}</strong>
+              </div>
+            </div>
+
+            <div className="dg-stat-row">
+              <div className="limit-name lg">Limit garantie</div>
+              <div>
+                <span>N ≤ {currentLimits.lg ?? "-"} : </span>
+                <strong>{derivedStats.belowLG} {derivedStats.percentLG !== "-" ? `(${derivedStats.percentLG}%)` : "(-%)"}</strong>
+              </div>
+            </div>
+            
+            {/* Moyenne */}
+            <div className="dg-stat-row">
+              <span>Moyenne</span>
+              <strong>{derivedStats.mean !== "-" ? derivedStats.mean : "-"}</strong>
+            </div>
+            
+            {/* Sélecteur de type de graphique */}
+            <div className="dg-chart-type-selector">
+              <h3>Type de graphique</h3>
+              <label>
+                <input
+                  type="radio"
+                  name="chartType"
+                  value="scatter"
+                  checked={chartType === "scatter"}
+                  onChange={(e) => setChartType(e.target.value)}
+                />
+                Scatter
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="chartType"
+                  value="gaussian"
+                  checked={chartType === "gaussian"}
+                  onChange={(e) => setChartType(e.target.value)}
+                />
+                Gausse
+              </label>
+            </div> 
+          </div>
+        </aside>
 <div className="dg-chart-card" id="chart-container">
   <h3>
     {selectedParameter && selectedClass
@@ -985,91 +1069,6 @@ console.log("✅ Word export completed and saved in DB!");
             </ResponsiveContainer>
         </div>
 
-        <aside className="dg-side-panel">
-          <div className="dg-stats-card">
-            <h3>Statistiques</h3>
-            
-            {/* Section Classe dans la carte de statistiques */}
-            <div className="dg-classes-section">
-              <h3>Classe</h3>
-              <div className="dg-class-list">
-                {classes.map((c) => (
-                  <label
-                    key={c}
-                    className={`dg-class ${selectedClass === c ? "active" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="dg-class"
-                      value={c}
-                      checked={selectedClass === c}
-                      onChange={() => setSelectedClass(c)}
-                    />
-                    <span className="dg-class-text">{c}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="dg-divider" />
-            
-            {/* Statistiques des limites */}
-            <div className="dg-stat-row">
-              <div className="limit-name li">Limit inferieur</div>
-              <div>
-                <span>N ≤ {currentLimits.li ?? "-"} : </span>
-                <strong>{derivedStats.belowLI} {derivedStats.percentLI !== "-" ? `(${derivedStats.percentLI}%)` : "(-%)"}</strong>
-              </div>
-            </div>
-
-            <div className="dg-stat-row">
-              <div className="limit-name ls">Limit superieur</div>
-              <div>
-                <span>N ≥ {currentLimits.ls ?? "-"} : </span>
-                <strong>{derivedStats.aboveLS} {derivedStats.percentLS !== "-" ? `(${derivedStats.percentLS}%)` : "(-%)"}</strong>
-              </div>
-            </div>
-
-            <div className="dg-stat-row">
-              <div className="limit-name lg">Limit garantie</div>
-              <div>
-                <span>N ≤ {currentLimits.lg ?? "-"} : </span>
-                <strong>{derivedStats.belowLG} {derivedStats.percentLG !== "-" ? `(${derivedStats.percentLG}%)` : "(-%)"}</strong>
-              </div>
-            </div>
-            
-            {/* Moyenne */}
-            <div className="dg-stat-row">
-              <span>Moyenne</span>
-              <strong>{derivedStats.mean !== "-" ? derivedStats.mean : "-"}</strong>
-            </div>
-            
-            {/* Sélecteur de type de graphique */}
-            <div className="dg-chart-type-selector">
-              <h3>Type de graphique</h3>
-              <label>
-                <input
-                  type="radio"
-                  name="chartType"
-                  value="scatter"
-                  checked={chartType === "scatter"}
-                  onChange={(e) => setChartType(e.target.value)}
-                />
-                Scatter
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="chartType"
-                  value="gaussian"
-                  checked={chartType === "gaussian"}
-                  onChange={(e) => setChartType(e.target.value)}
-                />
-                Gausse
-              </label>
-            </div> 
-          </div>
-        </aside>
 
 
       </div>

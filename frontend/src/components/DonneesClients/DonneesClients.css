@@ -10,7 +10,7 @@
 }
 
 .donnees-clients-container h2 {
-  color: #1e293b;
+  color: #0f0f0f;
   font-size: 1.8rem;
   font-weight: 600;
   margin-bottom: 1.5rem;
@@ -53,7 +53,7 @@
 
 .modal-header h3 {
   margin: 0;
-  color: #1e293b;
+  color: #101010;
   font-size: 1.2rem;
   font-weight: 600;
 }
